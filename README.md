@@ -15,10 +15,12 @@ Analyzes PGN files and detects when opponents deviate from a predefined opening 
 - JDBC
 
 ## How to Run
-1. Set DB credentials (environment variable recommended)
 2. Run BuildTreeMain
-3. Run TestSinglePGN
+3. Upload Games to PGN folders
+4. Run TestPGN
+5. SELECT * FROM deviation_stats;
 
 ## Example Output
-Opponent deviated at move: 2
-Win rate after deviation: 63%
+Move | Opponent Deviated | Games | Win Rate
+2    | true              | 5     | 60%
+3    | false             | 3     | 33%
