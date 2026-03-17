@@ -1,5 +1,4 @@
 # chess-opening-analyzer
-# Chess Opening Deviation Analyzer
 
 ## Overview
 Analyzes PGN files and detects when opponents deviate from a predefined opening repertoire.
