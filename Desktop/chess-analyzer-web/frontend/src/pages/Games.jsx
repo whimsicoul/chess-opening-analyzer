@@ -7,7 +7,10 @@ export default function Games() {
 
   useEffect(() => {
     api.get('/games/')
-      .then(res => setGames(res.data))
+      .then(res => {
+        console.log('GET /games response:', res.data);
+        setGames(res.data);
+      })
       .catch(() => setError('Failed to load games.'));
   }, []);
 
