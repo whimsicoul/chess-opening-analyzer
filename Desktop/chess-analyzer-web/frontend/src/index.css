@@ -1,0 +1,155 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  background: #0f0f1a;
+  color: #d4d4e8;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Layout ── */
+.page {
+  max-width: 960px;
+  margin: 2rem auto;
+  padding: 0 1.25rem;
+  width: 100%;
+}
+
+.page h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #f0f0ff;
+  margin: 0 0 1.5rem;
+}
+
+/* ── Cards ── */
+.card {
+  background: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.card h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #a0a0c0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 1rem;
+}
+
+/* ── Forms ── */
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+input[type="text"],
+input[type="file"],
+input:not([type]) {
+  background: #0f0f1a;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  color: #d4d4e8;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.9rem;
+  flex: 1 1 160px;
+}
+
+input:focus {
+  outline: none;
+  border-color: #6060cc;
+}
+
+button {
+  background: #4040aa;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+button:hover:not(:disabled) { background: #5555cc; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-delete {
+  background: #6b1a1a;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+}
+.btn-delete:hover:not(:disabled) { background: #8b2020; }
+
+/* ── Tables ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+th {
+  color: #a0a0c0;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+tr:last-child td { border-bottom: none; }
+
+/* ── Misc ── */
+code {
+  background: #1f1f3a;
+  border-radius: 4px;
+  padding: 0.15em 0.45em;
+  font-size: 0.88em;
+  font-family: ui-monospace, Consolas, monospace;
+  color: #c0c0ff;
+}
+
+.muted { color: #606080; }
+
+.error {
+  color: #f87171;
+  background: #2a1a1a;
+  border: 1px solid #6b2020;
+  border-radius: 6px;
+  padding: 0.6rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.badge {
+  display: inline-block;
+  background: #2a2a5a;
+  border-radius: 4px;
+  padding: 0.1em 0.5em;
+  font-size: 0.85em;
+  color: #c0c0ff;
+  text-transform: capitalize;
+}
+
+.result p { margin: 0.4rem 0; }

@@ -145,9 +145,9 @@ def get_games():
                     g.eco_code,
                     g.opening_name,
                     g.game_date,
-                    gd.deviation_move_number,
-                    gd.deviated_by,
-                    gd.game_move
+                    gd.move_number,
+                    gd.move_uci,
+                    gd.opponent_deviation
                 FROM games g
                 LEFT JOIN game_deviations gd ON gd.game_id = g.id
                 ORDER BY g.id DESC
@@ -174,10 +174,11 @@ def get_game(game_id: int):
                     g.game_date,
                     g.pgn,
                     gd.id            AS deviation_id,
-                    gd.deviation_move_number,
-                    gd.deviated_by,
-                    gd.game_move,
-                    gd.expected_moves
+                    gd.move_number,
+                    gd.move_uci,
+                    gd.opponent_deviation,
+                    gd.deviation_depth,
+                    gd.completion_percentage
                 FROM games g
                 LEFT JOIN game_deviations gd ON gd.game_id = g.id
                 WHERE g.id = %s
