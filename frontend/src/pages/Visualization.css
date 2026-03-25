@@ -1,0 +1,186 @@
+/* ── White / Black toggle ── */
+.viz-color-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.toggle-btn {
+  padding: 0.35rem 1.1rem;
+  border-radius: 6px;
+  border: 1px solid #2a3060;
+  background: #12162a;
+  color: #8a93c8;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: inherit;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.toggle-btn:hover {
+  background: #1a2040;
+  color: #c8cce0;
+}
+
+.toggle-btn.active {
+  background: #1e2550;
+  color: #fff;
+  border-color: #4a5590;
+}
+
+/* ── Two-column layout ── */
+.viz-layout {
+  display: grid;
+  grid-template-columns: 500px 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .viz-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.viz-chart-col,
+.viz-info-col {
+  min-width: 0;
+}
+
+/* ── Depth legend ── */
+.viz-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  padding-left: 0.25rem;
+}
+
+.viz-legend-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  opacity: 0.55;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.1rem;
+}
+
+.viz-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.viz-legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+/* ── Active node info card ── */
+.viz-node-card {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.viz-node-move {
+  font-family: 'Fira Code', ui-monospace, Consolas, monospace;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-head);
+  letter-spacing: -0.01em;
+  margin-bottom: 0.3rem;
+}
+
+.viz-node-opening {
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.45;
+  margin-bottom: 0.3rem;
+}
+
+.viz-idle {
+  margin-bottom: 1.25rem;
+  padding: 0.5rem 0;
+}
+
+/* ── Move sequence ── */
+.viz-seq-wrap {
+  margin-bottom: 0.25rem;
+}
+
+.move-seq {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.45rem;
+  font-family: 'Fira Code', ui-monospace, Consolas, monospace;
+  font-size: 0.875rem;
+  margin-top: 0.4rem;
+}
+
+.move-pair {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.move-num {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+}
+
+.move-san {
+  color: var(--text-head);
+  background: rgba(79, 110, 247, 0.1);
+  border: 1px solid rgba(79, 110, 247, 0.18);
+  border-radius: 3px;
+  padding: 0.08em 0.42em;
+}
+
+/* ── Board placeholder ── */
+.viz-board-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.viz-board-empty-icon {
+  font-size: 2.8rem;
+  opacity: 0.12;
+  margin-bottom: 0.6rem;
+}
+
+/* ── Loading ── */
+.viz-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 0;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.viz-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: viz-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes viz-spin {
+  to { transform: rotate(360deg); }
+}

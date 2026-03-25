@@ -1,0 +1,131 @@
+/* ── Drop zone ── */
+.dropzone {
+  border: 2px dashed #1e2338;
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 1rem;
+  background: #111420;
+  user-select: none;
+}
+
+.dropzone:hover,
+.dropzone-active {
+  border-color: #4f6ef7;
+  background: rgba(79, 110, 247, 0.05);
+}
+
+.dropzone-ready {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.dropzone-ready:hover {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.dropzone-icon {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+  line-height: 1;
+  color: #5c6180;
+  transition: color 0.2s;
+}
+
+.dropzone-ready .dropzone-icon { color: #22c55e; }
+.dropzone-active .dropzone-icon { color: #4f6ef7; }
+
+.dropzone-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #c8cce0;
+  margin-bottom: 0.3rem;
+}
+
+.dropzone-filename {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #22c55e;
+  margin-bottom: 0.3rem;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.dropzone-hint {
+  font-size: 0.8rem;
+  color: #5c6180;
+}
+
+.upload-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 0.75rem;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Result card ── */
+.result-card {
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid;
+}
+
+.result-green {
+  background: rgba(34, 197, 94, 0.07);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.result-amber {
+  background: rgba(245, 158, 11, 0.07);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.result-red {
+  background: rgba(239, 68, 68, 0.07);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.result-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.result-game-id {
+  font-size: 0.78rem;
+}
+
+.result-clean-msg {
+  color: #22c55e;
+  font-size: 0.9rem;
+}
+
+.result-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.result-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.result-field-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #5c6180;
+}
+
+.result-field-value {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #eceffe;
+}

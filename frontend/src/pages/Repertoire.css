@@ -1,0 +1,309 @@
+/* ── Board + engine side-by-side ── */
+.rep-board-engine-row {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+/* ── Input board ── */
+.rep-input-board {
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Engine panel ── */
+.engine-panel {
+  flex: 1;
+  min-width: 180px;
+  background: #0d0f1a;
+  border: 1px solid #1e2338;
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.engine-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.engine-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5c6180;
+}
+
+.engine-loading {
+  color: #5c6180;
+  font-size: 1rem;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+.eval-score {
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.eval-pos { color: #c8cce0; }
+.eval-neg { color: #ef4444; }
+
+.engine-moves {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.engine-move-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  background: #12162a;
+  border: 1px solid #1e2338;
+}
+
+.engine-move-san {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #eceffe;
+  min-width: 2.5rem;
+}
+
+.engine-move-eval {
+  font-size: 0.8rem;
+  flex: 1;
+}
+
+.btn-play {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+  white-space: nowrap;
+}
+
+.engine-empty {
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+/* ── Back / Forward nav bar ── */
+.rep-nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  margin-bottom: 0.5rem;
+}
+
+.rep-step-counter {
+  font-size: 0.82rem;
+  min-width: 5rem;
+  text-align: center;
+}
+
+.btn-step {
+  font-size: 0.82rem;
+  padding: 0.25rem 0.7rem;
+}
+
+.btn-step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.rep-move-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  background: #0d0f1a;
+  border: 1px solid #1e2338;
+  border-radius: 8px;
+  margin-bottom: 1.25rem;
+  min-height: 2.6rem;
+  flex-wrap: wrap;
+}
+
+.rep-move-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.9rem;
+  color: #c8cce0;
+  min-width: 0;
+}
+
+.rep-move-input::placeholder {
+  color: #5c6180;
+  font-family: inherit;
+}
+
+.rep-meta-grid {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.add-form .form-grid {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.field-submit {
+  justify-content: flex-end;
+}
+
+.field-submit .btn {
+  width: 100%;
+  justify-content: center;
+  padding: 0.57rem 1rem;
+}
+
+/* ── Cards grid ── */
+.lines-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.line-card {
+  background: #111420;
+  border: 1px solid #1e2338;
+  border-radius: 10px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+
+.line-card:hover {
+  border-color: #2e3560;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  transform: translateY(-2px);
+}
+
+.line-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 26px;
+}
+
+.line-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.line-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #eceffe;
+  line-height: 1.3;
+}
+
+.line-move {
+  margin-top: 0.15rem;
+}
+
+.line-move code {
+  font-size: 1rem;
+  padding: 0.2em 0.6em;
+}
+
+.line-meta {
+  font-size: 0.72rem;
+  margin-top: 0.25rem;
+}
+
+/* ── Expanded line card with board ── */
+.line-card-expanded {
+  border-color: #2e3560;
+  grid-column: 1 / -1;   /* span all columns so the board has enough room */
+}
+
+.rep-board-panel {
+  border-top: 1px solid #1e2338;
+  padding: 1rem 0.5rem 1.25rem;
+  margin-top: 0.5rem;
+}
+
+/* ── Card badges row ── */
+.line-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* ── Repertoire sections ── */
+.rep-section {
+  margin-top: 2.25rem;
+}
+
+.rep-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid #1e2338;
+}
+
+.rep-section-count {
+  font-size: 0.8rem;
+}
+
+/* ── Color badges ── */
+.badge-color-white {
+  background: #d8dce8;
+  color: #111420;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.18em 0.55em;
+  border-radius: 999px;
+}
+
+.badge-color-black {
+  background: #1e2338;
+  color: #c8cce0;
+  border: 1px solid #2e3560;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.18em 0.55em;
+  border-radius: 999px;
+}
+
+/* ── Empty state ── */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+}
+
+.empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+  opacity: 0.3;
+}
+
+.empty-state p {
+  color: #5c6180;
+  font-size: 0.9rem;
+}

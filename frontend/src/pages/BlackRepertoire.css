@@ -1,0 +1,37 @@
+/* ── Black Repertoire — page-level overrides ── */
+
+.black-rep-page .page-header h1 {
+  color: #c8cce0;
+}
+
+.black-rep-header p {
+  color: #5c6180;
+}
+
+/* Accent the submit button with the black badge palette */
+.black-rep-btn {
+  background: #1e2338;
+  color: #c8cce0;
+  border: 1px solid #2e3560;
+}
+
+.black-rep-btn:hover:not(:disabled) {
+  background: #2e3560;
+  border-color: #4a527a;
+  color: #eceffe;
+}
+
+.black-rep-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Subtle darker border on line cards for black page */
+.black-line-card {
+  border-color: #252840;
+}
+
+.black-line-card:hover {
+  border-color: #3a4070;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
