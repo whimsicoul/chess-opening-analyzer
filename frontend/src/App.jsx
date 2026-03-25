@@ -6,7 +6,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
-import Repertoire from './pages/Repertoire';
+import WhiteRepertoire from './pages/WhiteRepertoire';
 import BlackRepertoire from './pages/BlackRepertoire';
 import Games from './pages/Games';
 import Stats from './pages/Stats';
@@ -25,9 +25,9 @@ export default function App() {
           <Route path="/verify-email" element={<VerifyEmail />} />
 
           {/* Protected */}
-          <Route path="/repertoire/white" element={<ProtectedRoute><Repertoire color="white" /></ProtectedRoute>} />
-          <Route path="/repertoire/black" element={<ProtectedRoute><BlackRepertoire /></ProtectedRoute>} />
-          <Route path="/repertoire"       element={<Navigate to="/repertoire/white" replace />} />
+          <Route path="/white-repertoire" element={<ProtectedRoute><WhiteRepertoire /></ProtectedRoute>} />
+          <Route path="/black-repertoire" element={<ProtectedRoute><BlackRepertoire /></ProtectedRoute>} />
+          <Route path="/repertoire"       element={<Navigate to="/white-repertoire" replace />} />
           <Route path="/games"         element={<ProtectedRoute><Games /></ProtectedRoute>} />
           <Route path="/stats"         element={<ProtectedRoute><Stats /></ProtectedRoute>} />
           <Route path="/visualization" element={<ProtectedRoute><Visualization /></ProtectedRoute>} />
