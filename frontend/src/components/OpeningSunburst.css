@@ -1,0 +1,134 @@
+.sunburst-wrap {
+  position: relative;
+  width: 100%;
+  user-select: none;
+}
+
+/* ── Breadcrumb ── */
+.sunburst-crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.1rem;
+  min-height: 30px;
+  margin-bottom: 0.6rem;
+  font-size: 0.82rem;
+}
+
+.crumb {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.82rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 4px;
+  transition: color 0.12s, background 0.12s;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.crumb:hover {
+  color: var(--text-head);
+  background: var(--bg-3);
+}
+
+.crumb-home {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.crumb-home:hover {
+  color: var(--accent-hover);
+}
+
+.crumb-seg {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.crumb-arr {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  opacity: 0.45;
+  padding: 0 0.1rem;
+}
+
+/* ── Chart ── */
+.sunburst-svg {
+  width: 100%;
+  max-width: 500px;
+  display: block;
+}
+
+/* ── Tooltip ── */
+.sunburst-tip {
+  position: absolute;
+  background: #181c2e;
+  border: 1px solid #2a3260;
+  border-radius: 8px;
+  padding: 0.65rem 0.9rem;
+  pointer-events: none;
+  z-index: 50;
+  min-width: 120px;
+  max-width: 210px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+}
+
+.st-move {
+  font-family: 'Fira Code', ui-monospace, Consolas, monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-head);
+  margin-bottom: 0.2rem;
+}
+
+.st-name {
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 0.3rem;
+}
+
+.st-hint {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 0.35rem;
+  opacity: 0.65;
+}
+
+.st-wr {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: #c8cce0;
+  line-height: 1.4;
+}
+
+.st-record {
+  font-size: 0.74rem;
+  color: #8a93c8;
+}
+
+/* ── Color legend ── */
+.sunburst-legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-dim);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}

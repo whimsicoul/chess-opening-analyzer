@@ -1,0 +1,117 @@
+.navbar {
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  height: 58px;
+  background: rgba(11, 13, 20, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid #1e2338;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-right: auto;
+  text-decoration: none;
+  color: inherit;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #c9a84c 0%, #8a6e2a 100%);
+  border-radius: 8px;
+  font-size: 1rem;
+  line-height: 1;
+  box-shadow: 0 0 12px rgba(201, 168, 76, 0.3);
+}
+
+.navbar-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #eceffe;
+  letter-spacing: -0.01em;
+}
+
+.navbar-name span {
+  color: #c9a84c;
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.navbar-links a {
+  color: #5c6180;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.navbar-links a:hover {
+  color: #c8cce0;
+  background: #181c2e;
+}
+
+.navbar-links a.active {
+  color: #eceffe;
+  background: #1e2338;
+}
+
+.navbar-user {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0.5rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid #1e2338;
+}
+
+.navbar-username {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #c9a84c;
+}
+
+.navbar-logout {
+  background: transparent;
+  border: 1px solid #1e2338;
+  color: #5c6180;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.navbar-logout:hover {
+  color: #c8cce0;
+  border-color: #2e3560;
+  background: #181c2e;
+}
+
+.navbar-register {
+  background: #c9a84c !important;
+  color: #0b0d14 !important;
+  font-weight: 700 !important;
+  padding: 0.4rem 0.9rem !important;
+  border-radius: 6px !important;
+}
+
+.navbar-register:hover {
+  background: #d9b85c !important;
+  color: #0b0d14 !important;
+}

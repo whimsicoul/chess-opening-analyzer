@@ -1,0 +1,121 @@
+import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+from routers import openings, games
+from routers import auth
+from db import get_connection
+
+load_dotenv()
+
+app = FastAPI(title="Chess Opening Analyzer API")
+
+
+@app.on_event("startup")
+def _migrate():
+    """Create/alter tables to keep the schema up to date."""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            # Original columns
+            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS player_color TEXT;")
+            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS white_player TEXT;")
+            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS black_player TEXT;")
+
+            # Users table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id              SERIAL PRIMARY KEY,
+                    username        TEXT NOT NULL UNIQUE,
+                    email           TEXT NOT NULL UNIQUE,
+                    hashed_password TEXT NOT NULL,
+                    is_verified     BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+
+            # Email verification codes
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS email_verifications (
+                    id         SERIAL PRIMARY KEY,
+                    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    code       CHAR(6) NOT NULL,
+                    expires_at TIMESTAMPTZ NOT NULL,
+                    used       BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+
+            # Add user_id to existing tables
+            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;")
+            cur.execute("ALTER TABLE opening_tree ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;")
+            cur.execute("ALTER TABLE white_opening ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;")
+
+            # Color column for white/black repertoire split (legacy — kept for migration)
+            cur.execute("ALTER TABLE white_opening ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT 'white';")
+            cur.execute("ALTER TABLE opening_tree  ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT 'white';")
+
+            # Indexes for fast per-user queries
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_games_user_id ON games(user_id);")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_opening_tree_user_id ON opening_tree(user_id);")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_white_opening_user_id ON white_opening(user_id);")
+
+            # Remove duplicate rows — keep the lowest id per (user_id, moves, color)
+            cur.execute("""
+                DELETE FROM white_opening
+                WHERE id NOT IN (
+                    SELECT MIN(id)
+                    FROM white_opening
+                    GROUP BY user_id, moves, color
+                )
+            """)
+
+            # Unique index to prevent future duplicates (IF NOT EXISTS works; ADD CONSTRAINT does not)
+            cur.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_wo_user_moves_color
+                ON white_opening (user_id, moves, color)
+            """)
+
+            # Dedicated black_opening table (separate from white_opening)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS black_opening (
+                    id            SERIAL PRIMARY KEY,
+                    opening_name  TEXT,
+                    eco_code      TEXT,
+                    moves         TEXT,
+                    user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE
+                )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_black_opening_user_id ON black_opening(user_id);")
+            cur.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_bo_user_moves
+                ON black_opening (user_id, moves)
+            """)
+
+            # Migrate existing black lines from white_opening into black_opening
+            cur.execute("""
+                INSERT INTO black_opening (opening_name, eco_code, moves, user_id)
+                SELECT opening_name, eco_code, moves, user_id
+                FROM white_opening WHERE color = 'black'
+                ON CONFLICT DO NOTHING
+            """)
+            cur.execute("DELETE FROM white_opening WHERE color = 'black';")
+
+        conn.commit()
+
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[frontend_url],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router)
+app.include_router(openings.router)
+app.include_router(games.router)
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}

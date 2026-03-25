@@ -1,0 +1,30 @@
+name: Claude Remote Task
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: "What should Claude do?"
+        required: true
+
+jobs:
+  claude-task:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            You are a senior software engineer working on a chess analysis web app.
+
+            Task:
+            ${{ github.event.inputs.prompt }}
+
+            Requirements:
+            - Do not break existing functionality
+            - Focus only on relevant files
+            - Keep changes minimal and clean
+            - Preserve frontend/backend structure
+            - Ensure real-time updates remain functional

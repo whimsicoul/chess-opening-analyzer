@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-chess
+psycopg2-binary
+python-dotenv
+python-multipart
+python-jose[cryptography]
+bcrypt
+requests
