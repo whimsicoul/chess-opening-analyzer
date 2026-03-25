@@ -1,6 +1,5 @@
 import chess
 import requests as http
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -14,12 +13,26 @@ class OpeningCreate(BaseModel):
     opening_name: str
     eco_code: str
     moves: str
-    color: str = "white"
+    color: str  # required — must be "white" or "black"
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _validate_color(color: str) -> str:
+    """Raise 400 if color is not 'white' or 'black', otherwise return it."""
+    if color not in ("white", "black"):
+        raise HTTPException(status_code=400, detail="color must be 'white' or 'black'")
+    return color
 
 
 def _opening_table(color: str) -> str:
-    """Return the correct storage table for the given color."""
-    return "black_opening" if color == "black" else "white_opening"
+    return "white_opening" if color == "white" else "black_opening"
+
+
+def _tree_table(color: str) -> str:
+    return "white_opening_tree" if color == "white" else "black_opening_tree"
 
 
 # ---------------------------------------------------------------------------
@@ -27,11 +40,10 @@ def _opening_table(color: str) -> str:
 # ---------------------------------------------------------------------------
 
 def _sync_tree(cur, user_id: int, color: str, lines: list):
-    """Delete and rebuild opening_tree nodes for user+color from the given lines."""
-    cur.execute(
-        "DELETE FROM opening_tree WHERE user_id = %s AND color = %s",
-        (user_id, color),
-    )
+    """Delete and rebuild the color-specific opening tree for a user from the given lines."""
+    tree = _tree_table(color)
+    cur.execute(f"DELETE FROM {tree} WHERE user_id = %s", (user_id,))
+
     for line in lines:
         board = chess.Board()
         parent_id = 0
@@ -42,46 +54,40 @@ def _sync_tree(cur, user_id: int, color: str, lines: list):
             except Exception:
                 break
             cur.execute(
-                "SELECT id FROM opening_tree WHERE parent_id = %s AND move_san = %s AND user_id = %s AND color = %s",
-                (parent_id, san, user_id, color),
+                f"SELECT id FROM {tree} WHERE parent_id = %s AND move_san = %s AND user_id = %s",
+                (parent_id, san, user_id),
             )
             row = cur.fetchone()
             if row:
                 parent_id = row["id"]
             else:
                 cur.execute(
-                    """
-                    INSERT INTO opening_tree (parent_id, move_san, opening_name, eco_code, user_id, color)
-                    VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+                    f"""
+                    INSERT INTO {tree} (parent_id, move_san, opening_name, eco_code, user_id)
+                    VALUES (%s, %s, %s, %s, %s) RETURNING id
                     """,
-                    (parent_id, san, line["opening_name"], line["eco_code"], user_id, color),
+                    (parent_id, san, line["opening_name"], line["eco_code"], user_id),
                 )
                 parent_id = cur.fetchone()["id"]
 
 
 # ---------------------------------------------------------------------------
-# GET /openings/
+# GET /openings/  — color is required
 # ---------------------------------------------------------------------------
 
 @router.get("/")
-def get_openings(color: Optional[str] = Query(None), current_user: dict = Depends(get_current_user)):
+def get_openings(
+    color: str = Query(..., description="'white' or 'black'"),
+    current_user: dict = Depends(get_current_user),
+):
+    color = _validate_color(color)
+    table = _opening_table(color)
     with get_connection() as conn:
         with conn.cursor() as cur:
-            if color:
-                table = _opening_table(color)
-                cur.execute(
-                    f"SELECT * FROM {table} WHERE user_id = %s ORDER BY id",
-                    (current_user["user_id"],),
-                )
-            else:
-                # Return all lines from both tables
-                cur.execute(
-                    "SELECT *, 'white' AS color FROM white_opening WHERE user_id = %s"
-                    " UNION ALL "
-                    "SELECT *, 'black' AS color FROM black_opening WHERE user_id = %s"
-                    " ORDER BY id",
-                    (current_user["user_id"], current_user["user_id"]),
-                )
+            cur.execute(
+                f"SELECT * FROM {table} WHERE user_id = %s ORDER BY id",
+                (current_user["user_id"],),
+            )
             return cur.fetchall()
 
 
@@ -91,11 +97,13 @@ def get_openings(color: Optional[str] = Query(None), current_user: dict = Depend
 
 @router.post("/", status_code=201)
 def create_opening(opening: OpeningCreate, current_user: dict = Depends(get_current_user)):
+    color = _validate_color(opening.color)
     user_id = current_user["user_id"]
-    table = _opening_table(opening.color)
+    table = _opening_table(color)
+
     with get_connection() as conn:
         with conn.cursor() as cur:
-            # Deduplicate: return existing line if same moves already exist for this user
+            # Deduplicate: return existing line if same moves already exist for this user+color
             cur.execute(
                 f"SELECT * FROM {table} WHERE user_id = %s AND moves = %s",
                 (user_id, opening.moves),
@@ -119,33 +127,32 @@ def create_opening(opening: OpeningCreate, current_user: dict = Depends(get_curr
                 f"SELECT opening_name, eco_code, moves FROM {table} WHERE user_id = %s",
                 (user_id,),
             )
-            all_lines = cur.fetchall()
-            _sync_tree(cur, user_id, opening.color, all_lines)
+            _sync_tree(cur, user_id, color, cur.fetchall())
             conn.commit()
             return new_line
 
 
 # ---------------------------------------------------------------------------
-# GET /openings/tree
+# GET /openings/tree  — color is required
 # ---------------------------------------------------------------------------
 
 @router.get("/tree")
-def get_opening_tree(color: Optional[str] = Query(None), current_user: dict = Depends(get_current_user)):
-    """Return the user's opening_tree as a nested JSON structure for the sunburst chart."""
+def get_opening_tree(
+    color: str = Query(..., description="'white' or 'black'"),
+    current_user: dict = Depends(get_current_user),
+):
+    """Return the user's opening tree as a nested JSON structure."""
+    color = _validate_color(color)
+    uid = current_user["user_id"]
+    tree = _tree_table(color)
+
     with get_connection() as conn:
         with conn.cursor() as cur:
-            if color:
-                cur.execute(
-                    "SELECT id, parent_id, move_san, opening_name, eco_code "
-                    "FROM opening_tree WHERE user_id = %s AND color = %s ORDER BY id",
-                    (current_user["user_id"], color),
-                )
-            else:
-                cur.execute(
-                    "SELECT id, parent_id, move_san, opening_name, eco_code "
-                    "FROM opening_tree WHERE user_id = %s ORDER BY id",
-                    (current_user["user_id"],),
-                )
+            cur.execute(
+                f"SELECT id, parent_id, move_san, opening_name, eco_code "
+                f"FROM {tree} WHERE user_id = %s ORDER BY id",
+                (uid,),
+            )
             rows = cur.fetchall()
 
     root = {"name": "start", "id": 0, "children": []}
@@ -204,38 +211,32 @@ def get_cloud_eval(fen: str, multiPv: int = 1, current_user: dict = Depends(get_
 
 
 # ---------------------------------------------------------------------------
-# DELETE /openings/{id}
+# DELETE /openings/{opening_id}
 # ---------------------------------------------------------------------------
 
 @router.delete("/{opening_id}", status_code=204)
-def delete_opening(opening_id: int, current_user: dict = Depends(get_current_user)):
+def delete_opening(
+    opening_id: int,
+    color: str = Query(..., description="'white' or 'black'"),
+    current_user: dict = Depends(get_current_user),
+):
+    color = _validate_color(color)
     user_id = current_user["user_id"]
+    table = _opening_table(color)
+
     with get_connection() as conn:
         with conn.cursor() as cur:
-            # Try white table first, then black
             cur.execute(
-                "DELETE FROM white_opening WHERE id = %s AND user_id = %s RETURNING id",
+                f"DELETE FROM {table} WHERE id = %s AND user_id = %s RETURNING id",
                 (opening_id, user_id),
             )
-            deleted = cur.fetchone()
-            if deleted:
-                color = "white"
-            else:
-                cur.execute(
-                    "DELETE FROM black_opening WHERE id = %s AND user_id = %s RETURNING id",
-                    (opening_id, user_id),
-                )
-                deleted = cur.fetchone()
-                if deleted is None:
-                    raise HTTPException(status_code=404, detail="Opening not found")
-                color = "black"
+            if cur.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Opening not found")
 
             # Rebuild tree from remaining lines of the same color
-            table = _opening_table(color)
             cur.execute(
                 f"SELECT opening_name, eco_code, moves FROM {table} WHERE user_id = %s",
                 (user_id,),
             )
-            remaining = cur.fetchall()
-            _sync_tree(cur, user_id, color, remaining)
+            _sync_tree(cur, user_id, color, cur.fetchall())
             conn.commit()

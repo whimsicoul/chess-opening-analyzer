@@ -43,7 +43,7 @@ function uciToSan(fen, uci) {
   }
 }
 
-export default function Repertoire({ color }) {
+export default function WhiteRepertoire() {
   const [lines, setLines]   = useState([]);
   const [error, setError]   = useState(null);
   const [form, setForm]             = useState({ moves: '', opening_name: '', eco_code: '' });
@@ -52,8 +52,8 @@ export default function Repertoire({ color }) {
 
   // Interactive input board state
   const [boardGame, setBoardGame] = useState(() => new Chess());
-  const [allMoves,  setAllMoves]  = useState([]);   // full move sequence (incl. "future" after stepping back)
-  const [stepIndex, setStepIndex] = useState(0);    // current position: 0 = start
+  const [allMoves,  setAllMoves]  = useState([]);
+  const [stepIndex, setStepIndex] = useState(0);
   const [inputText, setInputText] = useState('');
 
   // Engine state
@@ -162,7 +162,6 @@ export default function Repertoire({ color }) {
     setOpenBoards(prev => ({ ...prev, [id]: !prev[id] }));
   }
 
-  // Play a suggested engine move onto the board
   function playEngineMove(uciMove) {
     const next = new Chess(boardGame.fen());
     try {
@@ -177,18 +176,17 @@ export default function Repertoire({ color }) {
 
   async function fetchLines() {
     try {
-      const res = await api.get('/openings/', { params: { color } });
+      const res = await api.get('/openings/', { params: { color: 'white' } });
       setLines(res.data);
     } catch {
       setError('Failed to load openings.');
     }
   }
 
-  // Fetch when color changes (also covers initial mount)
   useEffect(() => {
     fetchLines();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [color]);
+  }, []);
 
   // Engine: fetch cloud eval whenever position changes (debounced 400ms)
   useEffect(() => {
@@ -219,7 +217,7 @@ export default function Repertoire({ color }) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.post('/openings/', { ...form, color });
+      await api.post('/openings/', { ...form, color: 'white' });
       setForm({ moves: '', opening_name: '', eco_code: '' });
       resetBoard();
       await fetchLines();
@@ -259,28 +257,25 @@ export default function Repertoire({ color }) {
       ? evalData.pvs[0].mate > 0
       : true;
 
-  // ── Shared card renderer ───────────────────────────────────────────────────
+  // ── Card renderer ──────────────────────────────────────────────────────────
 
-  function renderLines(lines, lineColor) {
-    const icon = lineColor === 'white' ? '♔' : '♚';
-    const label = lineColor === 'white' ? 'White' : 'Black';
-
+  function renderLines(lines) {
     return (
       <section className="rep-section">
         <div className="rep-section-header">
-          <span className={`badge badge-color-${lineColor}`}>{icon} {label}</span>
+          <span className="badge badge-color-white">♔ White</span>
           <span className="rep-section-count muted">{lines.length} line{lines.length !== 1 ? 's' : ''}</span>
         </div>
 
         {lines.length === 0 ? (
           <div className="card empty-state">
-            <div className="empty-icon">{icon}</div>
-            <p>No {label.toLowerCase()} opening lines yet. Add your first line above.</p>
+            <div className="empty-icon">♔</div>
+            <p>No white opening lines yet. Add your first line above.</p>
           </div>
         ) : (
           <div className="lines-grid">
             {lines.map(line => {
-              const pgn      = movesToPgn(line.moves);
+              const pgn       = movesToPgn(line.moves);
               const boardOpen = !!openBoards[line.id];
               const lineLabel = line.opening_name
                 ? `${line.opening_name}${line.eco_code ? ` (${line.eco_code})` : ''}`
@@ -293,7 +288,7 @@ export default function Repertoire({ color }) {
                 >
                   <div className="line-card-top">
                     <div className="line-card-badges">
-                      <span className={`badge badge-color-${lineColor}`}>{icon}</span>
+                      <span className="badge badge-color-white">♔</span>
                       {line.eco_code && (
                         <span className="badge badge-eco">{line.eco_code}</span>
                       )}
@@ -352,29 +347,27 @@ export default function Repertoire({ color }) {
   return (
     <main className="page">
       <div className="page-header">
-        <h1>{color === 'white' ? 'White Repertoire ♔' : 'Black Repertoire ♚'}</h1>
-        <p>Manage your {color} opening lines</p>
+        <h1>White Repertoire ♔</h1>
+        <p>Manage your white opening lines</p>
       </div>
 
       <form className="card add-form" onSubmit={handleAdd}>
         <div className="card-label">
-          Add {color === 'white' ? 'White ♔' : 'Black ♚'} Opening Line
+          Add White ♔ Opening Line
         </div>
 
         <div className="rep-board-engine-row">
-          {/* Interactive input board */}
           <div className="rep-input-board">
             <Chessboard
               position={boardGame.fen()}
               onPieceDrop={onPieceDrop}
               boardWidth={360}
-              boardOrientation={color}
+              boardOrientation="white"
               customDarkSquareStyle={{ backgroundColor: '#3d5a80' }}
               customLightSquareStyle={{ backgroundColor: '#c8d8e8' }}
             />
           </div>
 
-          {/* Engine panel */}
           {stepIndex > 0 && (
             <div className="engine-panel">
               <div className="engine-header">
@@ -412,7 +405,6 @@ export default function Repertoire({ color }) {
           )}
         </div>
 
-        {/* Back / Forward navigation */}
         <div className="rep-nav-bar">
           <button
             type="button"
@@ -439,7 +431,6 @@ export default function Repertoire({ color }) {
           </button>
         </div>
 
-        {/* Move preview / paste input */}
         <div className="rep-move-preview">
           <input
             className="rep-move-input"
@@ -487,7 +478,7 @@ export default function Repertoire({ color }) {
 
       {error && <p className="msg-error">{error}</p>}
 
-      {renderLines(lines, color)}
+      {renderLines(lines)}
     </main>
   );
 }

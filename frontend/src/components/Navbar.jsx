@@ -22,8 +22,8 @@ export default function Navbar() {
       <div className="navbar-links">
         {isAuthenticated ? (
           <>
-            <NavLink to="/repertoire/white">♔ White</NavLink>
-            <NavLink to="/repertoire/black">♚ Black</NavLink>
+            <NavLink to="/white-repertoire">♔ White</NavLink>
+            <NavLink to="/black-repertoire">♚ Black</NavLink>
             <NavLink to="/games">Games</NavLink>
             <NavLink to="/stats">Analytics</NavLink>
             <NavLink to="/visualization">Visualization</NavLink>

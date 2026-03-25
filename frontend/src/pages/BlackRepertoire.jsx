@@ -4,7 +4,6 @@ import { Chessboard } from 'react-chessboard';
 import api from '../api';
 import ChessBoardViewer from '../components/ChessBoardViewer';
 import './Repertoire.css';
-import './BlackRepertoire.css';
 
 // Convert a bare SAN moves array into a numbered PGN string: "1. e4 e5 2. Nf3 …"
 function sanArrayToPgn(moves) {
@@ -163,7 +162,6 @@ export default function BlackRepertoire() {
     setOpenBoards(prev => ({ ...prev, [id]: !prev[id] }));
   }
 
-  // Play a suggested engine move onto the board
   function playEngineMove(uciMove) {
     const next = new Chess(boardGame.fen());
     try {
@@ -259,11 +257,96 @@ export default function BlackRepertoire() {
       ? evalData.pvs[0].mate > 0
       : true;
 
+  // ── Card renderer ──────────────────────────────────────────────────────────
+
+  function renderLines(lines) {
+    return (
+      <section className="rep-section">
+        <div className="rep-section-header">
+          <span className="badge badge-color-black">♚ Black</span>
+          <span className="rep-section-count muted">{lines.length} line{lines.length !== 1 ? 's' : ''}</span>
+        </div>
+
+        {lines.length === 0 ? (
+          <div className="card empty-state">
+            <div className="empty-icon">♚</div>
+            <p>No black opening lines yet. Add your first line above.</p>
+          </div>
+        ) : (
+          <div className="lines-grid">
+            {lines.map(line => {
+              const pgn       = movesToPgn(line.moves);
+              const boardOpen = !!openBoards[line.id];
+              const lineLabel = line.opening_name
+                ? `${line.opening_name}${line.eco_code ? ` (${line.eco_code})` : ''}`
+                : `Line ${line.id}`;
+
+              return (
+                <div
+                  key={line.id}
+                  className={`line-card${boardOpen ? ' line-card-expanded' : ''}`}
+                >
+                  <div className="line-card-top">
+                    <div className="line-card-badges">
+                      <span className="badge badge-color-black">♚</span>
+                      {line.eco_code && (
+                        <span className="badge badge-eco">{line.eco_code}</span>
+                      )}
+                    </div>
+                    <div className="line-card-actions">
+                      {pgn && (
+                        <button
+                          className="btn btn-ghost btn-view"
+                          onClick={() => toggleBoard(line.id)}
+                          aria-expanded={boardOpen}
+                          aria-controls={`rep-board-${line.id}`}
+                          aria-label={boardOpen ? `Hide board for ${lineLabel}` : `Show board for ${lineLabel}`}
+                        >
+                          {boardOpen ? 'Hide ↑' : 'Board ↓'}
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-danger"
+                        onClick={() => handleDelete(line.id)}
+                        aria-label={`Delete ${lineLabel}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="line-name">
+                    {line.opening_name ?? <span className="muted">Unnamed line</span>}
+                  </div>
+                  <div className="line-move">
+                    <code>{line.moves}</code>
+                  </div>
+                  <div className="line-meta muted">ID {line.id}</div>
+
+                  {boardOpen && pgn && (
+                    <div
+                      id={`rep-board-${line.id}`}
+                      className="rep-board-panel"
+                      role="region"
+                      aria-label={`Chessboard showing position for ${lineLabel}`}
+                    >
+                      <ChessBoardViewer pgn={pgn} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    );
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <main className="page black-rep-page">
-      <div className="page-header black-rep-header">
+    <main className="page">
+      <div className="page-header">
         <h1>Black Repertoire ♚</h1>
         <p>Manage your black opening lines</p>
       </div>
@@ -274,19 +357,17 @@ export default function BlackRepertoire() {
         </div>
 
         <div className="rep-board-engine-row">
-          {/* Interactive input board */}
           <div className="rep-input-board">
             <Chessboard
               position={boardGame.fen()}
               onPieceDrop={onPieceDrop}
               boardWidth={360}
               boardOrientation="black"
-              customDarkSquareStyle={{ backgroundColor: '#2d2d2d' }}
-              customLightSquareStyle={{ backgroundColor: '#9e9e9e' }}
+              customDarkSquareStyle={{ backgroundColor: '#3d5a80' }}
+              customLightSquareStyle={{ backgroundColor: '#c8d8e8' }}
             />
           </div>
 
-          {/* Engine panel */}
           {stepIndex > 0 && (
             <div className="engine-panel">
               <div className="engine-header">
@@ -324,7 +405,6 @@ export default function BlackRepertoire() {
           )}
         </div>
 
-        {/* Back / Forward navigation */}
         <div className="rep-nav-bar">
           <button
             type="button"
@@ -351,7 +431,6 @@ export default function BlackRepertoire() {
           </button>
         </div>
 
-        {/* Move preview / paste input */}
         <div className="rep-move-preview">
           <input
             className="rep-move-input"
@@ -372,25 +451,25 @@ export default function BlackRepertoire() {
 
         <div className="form-grid rep-meta-grid">
           <div className="field">
-            <label htmlFor="black-rep-opening">Opening Name</label>
+            <label htmlFor="rep-opening">Opening Name</label>
             <input
-              id="black-rep-opening"
+              id="rep-opening"
               placeholder="e.g. Sicilian Defense"
               value={form.opening_name}
               onChange={e => setForm(f => ({ ...f, opening_name: e.target.value }))}
             />
           </div>
           <div className="field">
-            <label htmlFor="black-rep-eco">ECO Code</label>
+            <label htmlFor="rep-eco">ECO Code</label>
             <input
-              id="black-rep-eco"
+              id="rep-eco"
               placeholder="e.g. B20"
               value={form.eco_code}
               onChange={e => setForm(f => ({ ...f, eco_code: e.target.value }))}
             />
           </div>
           <div className="field field-submit">
-            <button className="btn black-rep-btn" type="submit" disabled={submitting || stepIndex === 0}>
+            <button className="btn" type="submit" disabled={submitting || stepIndex === 0}>
               {submitting ? 'Adding…' : '+ Add Line'}
             </button>
           </div>
@@ -399,84 +478,7 @@ export default function BlackRepertoire() {
 
       {error && <p className="msg-error">{error}</p>}
 
-      <section className="rep-section">
-        <div className="rep-section-header">
-          <span className="badge badge-color-black">♚ Black</span>
-          <span className="rep-section-count muted">{lines.length} line{lines.length !== 1 ? 's' : ''}</span>
-        </div>
-
-        {lines.length === 0 ? (
-          <div className="card empty-state">
-            <div className="empty-icon">♚</div>
-            <p>No black opening lines yet. Add your first line above.</p>
-          </div>
-        ) : (
-          <div className="lines-grid">
-            {lines.map(line => {
-              const pgn       = movesToPgn(line.moves);
-              const boardOpen = !!openBoards[line.id];
-              const lineLabel = line.opening_name
-                ? `${line.opening_name}${line.eco_code ? ` (${line.eco_code})` : ''}`
-                : `Line ${line.id}`;
-
-              return (
-                <div
-                  key={line.id}
-                  className={`line-card black-line-card${boardOpen ? ' line-card-expanded' : ''}`}
-                >
-                  <div className="line-card-top">
-                    <div className="line-card-badges">
-                      <span className="badge badge-color-black">♚</span>
-                      {line.eco_code && (
-                        <span className="badge badge-eco">{line.eco_code}</span>
-                      )}
-                    </div>
-                    <div className="line-card-actions">
-                      {pgn && (
-                        <button
-                          className="btn btn-ghost btn-view"
-                          onClick={() => toggleBoard(line.id)}
-                          aria-expanded={boardOpen}
-                          aria-controls={`black-rep-board-${line.id}`}
-                          aria-label={boardOpen ? `Hide board for ${lineLabel}` : `Show board for ${lineLabel}`}
-                        >
-                          {boardOpen ? 'Hide ↑' : 'Board ↓'}
-                        </button>
-                      )}
-                      <button
-                        className="btn btn-danger"
-                        onClick={() => handleDelete(line.id)}
-                        aria-label={`Delete ${lineLabel}`}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="line-name">
-                    {line.opening_name ?? <span className="muted">Unnamed line</span>}
-                  </div>
-                  <div className="line-move">
-                    <code>{line.moves}</code>
-                  </div>
-                  <div className="line-meta muted">ID {line.id}</div>
-
-                  {boardOpen && pgn && (
-                    <div
-                      id={`black-rep-board-${line.id}`}
-                      className="rep-board-panel"
-                      role="region"
-                      aria-label={`Chessboard showing position for ${lineLabel}`}
-                    >
-                      <ChessBoardViewer pgn={pgn} />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      {renderLines(lines)}
     </main>
   );
 }

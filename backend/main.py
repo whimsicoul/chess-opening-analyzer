@@ -100,6 +100,64 @@ def _migrate():
             """)
             cur.execute("DELETE FROM white_opening WHERE color = 'black';")
 
+            # ----------------------------------------------------------------
+            # Dedicated opening tree tables — one per color, no shared table
+            # ----------------------------------------------------------------
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS white_opening_tree (
+                    id            SERIAL PRIMARY KEY,
+                    parent_id     INTEGER NOT NULL DEFAULT 0,
+                    move_san      TEXT,
+                    opening_name  TEXT,
+                    eco_code      TEXT,
+                    user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS black_opening_tree (
+                    id            SERIAL PRIMARY KEY,
+                    parent_id     INTEGER NOT NULL DEFAULT 0,
+                    move_san      TEXT,
+                    opening_name  TEXT,
+                    eco_code      TEXT,
+                    user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE
+                )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_white_opening_tree_user_id ON white_opening_tree(user_id);")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_black_opening_tree_user_id ON black_opening_tree(user_id);")
+
+            # Migrate existing opening_tree data into the new tables (if old table still exists)
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = 'opening_tree'
+                )
+            """)
+            if cur.fetchone()["exists"]:
+                cur.execute("""
+                    INSERT INTO white_opening_tree (id, parent_id, move_san, opening_name, eco_code, user_id)
+                    OVERRIDING SYSTEM VALUE
+                    SELECT id, parent_id, move_san, opening_name, eco_code, user_id
+                    FROM opening_tree WHERE color = 'white' OR color IS NULL
+                    ON CONFLICT (id) DO NOTHING
+                """)
+                cur.execute("""
+                    SELECT setval('white_opening_tree_id_seq',
+                        COALESCE((SELECT MAX(id) FROM white_opening_tree), 1))
+                """)
+                cur.execute("""
+                    INSERT INTO black_opening_tree (id, parent_id, move_san, opening_name, eco_code, user_id)
+                    OVERRIDING SYSTEM VALUE
+                    SELECT id, parent_id, move_san, opening_name, eco_code, user_id
+                    FROM opening_tree WHERE color = 'black'
+                    ON CONFLICT (id) DO NOTHING
+                """)
+                cur.execute("""
+                    SELECT setval('black_opening_tree_id_seq',
+                        COALESCE((SELECT MAX(id) FROM black_opening_tree), 1))
+                """)
+                cur.execute("DROP TABLE opening_tree;")
+
         conn.commit()
 
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
