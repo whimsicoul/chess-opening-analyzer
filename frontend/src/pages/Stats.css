@@ -1,0 +1,121 @@
+/* ── Color filter ── */
+.filter-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+}
+
+.filter-btn {
+  background: #111420;
+  border: 1px solid #1e2338;
+  color: #5c6180;
+  border-radius: 8px;
+  padding: 0.45rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.filter-btn:hover:not(:disabled) {
+  background: #181c2e;
+  border-color: #2e3560;
+  color: #c8cce0;
+  box-shadow: none;
+}
+
+.filter-btn-active {
+  background: #1e2338;
+  border-color: #4f6ef7;
+  color: #eceffe;
+}
+
+.filter-btn-active:hover:not(:disabled) {
+  background: #1e2338;
+  border-color: #4f6ef7;
+  color: #eceffe;
+}
+
+/* ── Summary stat cards ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  background: #111420;
+  border: 1px solid #1e2338;
+  border-radius: 10px;
+  padding: 1.25rem 1.25rem 1rem;
+  transition: border-color 0.2s;
+}
+
+.stat-card:hover { border-color: #2e3560; }
+
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #eceffe;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 0.4rem;
+}
+
+.stat-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #5c6180;
+  line-height: 1.3;
+}
+
+.stat-sub {
+  font-size: 0.75rem;
+  color: #5c6180;
+  margin-top: 0.35rem;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+/* ── Chart ── */
+.chart-card {
+  margin-bottom: 1.5rem;
+}
+
+.chart-tooltip {
+  background: #181c2e;
+  border: 1px solid #2e3560;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.83rem;
+  color: #c8cce0;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+
+.chart-tooltip-title {
+  font-weight: 700;
+  color: #eceffe;
+  margin-bottom: 0.25rem;
+}
+
+.chart-tooltip-sub {
+  color: #5c6180;
+  margin-top: 0.2rem;
+}
+
+/* ── Win-rate mini bar in table ── */
+.wr-bar-track {
+  height: 6px;
+  background: #1e2338;
+  border-radius: 99px;
+  width: 100px;
+  overflow: hidden;
+}
+
+.wr-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}

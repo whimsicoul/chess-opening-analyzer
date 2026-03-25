@@ -1,0 +1,48 @@
+# ========================
+# Node.js / Frontend
+# ========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+tools/node_modules/
+
+# ========================
+# Playwright
+# ========================
+.playwright/
+.playwright-mcp/
+
+# ========================
+# Python / Backend
+# ========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+.env
+*.sqlite3
+
+# ========================
+# VSCode / Editors
+# ========================
+.vscode/
+*.code-workspace
+
+# ========================
+# OS / System files
+# ========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ========================
+# Logs / temporary files
+# ========================
+*.log
+*.tmp
+*.swp
+*.swo
