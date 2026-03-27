@@ -1,4 +1,5 @@
 import os
+import traceback
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -11,9 +12,61 @@ load_dotenv()
 app = FastAPI(title="Chess Opening Analyzer API")
 
 
+def _migrate_black():
+    """Ensure black opening tables exist with all required columns (own transaction)."""
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS black_opening (
+                        id            SERIAL PRIMARY KEY,
+                        opening_name  TEXT,
+                        eco_code      TEXT,
+                        moves         TEXT,
+                        user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE
+                    )
+                """)
+                cur.execute("ALTER TABLE black_opening ADD COLUMN IF NOT EXISTS id SERIAL PRIMARY KEY;")
+                cur.execute("ALTER TABLE black_opening ADD COLUMN IF NOT EXISTS opening_name TEXT;")
+                cur.execute("ALTER TABLE black_opening ADD COLUMN IF NOT EXISTS eco_code TEXT;")
+                cur.execute("ALTER TABLE black_opening ADD COLUMN IF NOT EXISTS moves TEXT;")
+                cur.execute("ALTER TABLE black_opening ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_black_opening_user_id ON black_opening(user_id);")
+                cur.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS uq_bo_user_moves
+                    ON black_opening (user_id, moves)
+                """)
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS black_opening_tree (
+                        id            SERIAL PRIMARY KEY,
+                        parent_id     INTEGER NOT NULL DEFAULT 0,
+                        move_san      TEXT,
+                        opening_name  TEXT,
+                        eco_code      TEXT,
+                        user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE
+                    )
+                """)
+                cur.execute("ALTER TABLE black_opening_tree ADD COLUMN IF NOT EXISTS id SERIAL PRIMARY KEY;")
+                cur.execute("ALTER TABLE black_opening_tree ADD COLUMN IF NOT EXISTS parent_id INTEGER NOT NULL DEFAULT 0;")
+                cur.execute("ALTER TABLE black_opening_tree ADD COLUMN IF NOT EXISTS move_san TEXT;")
+                cur.execute("ALTER TABLE black_opening_tree ADD COLUMN IF NOT EXISTS opening_name TEXT;")
+                cur.execute("ALTER TABLE black_opening_tree ADD COLUMN IF NOT EXISTS eco_code TEXT;")
+                cur.execute("ALTER TABLE black_opening_tree ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_black_opening_tree_user_id ON black_opening_tree(user_id);")
+            conn.commit()
+            print("[migrate_black] OK")
+    except Exception as e:
+        print(f"[migrate_black] ERROR: {e}\n{traceback.format_exc()}")
+
+
 @app.on_event("startup")
 def _migrate():
     """Create/alter tables to keep the schema up to date."""
+    try:
+      _migrate_black()
+    except Exception as e:
+        print(f"[migrate] black migration failed: {e}")
     with get_connection() as conn:
         with conn.cursor() as cur:
             # Original columns
@@ -86,35 +139,6 @@ def _migrate():
                 )
             """)
             cur.execute("CREATE INDEX IF NOT EXISTS idx_white_opening_tree_user_id ON white_opening_tree(user_id);")
-
-            # ----------------------------------------------------------------
-            # Dedicated opening tables for black
-            # ----------------------------------------------------------------
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS black_opening (
-                    id            SERIAL PRIMARY KEY,
-                    opening_name  TEXT,
-                    eco_code      TEXT,
-                    moves         TEXT,
-                    user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE
-                )
-            """)
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_black_opening_user_id ON black_opening(user_id);")
-            cur.execute("""
-                CREATE UNIQUE INDEX IF NOT EXISTS uq_bo_user_moves
-                ON black_opening (user_id, moves)
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS black_opening_tree (
-                    id            SERIAL PRIMARY KEY,
-                    parent_id     INTEGER NOT NULL DEFAULT 0,
-                    move_san      TEXT,
-                    opening_name  TEXT,
-                    eco_code      TEXT,
-                    user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE
-                )
-            """)
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_black_opening_tree_user_id ON black_opening_tree(user_id);")
 
             # Migrate legacy opening_tree table if it still exists
             cur.execute("""

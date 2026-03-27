@@ -25,7 +25,7 @@
   width: 100%;
   background: #0d0f1a;
   border: 1px solid #1e2338;
-  border-radius: 8px;
+  border-radius: 3px;
   color: #eceffe;
   padding: 0.55rem 0.75rem;
   font-size: 0.875rem;
@@ -39,8 +39,8 @@
 
 .filter-grid select:focus {
   outline: none;
-  border-color: #4f6ef7;
-  box-shadow: 0 0 0 2px rgba(79, 110, 247, 0.25);
+  border-color: rgba(201,168,76,0.5);
+  box-shadow: 0 0 0 2px rgba(201,168,76,0.12);
 }
 
 /* ── Source badges ───────────────────────────────────────────────────────── */
@@ -86,8 +86,10 @@
   justify-content: space-between;
   padding: 0.9rem 1.25rem;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
   font-weight: 600;
+  letter-spacing: 0.05em;
   color: #c8cce0;
   background: #111420;
   border: 1px solid #1e2338;
@@ -132,8 +134,8 @@
 
 .dropzone:hover,
 .dropzone-active {
-  border-color: #4f6ef7;
-  background: rgba(79, 110, 247, 0.05);
+  border-color: rgba(201,168,76,0.6);
+  background: rgba(201,168,76,0.04);
 }
 
 .dropzone-ready {
@@ -149,25 +151,28 @@
 }
 
 .dropzone-ready .dropzone-icon { color: #22c55e; }
-.dropzone-active .dropzone-icon { color: #4f6ef7; }
+.dropzone-active .dropzone-icon { color: #c9a84c; }
 
 .dropzone-text {
-  font-size: 0.95rem;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.1rem;
   font-weight: 600;
   color: #c8cce0;
   margin-bottom: 0.25rem;
 }
 
 .dropzone-filename {
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.9rem;
   font-weight: 600;
   color: #22c55e;
   margin-bottom: 0.25rem;
-  font-family: ui-monospace, Consolas, monospace;
 }
 
 .dropzone-hint {
-  font-size: 0.78rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
   color: #5c6180;
 }
 
@@ -213,6 +218,7 @@
 }
 
 .result-field-label {
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -221,8 +227,9 @@
 }
 
 .result-field-value {
-  font-size: 1rem;
-  font-weight: 600;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 700;
   color: #eceffe;
 }
 
@@ -239,7 +246,8 @@
 }
 
 .games-list-header h2 {
-  font-size: 1rem;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.1rem;
   font-weight: 600;
   color: #c8cce0;
   margin: 0;
@@ -255,7 +263,7 @@
 .game-card {
   background: #111420;
   border: 1px solid #1e2338;
-  border-radius: 10px;
+  border-radius: 4px;
   overflow: hidden;
   transition: border-color 0.2s;
 }
@@ -286,7 +294,8 @@
 }
 
 .game-players {
-  font-size: 0.9rem;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1rem;
   color: #eceffe;
   white-space: nowrap;
 }
@@ -311,7 +320,7 @@
   display: inline-block;
   font-size: 0.75rem;
   font-weight: 700;
-  font-family: ui-monospace, Consolas, monospace;
+  font-family: 'JetBrains Mono', monospace;
   padding: 0.15em 0.5em;
   border-radius: 4px;
   white-space: nowrap;

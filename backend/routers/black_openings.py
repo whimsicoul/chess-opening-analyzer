@@ -1,4 +1,5 @@
 import chess
+import traceback
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -72,35 +73,39 @@ def get_openings(current_user: dict = Depends(get_current_user)):
 def create_opening(opening: OpeningCreate, current_user: dict = Depends(get_current_user)):
     user_id = current_user["user_id"]
 
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            # Deduplicate: return existing line if same moves already exist for this user
-            cur.execute(
-                "SELECT * FROM black_opening WHERE user_id = %s AND moves = %s",
-                (user_id, opening.moves),
-            )
-            existing = cur.fetchone()
-            if existing:
-                return existing
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                # Deduplicate: return existing line if same moves already exist for this user
+                cur.execute(
+                    "SELECT * FROM black_opening WHERE user_id = %s AND moves = %s",
+                    (user_id, opening.moves),
+                )
+                existing = cur.fetchone()
+                if existing:
+                    return existing
 
-            cur.execute(
-                """
-                INSERT INTO black_opening (opening_name, eco_code, moves, user_id)
-                VALUES (%s, %s, %s, %s)
-                RETURNING *
-                """,
-                (opening.opening_name, opening.eco_code, opening.moves, user_id),
-            )
-            new_line = cur.fetchone()
+                cur.execute(
+                    """
+                    INSERT INTO black_opening (opening_name, eco_code, moves, user_id)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING *
+                    """,
+                    (opening.opening_name, opening.eco_code, opening.moves, user_id),
+                )
+                new_line = cur.fetchone()
 
-            # Rebuild opening tree (includes the new line)
-            cur.execute(
-                "SELECT opening_name, eco_code, moves FROM black_opening WHERE user_id = %s",
-                (user_id,),
-            )
-            _sync_tree(cur, user_id, cur.fetchall())
-            conn.commit()
-            return new_line
+                # Rebuild opening tree (includes the new line)
+                cur.execute(
+                    "SELECT opening_name, eco_code, moves FROM black_opening WHERE user_id = %s",
+                    (user_id,),
+                )
+                _sync_tree(cur, user_id, cur.fetchall())
+                conn.commit()
+                return new_line
+    except Exception as e:
+        print(f"[black create_opening] ERROR: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ---------------------------------------------------------------------------
