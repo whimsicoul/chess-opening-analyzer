@@ -7,13 +7,15 @@
 
 .toggle-btn {
   padding: 0.35rem 1.1rem;
-  border-radius: 6px;
+  border-radius: 3px;
   border: 1px solid #2a3060;
   background: #12162a;
   color: #8a93c8;
   cursor: pointer;
-  font-size: 0.85rem;
-  font-family: inherit;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 
@@ -23,9 +25,9 @@
 }
 
 .toggle-btn.active {
-  background: #1e2550;
-  color: #fff;
-  border-color: #4a5590;
+  background: rgba(201,168,76,0.15);
+  color: #f0e8d5;
+  border-color: rgba(201,168,76,0.35);
 }
 
 /* ── Two-column layout ── */
@@ -57,6 +59,7 @@
 }
 
 .viz-legend-label {
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.7rem;
   color: var(--text-dim);
   opacity: 0.55;
@@ -90,9 +93,9 @@
 
 .viz-node-move {
   font-family: 'Fira Code', ui-monospace, Consolas, monospace;
-  font-size: 1.6rem;
+  font-size: 2rem;
   font-weight: 700;
-  color: var(--text-head);
+  color: #f0e8d5;
   letter-spacing: -0.01em;
   margin-bottom: 0.3rem;
 }
@@ -130,14 +133,14 @@
 }
 
 .move-num {
-  color: var(--text-dim);
+  color: rgba(201,168,76,0.35);
   font-size: 0.78rem;
 }
 
 .move-san {
-  color: var(--text-head);
-  background: rgba(79, 110, 247, 0.1);
-  border: 1px solid rgba(79, 110, 247, 0.18);
+  color: #c9a84c;
+  background: rgba(201,168,76,0.08);
+  border: 1px solid rgba(201,168,76,0.15);
   border-radius: 3px;
   padding: 0.08em 0.42em;
 }

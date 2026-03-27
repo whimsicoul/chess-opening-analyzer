@@ -47,7 +47,9 @@ export default function Login() {
       navigate(from, { replace: true });
     } catch (err) {
       const detail = err.response?.data?.detail;
-      if (err.response?.status === 403) {
+      if (!err.response) {
+        setError('Could not connect to server. Make sure the backend is running.');
+      } else if (err.response.status === 403) {
         setError('Email not verified. Check your inbox or resend the code below.');
       } else {
         setError(detail || 'Invalid email or password.');

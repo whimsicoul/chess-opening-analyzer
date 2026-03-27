@@ -13,8 +13,8 @@
 
 .dropzone:hover,
 .dropzone-active {
-  border-color: #4f6ef7;
-  background: rgba(79, 110, 247, 0.05);
+  border-color: rgba(201,168,76,0.6);
+  background: rgba(201,168,76,0.04);
 }
 
 .dropzone-ready {
@@ -36,25 +36,28 @@
 }
 
 .dropzone-ready .dropzone-icon { color: #22c55e; }
-.dropzone-active .dropzone-icon { color: #4f6ef7; }
+.dropzone-active .dropzone-icon { color: #c9a84c; }
 
 .dropzone-text {
-  font-size: 1rem;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.1rem;
   font-weight: 600;
   color: #c8cce0;
   margin-bottom: 0.3rem;
 }
 
 .dropzone-filename {
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.95rem;
   font-weight: 600;
   color: #22c55e;
   margin-bottom: 0.3rem;
-  font-family: ui-monospace, Consolas, monospace;
 }
 
 .dropzone-hint {
-  font-size: 0.8rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
   color: #5c6180;
 }
 
@@ -117,6 +120,7 @@
 }
 
 .result-field-label {
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -125,7 +129,8 @@
 }
 
 .result-field-value {
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.3rem;
+  font-weight: 700;
   color: #eceffe;
 }

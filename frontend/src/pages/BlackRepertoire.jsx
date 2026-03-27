@@ -466,8 +466,8 @@ export default function BlackRepertoire() {
               onPieceDrop={onPieceDrop}
               boardWidth={480}
               boardOrientation="black"
-              customDarkSquareStyle={{ backgroundColor: '#3d5a80' }}
-              customLightSquareStyle={{ backgroundColor: '#c8d8e8' }}
+              customDarkSquareStyle={{ backgroundColor: '#b58863' }}
+              customLightSquareStyle={{ backgroundColor: '#f0d9b5' }}
             />
           </div>
 

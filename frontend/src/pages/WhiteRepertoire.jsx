@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import api from '../api';
-import ChessBoardViewer from '../components/ChessBoardViewer';
 import './Repertoire.css';
 
 // Convert a bare SAN moves array into a numbered PGN string: "1. e4 e5 2. Nf3 …"
@@ -10,17 +9,6 @@ function sanArrayToPgn(moves) {
   if (!moves.length) return null;
   return moves
     .map((m, i) => (i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${m}` : m))
-    .join(' ');
-}
-
-// Convert a moves string into a PGN string that chess.js loadPgn can parse.
-function movesToPgn(moves) {
-  if (!moves || !moves.trim()) return null;
-  const trimmed = moves.trim();
-  if (/^\d+\./.test(trimmed)) return trimmed;
-  const tokens = trimmed.split(/\s+/).filter(Boolean);
-  return tokens
-    .map((t, i) => (i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${t}` : t))
     .join(' ');
 }
 
@@ -43,12 +31,113 @@ function uciToSan(fen, uci) {
   }
 }
 
+// Build a nested tree from the flat lines array (client-side fallback)
+function buildTreeFromLines(lines) {
+  const root = { name: 'start', id: 0, children: [] };
+  const nodeMap = { 0: root };
+  let nextId = 1;
+  for (const line of lines) {
+    const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
+    let parentId = 0;
+    for (const san of tokens) {
+      const existing = nodeMap[parentId].children.find(c => c.name === san);
+      if (existing) {
+        parentId = existing.id;
+      } else {
+        const node = { name: san, id: nextId++, opening_name: line.opening_name, eco_code: line.eco_code, children: [] };
+        nodeMap[parentId].children.push(node);
+        nodeMap[node.id] = node;
+        parentId = node.id;
+      }
+    }
+  }
+  return root;
+}
+
+// Move label: "1. e4" for white (even depth), "1... e5" for black (odd depth)
+function moveLabel(depth, san) {
+  const num = Math.floor(depth / 2) + 1;
+  return depth % 2 === 0 ? `${num}. ${san}` : `${num}... ${san}`;
+}
+
+function isPathActive(activePath, movePath) {
+  return (
+    activePath.length >= movePath.length &&
+    activePath.slice(0, movePath.length).join(',') === movePath.join(',')
+  );
+}
+
+// Recursive compact tree node — ChessTempo pairing style:
+// Each row shows this move + its single child inline; branches nest below.
+function TreeNode({ node, depth, pathMoves, onSelect, activePath }) {
+  const [collapsed, setCollapsed] = useState(true);
+
+  const myPath = [...pathMoves, node.name];
+  const singleChild = node.children.length === 1 ? node.children[0] : null;
+  const multiChildren = node.children.length > 1 ? node.children : [];
+  const childPath = singleChild ? [...myPath, singleChild.name] : null;
+
+  // What to render below this row
+  const grandchildren = singleChild ? singleChild.children : [];
+  const branchChildren = multiChildren.length > 0 ? multiChildren : grandchildren;
+  const branchDepth = multiChildren.length > 0 ? depth + 1 : depth + 2;
+  const branchBase = multiChildren.length > 0 ? myPath : childPath;
+  const hasBranches = branchChildren.length > 0;
+
+  return (
+    <div className="tree-line">
+      <div className="tree-run">
+        {hasBranches && (
+          <button
+            className="tree-toggle"
+            onClick={() => setCollapsed(c => !c)}
+            aria-label={collapsed ? 'Expand' : 'Collapse'}
+          >
+            {collapsed ? '+' : '−'}
+          </button>
+        )}
+        <span
+          className={`tree-move${isPathActive(activePath, myPath) ? ' tree-move-active' : ''}`}
+          onClick={() => onSelect(myPath)}
+          title={node.opening_name || undefined}
+        >
+          {moveLabel(depth, node.name)}
+        </span>
+        {singleChild && (
+          <span
+            className={`tree-move${isPathActive(activePath, childPath) ? ' tree-move-active' : ''}`}
+            onClick={() => onSelect(childPath)}
+            title={singleChild.opening_name || undefined}
+          >
+            {moveLabel(depth + 1, singleChild.name)}
+          </span>
+        )}
+      </div>
+
+      {!collapsed && hasBranches && (
+        <div className="tree-branches">
+          {branchChildren.map(child => (
+            <TreeNode
+              key={child.id}
+              node={child}
+              depth={branchDepth}
+              pathMoves={branchBase}
+              onSelect={onSelect}
+              activePath={activePath}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function WhiteRepertoire() {
   const [lines, setLines]   = useState([]);
+  const [tree,  setTree]    = useState(null);
   const [error, setError]   = useState(null);
   const [form, setForm]             = useState({ moves: '', opening_name: '', eco_code: '' });
   const [submitting, setSubmitting] = useState(false);
-  const [openBoards, setOpenBoards] = useState({});
 
   // Interactive input board state
   const [boardGame, setBoardGame] = useState(() => new Chess());
@@ -149,18 +238,24 @@ export default function WhiteRepertoire() {
     }
   }
 
+  // Load a position from the opening tree into the board
+  function loadPosition(sanArray) {
+    const g = buildBoard(sanArray, sanArray.length);
+    setBoardGame(g);
+    setAllMoves(sanArray);
+    setStepIndex(sanArray.length);
+    setInputText(sanArrayToPgn(sanArray) ?? '');
+    setForm(f => ({ ...f, moves: sanArray.join(' ') }));
+  }
+
   const resetBoard = useCallback(() => {
     setBoardGame(new Chess());
     setAllMoves([]);
     setStepIndex(0);
     setInputText('');
-    setForm(f => ({ ...f, moves: '' }));
+    setForm({ moves: '', opening_name: '', eco_code: '' });
     setEvalData(null);
   }, []);
-
-  function toggleBoard(id) {
-    setOpenBoards(prev => ({ ...prev, [id]: !prev[id] }));
-  }
 
   function playEngineMove(uciMove) {
     const next = new Chess(boardGame.fen());
@@ -176,15 +271,25 @@ export default function WhiteRepertoire() {
 
   async function fetchLines() {
     try {
-      const res = await api.get('/openings/', { params: { color: 'white' } });
+      const res = await api.get('/openings/');
       setLines(res.data);
     } catch {
       setError('Failed to load openings.');
     }
   }
 
+  async function fetchTree() {
+    try {
+      const res = await api.get('/openings/tree');
+      setTree(res.data);
+    } catch {
+      setTree(null);
+    }
+  }
+
   useEffect(() => {
     fetchLines();
+    fetchTree();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -211,6 +316,27 @@ export default function WhiteRepertoire() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardGame]);
 
+  // ECO lookup: auto-fill opening name + ECO code from Lichess whenever position changes
+  useEffect(() => {
+    if (stepIndex === 0) return;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.get('/openings/eco-lookup', {
+          params: { fen: boardGame.fen() },
+        });
+        if (res.data) {
+          setForm(f => ({
+            ...f,
+            eco_code:     f.eco_code     || res.data.eco,
+            opening_name: f.opening_name || res.data.name,
+          }));
+        }
+      } catch { /* ignore */ }
+    }, 600);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardGame]);
+
   // ── Actions ────────────────────────────────────────────────────────────────
 
   async function handleAdd(e) {
@@ -221,6 +347,7 @@ export default function WhiteRepertoire() {
       setForm({ moves: '', opening_name: '', eco_code: '' });
       resetBoard();
       await fetchLines();
+      await fetchTree();
     } catch {
       setError('Failed to add opening line.');
     } finally {
@@ -231,8 +358,8 @@ export default function WhiteRepertoire() {
   async function handleDelete(id) {
     try {
       await api.delete(`/openings/${id}`);
-      setOpenBoards(prev => { const n = { ...prev }; delete n[id]; return n; });
       await fetchLines();
+      await fetchTree();
     } catch {
       setError('Failed to delete opening line.');
     }
@@ -257,86 +384,64 @@ export default function WhiteRepertoire() {
       ? evalData.pvs[0].mate > 0
       : true;
 
-  // ── Card renderer ──────────────────────────────────────────────────────────
+  // ── Opening tree renderer ──────────────────────────────────────────────────
 
-  function renderLines(lines) {
+  function renderOpeningTree() {
+    const displayTree = (tree && tree.children.length > 0) ? tree : buildTreeFromLines(lines);
+    const isEmpty = displayTree.children.length === 0;
+
     return (
       <section className="rep-section">
         <div className="rep-section-header">
-          <span className="badge badge-color-white">♔ White</span>
-          <span className="rep-section-count muted">{lines.length} line{lines.length !== 1 ? 's' : ''}</span>
+          <span className="badge badge-color-white">♔ White Opening Tree</span>
+          <span className="rep-section-count muted">
+            {lines.length} line{lines.length !== 1 ? 's' : ''}
+          </span>
         </div>
 
-        {lines.length === 0 ? (
+        {isEmpty ? (
           <div className="card empty-state">
             <div className="empty-icon">♔</div>
             <p>No white opening lines yet. Add your first line above.</p>
           </div>
         ) : (
-          <div className="lines-grid">
-            {lines.map(line => {
-              const pgn       = movesToPgn(line.moves);
-              const boardOpen = !!openBoards[line.id];
-              const lineLabel = line.opening_name
-                ? `${line.opening_name}${line.eco_code ? ` (${line.eco_code})` : ''}`
-                : `Line ${line.id}`;
-
-              return (
-                <div
-                  key={line.id}
-                  className={`line-card${boardOpen ? ' line-card-expanded' : ''}`}
-                >
-                  <div className="line-card-top">
-                    <div className="line-card-badges">
-                      <span className="badge badge-color-white">♔</span>
-                      {line.eco_code && (
-                        <span className="badge badge-eco">{line.eco_code}</span>
-                      )}
-                    </div>
-                    <div className="line-card-actions">
-                      {pgn && (
-                        <button
-                          className="btn btn-ghost btn-view"
-                          onClick={() => toggleBoard(line.id)}
-                          aria-expanded={boardOpen}
-                          aria-controls={`rep-board-${line.id}`}
-                          aria-label={boardOpen ? `Hide board for ${lineLabel}` : `Show board for ${lineLabel}`}
-                        >
-                          {boardOpen ? 'Hide ↑' : 'Board ↓'}
-                        </button>
-                      )}
-                      <button
-                        className="btn btn-danger"
-                        onClick={() => handleDelete(line.id)}
-                        aria-label={`Delete ${lineLabel}`}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="line-name">
-                    {line.opening_name ?? <span className="muted">Unnamed line</span>}
-                  </div>
-                  <div className="line-move">
-                    <code>{line.moves}</code>
-                  </div>
-                  <div className="line-meta muted">ID {line.id}</div>
-
-                  {boardOpen && pgn && (
-                    <div
-                      id={`rep-board-${line.id}`}
-                      className="rep-board-panel"
-                      role="region"
-                      aria-label={`Chessboard showing position for ${lineLabel}`}
-                    >
-                      <ChessBoardViewer pgn={pgn} />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="opening-tree card">
+            {displayTree.children.map(child => (
+              <TreeNode
+                key={child.id}
+                node={child}
+                depth={0}
+                pathMoves={[]}
+                onSelect={loadPosition}
+                activePath={allMoves}
+              />
+            ))}
           </div>
+        )}
+
+        {lines.length > 0 && (
+          <details className="tree-manage-lines">
+            <summary>Manage saved lines ({lines.length})</summary>
+            <ul className="tree-line-list">
+              {lines.map(line => (
+                <li key={line.id} className="tree-line-item">
+                  <span className="tree-line-label">
+                    {line.opening_name
+                      ? <><strong>{line.opening_name}</strong>{line.eco_code ? ` (${line.eco_code})` : ''} — <code>{line.moves}</code></>
+                      : <code>{line.moves}</code>
+                    }
+                  </span>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={() => handleDelete(line.id)}
+                    aria-label={`Delete ${line.opening_name || line.moves}`}
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
       </section>
     );
@@ -348,7 +453,7 @@ export default function WhiteRepertoire() {
     <main className="page">
       <div className="page-header">
         <h1>White Repertoire ♔</h1>
-        <p>Manage your white opening lines</p>
+        <p>Build your opening tree — play moves on the board, then save the line</p>
       </div>
 
       <form className="card add-form" onSubmit={handleAdd}>
@@ -361,93 +466,95 @@ export default function WhiteRepertoire() {
             <Chessboard
               position={boardGame.fen()}
               onPieceDrop={onPieceDrop}
-              boardWidth={360}
+              boardWidth={480}
               boardOrientation="white"
-              customDarkSquareStyle={{ backgroundColor: '#3d5a80' }}
-              customLightSquareStyle={{ backgroundColor: '#c8d8e8' }}
+              customDarkSquareStyle={{ backgroundColor: '#b58863' }}
+              customLightSquareStyle={{ backgroundColor: '#f0d9b5' }}
             />
           </div>
 
-          {stepIndex > 0 && (
-            <div className="engine-panel">
-              <div className="engine-header">
-                <span className="engine-title">Cloud Eval</span>
-                {evalLoading && <span className="engine-loading">…</span>}
-                {!evalLoading && topEval && (
-                  <span className={`eval-score${evalPositive ? ' eval-pos' : ' eval-neg'}`}>
-                    {topEval}
-                  </span>
+          <div className="rep-right-col">
+            {stepIndex > 0 && (
+              <div className="engine-panel">
+                <div className="engine-header">
+                  <span className="engine-title">Cloud Eval</span>
+                  {evalLoading && <span className="engine-loading">…</span>}
+                  {!evalLoading && topEval && (
+                    <span className={`eval-score${evalPositive ? ' eval-pos' : ' eval-neg'}`}>
+                      {topEval}
+                    </span>
+                  )}
+                </div>
+
+                {!evalLoading && engineMoves.length > 0 && (
+                  <ul className="engine-moves">
+                    {engineMoves.map((m, i) => (
+                      <li key={i} className="engine-move-row">
+                        <span className="engine-move-san">{m.san}</span>
+                        <span className="engine-move-eval muted">{m.eval}</span>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-play"
+                          onClick={() => playEngineMove(m.uci)}
+                        >
+                          ▶ Play
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {!evalLoading && engineMoves.length === 0 && (
+                  <p className="engine-empty muted">Position not in cloud database</p>
                 )}
               </div>
+            )}
 
-              {!evalLoading && engineMoves.length > 0 && (
-                <ul className="engine-moves">
-                  {engineMoves.map((m, i) => (
-                    <li key={i} className="engine-move-row">
-                      <span className="engine-move-san">{m.san}</span>
-                      <span className="engine-move-eval muted">{m.eval}</span>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-play"
-                        onClick={() => playEngineMove(m.uci)}
-                      >
-                        ▶ Play
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            <div className="rep-nav-bar">
+              <button
+                type="button"
+                className="btn btn-ghost btn-step"
+                onClick={stepBack}
+                disabled={stepIndex === 0}
+                aria-label="Previous move"
+              >
+                ← Back
+              </button>
+              <span className="rep-step-counter muted">
+                {stepIndex === 0
+                  ? 'Start'
+                  : `Move ${stepIndex}${allMoves.length > stepIndex ? ` / ${allMoves.length}` : ''}`}
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-step"
+                onClick={stepForward}
+                disabled={stepIndex >= allMoves.length}
+                aria-label="Next move"
+              >
+                Forward →
+              </button>
+            </div>
 
-              {!evalLoading && engineMoves.length === 0 && (
-                <p className="engine-empty muted">Position not in cloud database</p>
+            <div className="rep-move-preview">
+              <input
+                className="rep-move-input"
+                type="text"
+                placeholder="Play moves on the board above, or paste a line here…"
+                value={inputText}
+                onChange={handleMoveInput}
+                spellCheck={false}
+                autoComplete="off"
+                aria-label="Opening line moves"
+              />
+              {stepIndex > 0 && (
+                <button type="button" className="btn btn-ghost" onClick={resetBoard}>
+                  Reset
+                </button>
               )}
             </div>
-          )}
-        </div>
-
-        <div className="rep-nav-bar">
-          <button
-            type="button"
-            className="btn btn-ghost btn-step"
-            onClick={stepBack}
-            disabled={stepIndex === 0}
-            aria-label="Previous move"
-          >
-            ← Back
-          </button>
-          <span className="rep-step-counter muted">
-            {stepIndex === 0
-              ? 'Start'
-              : `Move ${stepIndex}${allMoves.length > stepIndex ? ` / ${allMoves.length}` : ''}`}
-          </span>
-          <button
-            type="button"
-            className="btn btn-ghost btn-step"
-            onClick={stepForward}
-            disabled={stepIndex >= allMoves.length}
-            aria-label="Next move"
-          >
-            Forward →
-          </button>
-        </div>
-
-        <div className="rep-move-preview">
-          <input
-            className="rep-move-input"
-            type="text"
-            placeholder="Play moves on the board above, or paste a line here…"
-            value={inputText}
-            onChange={handleMoveInput}
-            spellCheck={false}
-            autoComplete="off"
-            aria-label="Opening line moves"
-          />
-          {stepIndex > 0 && (
-            <button type="button" className="btn btn-ghost" onClick={resetBoard}>
-              Reset
-            </button>
-          )}
-        </div>
+          </div>{/* rep-right-col */}
+        </div>{/* rep-board-engine-row */}
 
         <div className="form-grid rep-meta-grid">
           <div className="field">
@@ -478,7 +585,7 @@ export default function WhiteRepertoire() {
 
       {error && <p className="msg-error">{error}</p>}
 
-      {renderLines(lines)}
+      {renderOpeningTree()}
     </main>
   );
 }
