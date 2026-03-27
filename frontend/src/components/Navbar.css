@@ -34,10 +34,11 @@
 }
 
 .navbar-name {
-  font-size: 0.95rem;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.15rem;
   font-weight: 700;
   color: #eceffe;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.01em;
 }
 
 .navbar-name span {
@@ -53,8 +54,11 @@
 .navbar-links a {
   color: #5c6180;
   text-decoration: none;
-  font-size: 0.875rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
   font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   padding: 0.4rem 0.8rem;
   border-radius: 6px;
   transition: color 0.15s, background 0.15s;
@@ -89,6 +93,7 @@
   background: transparent;
   border: 1px solid #1e2338;
   color: #5c6180;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem;
   font-weight: 500;
   padding: 0.3rem 0.7rem;
@@ -106,7 +111,11 @@
 .navbar-register {
   background: #c9a84c !important;
   color: #0b0d14 !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.72rem !important;
   font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
   padding: 0.4rem 0.9rem !important;
   border-radius: 6px !important;
 }
