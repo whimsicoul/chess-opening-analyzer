@@ -27,7 +27,7 @@ export default function App() {
           {/* Protected */}
           <Route path="/white-repertoire" element={<ProtectedRoute><WhiteRepertoire /></ProtectedRoute>} />
           <Route path="/black-repertoire" element={<ProtectedRoute><BlackRepertoire /></ProtectedRoute>} />
-          <Route path="/repertoire"       element={<Navigate to="/white-repertoire" replace />} />
+<Route path="/repertoire"       element={<Navigate to="/white-repertoire" replace />} />
           <Route path="/games"         element={<ProtectedRoute><Games /></ProtectedRoute>} />
           <Route path="/stats"         element={<ProtectedRoute><Stats /></ProtectedRoute>} />
           <Route path="/visualization" element={<ProtectedRoute><Visualization /></ProtectedRoute>} />

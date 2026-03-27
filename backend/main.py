@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from routers import openings, games
+from routers import openings, black_openings, games
 from routers import auth
 from db import get_connection
 
@@ -47,16 +47,13 @@ def _migrate():
 
             # Add user_id to existing tables
             cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;")
-            cur.execute("ALTER TABLE opening_tree ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;")
             cur.execute("ALTER TABLE white_opening ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;")
 
-            # Color column for white/black repertoire split (legacy — kept for migration)
+            # Color column for white repertoire (legacy — kept for migration)
             cur.execute("ALTER TABLE white_opening ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT 'white';")
-            cur.execute("ALTER TABLE opening_tree  ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT 'white';")
 
             # Indexes for fast per-user queries
             cur.execute("CREATE INDEX IF NOT EXISTS idx_games_user_id ON games(user_id);")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_opening_tree_user_id ON opening_tree(user_id);")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_white_opening_user_id ON white_opening(user_id);")
 
             # Remove duplicate rows — keep the lowest id per (user_id, moves, color)
@@ -75,7 +72,24 @@ def _migrate():
                 ON white_opening (user_id, moves, color)
             """)
 
-            # Dedicated black_opening table (separate from white_opening)
+            # ----------------------------------------------------------------
+            # Dedicated opening tree table for white
+            # ----------------------------------------------------------------
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS white_opening_tree (
+                    id            SERIAL PRIMARY KEY,
+                    parent_id     INTEGER NOT NULL DEFAULT 0,
+                    move_san      TEXT,
+                    opening_name  TEXT,
+                    eco_code      TEXT,
+                    user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE
+                )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_white_opening_tree_user_id ON white_opening_tree(user_id);")
+
+            # ----------------------------------------------------------------
+            # Dedicated opening tables for black
+            # ----------------------------------------------------------------
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS black_opening (
                     id            SERIAL PRIMARY KEY,
@@ -90,29 +104,6 @@ def _migrate():
                 CREATE UNIQUE INDEX IF NOT EXISTS uq_bo_user_moves
                 ON black_opening (user_id, moves)
             """)
-
-            # Migrate existing black lines from white_opening into black_opening
-            cur.execute("""
-                INSERT INTO black_opening (opening_name, eco_code, moves, user_id)
-                SELECT opening_name, eco_code, moves, user_id
-                FROM white_opening WHERE color = 'black'
-                ON CONFLICT DO NOTHING
-            """)
-            cur.execute("DELETE FROM white_opening WHERE color = 'black';")
-
-            # ----------------------------------------------------------------
-            # Dedicated opening tree tables — one per color, no shared table
-            # ----------------------------------------------------------------
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS white_opening_tree (
-                    id            SERIAL PRIMARY KEY,
-                    parent_id     INTEGER NOT NULL DEFAULT 0,
-                    move_san      TEXT,
-                    opening_name  TEXT,
-                    eco_code      TEXT,
-                    user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE
-                )
-            """)
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS black_opening_tree (
                     id            SERIAL PRIMARY KEY,
@@ -123,10 +114,9 @@ def _migrate():
                     user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE
                 )
             """)
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_white_opening_tree_user_id ON white_opening_tree(user_id);")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_black_opening_tree_user_id ON black_opening_tree(user_id);")
 
-            # Migrate existing opening_tree data into the new tables (if old table still exists)
+            # Migrate legacy opening_tree table if it still exists
             cur.execute("""
                 SELECT EXISTS (
                     SELECT 1 FROM information_schema.tables
@@ -134,6 +124,10 @@ def _migrate():
                 )
             """)
             if cur.fetchone()["exists"]:
+                # Apply columns and index only while the table still exists
+                cur.execute("ALTER TABLE opening_tree ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;")
+                cur.execute("ALTER TABLE opening_tree ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT 'white';")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_opening_tree_user_id ON opening_tree(user_id);")
                 cur.execute("""
                     INSERT INTO white_opening_tree (id, parent_id, move_san, opening_name, eco_code, user_id)
                     OVERRIDING SYSTEM VALUE
@@ -144,17 +138,6 @@ def _migrate():
                 cur.execute("""
                     SELECT setval('white_opening_tree_id_seq',
                         COALESCE((SELECT MAX(id) FROM white_opening_tree), 1))
-                """)
-                cur.execute("""
-                    INSERT INTO black_opening_tree (id, parent_id, move_san, opening_name, eco_code, user_id)
-                    OVERRIDING SYSTEM VALUE
-                    SELECT id, parent_id, move_san, opening_name, eco_code, user_id
-                    FROM opening_tree WHERE color = 'black'
-                    ON CONFLICT (id) DO NOTHING
-                """)
-                cur.execute("""
-                    SELECT setval('black_opening_tree_id_seq',
-                        COALESCE((SELECT MAX(id) FROM black_opening_tree), 1))
                 """)
                 cur.execute("DROP TABLE opening_tree;")
 
@@ -171,6 +154,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(openings.router)
+app.include_router(black_openings.router)
 app.include_router(games.router)
 
 
