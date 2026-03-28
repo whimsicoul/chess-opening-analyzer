@@ -189,71 +189,73 @@ export default function ChessBoardViewer({
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
-      {deviationLabel && (
-        <div
-          className={`board-deviation-label board-dev-${deviationColor}`}
-        >
-          {deviationLabel}
+      <div className="board-left">
+        {deviationLabel && (
+          <div
+            className={`board-deviation-label board-dev-${deviationColor}`}
+          >
+            {deviationLabel}
+          </div>
+        )}
+
+        <div className="board-move-row">
+          <span className="board-move-display">
+            {moveDisplay}
+          </span>
+          <span className="board-counter">
+            {currentIndex} / {positions.length - 1}
+          </span>
         </div>
-      )}
 
-      <div className="board-move-row">
-        <span className="board-move-display">
-          {moveDisplay}
-        </span>
-        <span className="board-counter">
-          {currentIndex} / {positions.length - 1}
-        </span>
-      </div>
-
-      <div className="board-outer">
-        <div className="board-wrap">
-        <Chessboard
-          position={current.fen}
-          arePiecesDraggable={false}
-          animationDuration={150}
-          customSquareStyles={squareStyles}
-          customPieces={woodenPieces}
-          customBoardStyle={{ backgroundImage: "url(/wood4.jpg)", backgroundSize: "100% 100%" }}
-          customDarkSquareStyle={{}}
-          customLightSquareStyle={{}}
-        />
+        <div className="board-outer">
+          <div className="board-wrap">
+          <Chessboard
+            position={current.fen}
+            arePiecesDraggable={false}
+            animationDuration={150}
+            customSquareStyles={squareStyles}
+            customPieces={woodenPieces}
+            customBoardStyle={{ backgroundImage: "url(/wood4.jpg)", backgroundSize: "100% 100%" }}
+            customDarkSquareStyle={{}}
+            customLightSquareStyle={{}}
+          />
+          </div>
         </div>
-      </div>
 
-      <div className="board-controls">
-        <button onClick={() => setCurrentIndex(0)} disabled={isStart}>
-          ⟪ Start
-        </button>
+        <div className="board-controls">
+          <button onClick={() => setCurrentIndex(0)} disabled={isStart}>
+            ⟪ Start
+          </button>
 
-        <button
-          onClick={() =>
-            setCurrentIndex((i) => Math.max(0, i - 1))
-          }
-          disabled={isStart}
-        >
-          ← Prev
-        </button>
+          <button
+            onClick={() =>
+              setCurrentIndex((i) => Math.max(0, i - 1))
+            }
+            disabled={isStart}
+          >
+            ← Prev
+          </button>
 
-        <button
-          onClick={() =>
-            setCurrentIndex((i) =>
-              Math.min(positions.length - 1, i + 1)
-            )
-          }
-          disabled={isEnd}
-        >
-          Next →
-        </button>
+          <button
+            onClick={() =>
+              setCurrentIndex((i) =>
+                Math.min(positions.length - 1, i + 1)
+              )
+            }
+            disabled={isEnd}
+          >
+            Next →
+          </button>
 
-        <button
-          onClick={() =>
-            setCurrentIndex(positions.length - 1)
-          }
-          disabled={isEnd}
-        >
-          End ⟫
-        </button>
+          <button
+            onClick={() =>
+              setCurrentIndex(positions.length - 1)
+            }
+            disabled={isEnd}
+          >
+            End ⟫
+          </button>
+        </div>
       </div>
 
       <div className="board-move-list" ref={moveListRef}>

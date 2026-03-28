@@ -1,62 +1,249 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 280" fill="none">
 
-  <!-- ══ Open Book ══ -->
+  <defs>
+    <!-- Book page clip regions -->
+    <clipPath id="left-page">
+      <path d="M140 216 L24 160 L24 86 L140 138 Z"/>
+    </clipPath>
+    <clipPath id="right-page">
+      <path d="M140 216 L256 160 L256 86 L140 138 Z"/>
+    </clipPath>
 
-  <!-- Left page body -->
-  <path d="M140 216 L24 160 L24 86 L140 138 Z" fill="#c9a84c" opacity="0.80"/>
+    <!-- Center queen clip paths -->
+    <clipPath id="c-trunk"><path d="M107 104 L173 104 L178 132 L102 132 Z"/></clipPath>
+    <clipPath id="c-waist"><rect x="119" y="76" width="42" height="31" rx="6"/></clipPath>
+    <clipPath id="c-shoulder"><path d="M104 59 L176 59 L171 76 L109 76 Z"/></clipPath>
+    <clipPath id="c-head"><circle cx="140" cy="37" r="17"/></clipPath>
+    <clipPath id="c-orb-l"><circle cx="120" cy="21" r="6.5"/></clipPath>
+    <clipPath id="c-orb-c"><circle cx="140" cy="14" r="8.5"/></clipPath>
+    <clipPath id="c-orb-r"><circle cx="160" cy="21" r="6.5"/></clipPath>
+    <clipPath id="c-base"><rect x="98" y="132" width="84" height="13" rx="3.5"/></clipPath>
+    <clipPath id="c-neck"><rect x="123" y="45" width="34" height="17" rx="5"/></clipPath>
+  </defs>
 
-  <!-- Left page outer-edge (page thickness/stack) -->
-  <path d="M24 86 L24 160 L31 164 L31 90 Z" fill="#a07830" opacity="0.85"/>
+  <!-- ══════════════════════════════
+       OPEN BOOK
+  ══════════════════════════════ -->
 
-  <!-- Right page body -->
-  <path d="M140 216 L256 160 L256 86 L140 138 Z" fill="#d4b565" opacity="0.90"/>
+  <!-- ── Left page base fill ── -->
+  <path d="M140 216 L24 160 L24 86 L140 138 Z" fill="#c9a84c"/>
 
-  <!-- Right page outer-edge (page thickness/stack) -->
-  <path d="M256 86 L256 160 L249 164 L249 90 Z" fill="#b89640" opacity="0.85"/>
+  <!-- Left page: top-edge highlight band (upper ~18%, lit from behind-center) -->
+  <path d="M140,138 L140,152 L24,101 L24,86 Z"
+        fill="rgba(255,248,180,0.30)" clip-path="url(#left-page)"/>
 
-  <!-- Spine (binding strip at centre) -->
+  <!-- Left page: wide mid-gradient fade (page surface dims toward outer edge) -->
+  <path d="M140,138 L140,216 L60,183 L60,118 Z"
+        fill="rgba(30,8,0,0.14)" clip-path="url(#left-page)"/>
+
+  <!-- Left page: spine crease shadow (sharp dark strip along inner edge) -->
+  <path d="M140,138 L140,216 L118,207 L118,129 Z"
+        fill="rgba(30,8,0,0.42)" clip-path="url(#left-page)"/>
+  <!-- Crease darkest inner line -->
+  <path d="M140,138 L140,216 L128,212 L128,133 Z"
+        fill="rgba(30,8,0,0.28)" clip-path="url(#left-page)"/>
+
+  <!-- Left page: outer-corner shadow (far from light source) -->
+  <path d="M24,86 L24,160 L44,169 L44,94 Z"
+        fill="rgba(30,8,0,0.22)" clip-path="url(#left-page)"/>
+
+  <!-- Left page: lower shadow (page angles away from glow) -->
+  <path d="M140,182 L140,216 L24,160 L24,128 Z"
+        fill="rgba(30,8,0,0.26)" clip-path="url(#left-page)"/>
+
+  <!-- Left page: deep bottom shadow (underside rolls into darkness) -->
+  <path d="M140,205 L140,216 L24,160 L24,150 Z"
+        fill="rgba(30,8,0,0.45)" clip-path="url(#left-page)"/>
+
+  <!-- Left page: lower-outer corner darkest pocket -->
+  <path d="M24,130 L24,160 L55,172 L55,142 Z"
+        fill="rgba(30,8,0,0.28)" clip-path="url(#left-page)"/>
+
+  <!-- ── Left outer-edge face (page thickness) ── -->
+  <!-- Upper half — catches rear glow -->
+  <path d="M24,86 L24,123 L31,127 L31,90 Z" fill="#b08840"/>
+  <!-- Lower half — in shadow -->
+  <path d="M24,123 L24,160 L31,164 L31,127 Z" fill="#7a5c20"/>
+  <!-- Edge highlight rim -->
+  <path d="M24,86 L31,90 L31,112 L24,108 Z" fill="rgba(255,240,160,0.22)"/>
+
+  <!-- ── Right page base fill ── -->
+  <path d="M140 216 L256 160 L256 86 L140 138 Z" fill="#d4b565"/>
+
+  <!-- Right page: top-edge highlight band -->
+  <path d="M140,138 L140,152 L256,101 L256,86 Z"
+        fill="rgba(255,248,180,0.22)" clip-path="url(#right-page)"/>
+
+  <!-- Right page: wide mid-gradient fade -->
+  <path d="M140,138 L140,216 L220,183 L220,118 Z"
+        fill="rgba(30,8,0,0.12)" clip-path="url(#right-page)"/>
+
+  <!-- Right page: spine crease shadow -->
+  <path d="M140,138 L140,216 L162,207 L162,129 Z"
+        fill="rgba(30,8,0,0.36)" clip-path="url(#right-page)"/>
+  <!-- Crease darkest inner line -->
+  <path d="M140,138 L140,216 L152,212 L152,133 Z"
+        fill="rgba(30,8,0,0.22)" clip-path="url(#right-page)"/>
+
+  <!-- Right page: outer-corner shadow -->
+  <path d="M256,86 L256,160 L236,169 L236,94 Z"
+        fill="rgba(30,8,0,0.20)" clip-path="url(#right-page)"/>
+
+  <!-- Right page: lower shadow -->
+  <path d="M140,182 L140,216 L256,160 L256,128 Z"
+        fill="rgba(30,8,0,0.22)" clip-path="url(#right-page)"/>
+
+  <!-- Right page: deep bottom shadow -->
+  <path d="M140,205 L140,216 L256,160 L256,150 Z"
+        fill="rgba(30,8,0,0.40)" clip-path="url(#right-page)"/>
+
+  <!-- Right page: lower-outer corner pocket -->
+  <path d="M256,130 L256,160 L225,172 L225,142 Z"
+        fill="rgba(30,8,0,0.24)" clip-path="url(#right-page)"/>
+
+  <!-- ── Right outer-edge face ── -->
+  <path d="M256,86 L256,123 L249,127 L249,90 Z" fill="#c8a840"/>
+  <path d="M256,123 L256,160 L249,164 L249,127 Z" fill="#8a6c24"/>
+  <!-- Edge highlight rim -->
+  <path d="M256,86 L249,90 L249,112 L256,108 Z" fill="rgba(255,248,180,0.18)"/>
+
+  <!-- ── Page top-edge highlight seam (V crease at top) ── -->
+  <path d="M24 86 L140 138 L256 86"
+        stroke="rgba(255,248,180,0.55)" stroke-width="2" fill="none"/>
+  <!-- Inner bright spine crease line -->
+  <path d="M140 138 L140 216"
+        stroke="rgba(255,240,150,0.20)" stroke-width="1.5" fill="none"/>
+
+  <!-- ══ Side queen shadows (cast onto pages) ══ -->
+  <ellipse cx="78"  cy="116" rx="20" ry="3.5" fill="rgba(30,8,0,0.28)"/>
+  <ellipse cx="202" cy="116" rx="20" ry="3.5" fill="rgba(30,8,0,0.28)"/>
+
+  <!-- ══ LEFT SMALL QUEEN  (scale 0.45, base at x≈78, y≈109) ══ -->
+  <g transform="translate(15, 50) scale(0.45)" opacity="0.88">
+    <rect x="98" y="132" width="84" height="13" rx="3.5" fill="#c9a84c"/>
+    <rect x="98" y="132" width="84" height="3"  rx="2" fill="rgba(255,248,200,0.30)"/>
+    <rect x="150" y="132" width="32" height="13" fill="rgba(30,8,0,0.50)"/>
+    <path d="M107 104 L173 104 L178 132 L102 132 Z" fill="#b8933b"/>
+    <path d="M143 104 L173 104 L178 132 L143 132 Z" fill="rgba(30,8,0,0.50)"/>
+    <rect x="107" y="122" width="71" height="10" fill="rgba(30,8,0,0.28)"/>
+    <rect x="119" y="76" width="42" height="31" rx="6" fill="#c9a84c"/>
+    <rect x="143" y="76" width="18" height="31" fill="rgba(30,8,0,0.48)"/>
+    <rect x="119" y="98" width="42" height="9"  fill="rgba(30,8,0,0.28)"/>
+    <path d="M104 59 L176 59 L171 76 L109 76 Z" fill="#b8933b"/>
+    <path d="M143 59 L176 59 L171 76 L143 76 Z" fill="rgba(30,8,0,0.50)"/>
+    <rect x="123" y="45" width="34" height="17" rx="5" fill="#8f6e22"/>
+    <rect x="143" y="45" width="14" height="17" fill="rgba(30,8,0,0.55)"/>
+    <circle cx="140" cy="37" r="17" fill="#c9a84c"/>
+    <path d="M140,20 A17,17 0 0 1 140,54 Z" fill="rgba(30,8,0,0.50)"/>
+    <circle cx="133" cy="29" r="6" fill="rgba(255,248,200,0.28)"/>
+    <circle cx="120" cy="21" r="6.5" fill="#c9a84c"/>
+    <path d="M120,14.5 A6.5,6.5 0 0 1 120,27.5 Z" fill="rgba(30,8,0,0.48)"/>
+    <circle cx="116" cy="17" r="2.5" fill="rgba(255,248,200,0.30)"/>
+    <circle cx="140" cy="14" r="8.5" fill="#c9a84c"/>
+    <path d="M140,5.5 A8.5,8.5 0 0 1 140,22.5 Z"  fill="rgba(30,8,0,0.48)"/>
+    <circle cx="136" cy="10" r="3.5" fill="rgba(255,248,200,0.30)"/>
+    <circle cx="160" cy="21" r="6.5" fill="#c9a84c"/>
+    <path d="M160,14.5 A6.5,6.5 0 0 1 160,27.5 Z" fill="rgba(30,8,0,0.48)"/>
+    <circle cx="156" cy="17" r="2.5" fill="rgba(255,248,200,0.30)"/>
+  </g>
+
+  <!-- ══ RIGHT SMALL QUEEN  (scale 0.45, base at x≈202, y≈109) ══ -->
+  <g transform="translate(139, 50) scale(0.45)" opacity="0.88">
+    <rect x="98" y="132" width="84" height="13" rx="3.5" fill="#c9a84c"/>
+    <rect x="98" y="132" width="84" height="3"  rx="2" fill="rgba(255,248,200,0.30)"/>
+    <rect x="150" y="132" width="32" height="13" fill="rgba(30,8,0,0.50)"/>
+    <path d="M107 104 L173 104 L178 132 L102 132 Z" fill="#b8933b"/>
+    <path d="M143 104 L173 104 L178 132 L143 132 Z" fill="rgba(30,8,0,0.50)"/>
+    <rect x="107" y="122" width="71" height="10" fill="rgba(30,8,0,0.28)"/>
+    <rect x="119" y="76" width="42" height="31" rx="6" fill="#c9a84c"/>
+    <rect x="143" y="76" width="18" height="31" fill="rgba(30,8,0,0.48)"/>
+    <rect x="119" y="98" width="42" height="9"  fill="rgba(30,8,0,0.28)"/>
+    <path d="M104 59 L176 59 L171 76 L109 76 Z" fill="#b8933b"/>
+    <path d="M143 59 L176 59 L171 76 L143 76 Z" fill="rgba(30,8,0,0.50)"/>
+    <rect x="123" y="45" width="34" height="17" rx="5" fill="#8f6e22"/>
+    <rect x="143" y="45" width="14" height="17" fill="rgba(30,8,0,0.55)"/>
+    <circle cx="140" cy="37" r="17" fill="#c9a84c"/>
+    <path d="M140,20 A17,17 0 0 1 140,54 Z" fill="rgba(30,8,0,0.50)"/>
+    <circle cx="133" cy="29" r="6" fill="rgba(255,248,200,0.28)"/>
+    <circle cx="120" cy="21" r="6.5" fill="#c9a84c"/>
+    <path d="M120,14.5 A6.5,6.5 0 0 1 120,27.5 Z" fill="rgba(30,8,0,0.48)"/>
+    <circle cx="116" cy="17" r="2.5" fill="rgba(255,248,200,0.30)"/>
+    <circle cx="140" cy="14" r="8.5" fill="#c9a84c"/>
+    <path d="M140,5.5 A8.5,8.5 0 0 1 140,22.5 Z"  fill="rgba(30,8,0,0.48)"/>
+    <circle cx="136" cy="10" r="3.5" fill="rgba(255,248,200,0.30)"/>
+    <circle cx="160" cy="21" r="6.5" fill="#c9a84c"/>
+    <path d="M160,14.5 A6.5,6.5 0 0 1 160,27.5 Z" fill="rgba(30,8,0,0.48)"/>
+    <circle cx="156" cy="17" r="2.5" fill="rgba(255,248,200,0.30)"/>
+  </g>
+
+  <!-- ══ Book spine (renders over side queens) ══ -->
+  <!-- Spine body -->
   <rect x="133" y="138" width="14" height="78" rx="2" fill="#9a7228"/>
-
+  <!-- Spine left dark edge -->
+  <rect x="133" y="138" width="3"  height="78" fill="rgba(30,8,0,0.45)" rx="1"/>
+  <!-- Spine right highlight edge -->
+  <rect x="144" y="138" width="3"  height="78" fill="rgba(255,240,150,0.22)" rx="1"/>
   <!-- Spine top cap -->
   <rect x="131" y="134" width="18" height="8" rx="3" fill="#b48a35"/>
+  <!-- Spine cap highlight -->
+  <rect x="131" y="134" width="18" height="3" rx="2" fill="rgba(255,248,180,0.30)"/>
+  <!-- Spine cap dark base -->
+  <rect x="131" y="139" width="18" height="3" fill="rgba(30,8,0,0.30)"/>
 
-  <!-- Page top-edge highlight line -->
-  <path d="M24 86 L140 138 L256 86" stroke="rgba(255,245,180,0.45)" stroke-width="1.5" fill="none"/>
-
-  <!-- ══ Chess Queen Piece ══ -->
+  <!-- ══ CENTER MAIN QUEEN  (stark contrast) ══ -->
 
   <!-- Base plate -->
   <rect x="98" y="132" width="84" height="13" rx="3.5" fill="#c9a84c"/>
-  <!-- Base top highlight -->
-  <rect x="98" y="132" width="84" height="3" rx="2" fill="rgba(255,245,190,0.18)"/>
+  <rect x="98" y="132" width="84" height="3"  rx="2" fill="rgba(255,248,200,0.38)"/>
+  <rect x="98" y="132" width="16" height="13" fill="rgba(255,248,200,0.18)" clip-path="url(#c-base)"/>
+  <rect x="152" y="132" width="30" height="13" fill="rgba(30,8,0,0.52)" clip-path="url(#c-base)"/>
+  <rect x="98"  y="140" width="84" height="5"  fill="rgba(30,8,0,0.38)" clip-path="url(#c-base)"/>
 
-  <!-- Lower trunk (trapezoid) -->
+  <!-- Lower trunk -->
   <path d="M107 104 L173 104 L178 132 L102 132 Z" fill="#b8933b"/>
+  <path d="M107 104 L122 104 L117 132 L102 132 Z" fill="rgba(255,248,200,0.18)" clip-path="url(#c-trunk)"/>
+  <rect x="143" y="104" width="35" height="28" fill="rgba(30,8,0,0.52)" clip-path="url(#c-trunk)"/>
+  <rect x="102" y="122" width="76" height="10" fill="rgba(30,8,0,0.35)" clip-path="url(#c-trunk)"/>
+  <rect x="136" y="104" width="8" height="28" fill="rgba(255,248,200,0.08)" clip-path="url(#c-trunk)"/>
 
-  <!-- Waist (narrow rectangle) -->
+  <!-- Waist -->
   <rect x="119" y="76" width="42" height="31" rx="6" fill="#c9a84c"/>
+  <rect x="119" y="76" width="9"  height="31" fill="rgba(255,248,200,0.22)" clip-path="url(#c-waist)"/>
+  <rect x="143" y="76" width="18" height="31" fill="rgba(30,8,0,0.52)" clip-path="url(#c-waist)"/>
+  <rect x="119" y="98" width="42" height="9"  fill="rgba(30,8,0,0.38)" clip-path="url(#c-waist)"/>
+  <rect x="136" y="76" width="8"  height="31" fill="rgba(255,248,200,0.08)" clip-path="url(#c-waist)"/>
 
-  <!-- Shoulder / crown base (wide trapezoid) -->
+  <!-- Shoulder / crown base -->
   <path d="M104 59 L176 59 L171 76 L109 76 Z" fill="#c9a84c"/>
-  <!-- Shoulder highlight -->
-  <rect x="104" y="59" width="72" height="3" rx="1.5" fill="rgba(255,245,190,0.16)"/>
+  <rect x="104" y="59" width="72" height="3" rx="1.5" fill="rgba(255,248,200,0.38)"/>
+  <path d="M104 59 L118 59 L116 76 L109 76 Z"  fill="rgba(255,248,200,0.22)" clip-path="url(#c-shoulder)"/>
+  <rect x="143" y="59" width="33" height="17" fill="rgba(30,8,0,0.52)" clip-path="url(#c-shoulder)"/>
+  <rect x="109" y="70" width="62" height="6"  fill="rgba(30,8,0,0.35)" clip-path="url(#c-shoulder)"/>
 
   <!-- Neck -->
-  <rect x="123" y="45" width="34" height="17" rx="5" fill="#a47c30"/>
+  <rect x="123" y="45" width="34" height="17" rx="5" fill="#8f6e22"/>
+  <rect x="123" y="45" width="8"  height="17" fill="rgba(255,248,200,0.22)" clip-path="url(#c-neck)"/>
+  <rect x="143" y="45" width="14" height="17" fill="rgba(30,8,0,0.58)" clip-path="url(#c-neck)"/>
+  <rect x="123" y="56" width="34" height="6"  fill="rgba(30,8,0,0.38)" clip-path="url(#c-neck)"/>
 
   <!-- Head sphere -->
   <circle cx="140" cy="37" r="17" fill="#c9a84c"/>
-  <!-- Head ambient highlight -->
-  <circle cx="134" cy="31" r="5.5" fill="rgba(255,248,210,0.18)"/>
+  <path d="M140,20 A17,17 0 0 1 140,54 Z" fill="rgba(30,8,0,0.55)" clip-path="url(#c-head)"/>
+  <circle cx="151" cy="47" r="12" fill="rgba(30,8,0,0.25)" clip-path="url(#c-head)"/>
+  <circle cx="131" cy="28" r="8"   fill="rgba(255,248,200,0.28)" clip-path="url(#c-head)"/>
+  <circle cx="133" cy="30" r="5"   fill="rgba(255,248,200,0.18)" clip-path="url(#c-head)"/>
 
   <!-- Crown orbs -->
   <circle cx="120" cy="21" r="6.5" fill="#c9a84c"/>
-  <circle cx="120" cy="21" r="3"   fill="rgba(255,248,210,0.22)"/>
+  <path d="M120,14.5 A6.5,6.5 0 0 1 120,27.5 Z" fill="rgba(30,8,0,0.55)" clip-path="url(#c-orb-l)"/>
+  <circle cx="116" cy="17" r="3.2" fill="rgba(255,248,200,0.38)" clip-path="url(#c-orb-l)"/>
 
   <circle cx="140" cy="14" r="8.5" fill="#c9a84c"/>
-  <circle cx="140" cy="14" r="4"   fill="rgba(255,248,210,0.22)"/>
+  <path d="M140,5.5 A8.5,8.5 0 0 1 140,22.5 Z" fill="rgba(30,8,0,0.55)" clip-path="url(#c-orb-c)"/>
+  <circle cx="135" cy="9"  r="4.2" fill="rgba(255,248,200,0.38)" clip-path="url(#c-orb-c)"/>
 
   <circle cx="160" cy="21" r="6.5" fill="#c9a84c"/>
-  <circle cx="160" cy="21" r="3"   fill="rgba(255,248,210,0.22)"/>
+  <path d="M160,14.5 A6.5,6.5 0 0 1 160,27.5 Z" fill="rgba(30,8,0,0.55)" clip-path="url(#c-orb-r)"/>
+  <circle cx="156" cy="17" r="3.2" fill="rgba(255,248,200,0.38)" clip-path="url(#c-orb-r)"/>
 
 </svg>
