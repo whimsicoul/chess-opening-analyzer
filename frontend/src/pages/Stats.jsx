@@ -255,23 +255,23 @@ export default function Stats() {
                   <Legend
                     verticalAlign="top"
                     align="right"
-                    iconType="circle"
-                    iconSize={8}
-                    formatter={v => <span style={{ color: '#8b90b8', fontSize: 11 }}>{v}</span>}
+                    content={() => (
+                      <div style={{ display: 'flex', gap: 16, justifyContent: 'flex-end', fontSize: 11 }}>
+                        <span style={{ color: '#818cf8', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <svg width="8" height="8"><circle cx="4" cy="4" r="4" fill="#818cf8" /></svg>
+                          You Deviated
+                        </span>
+                        <span style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <svg width="8" height="8"><circle cx="4" cy="4" r="4" fill="#f59e0b" /></svg>
+                          Opp. Deviated
+                        </span>
+                      </div>
+                    )}
                   />
-                  <Bar dataKey="youRate" name="You Deviated" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="youRate" name="You Deviated" radius={[4, 4, 0, 0]} fill="#818cf8" />
+                  <Bar dataKey="oppRate" name="Opp. Deviated" radius={[4, 4, 0, 0]} fill="#f59e0b">
                     {byMove.map(entry => (
-                      <Cell key={`you-${entry.move}`} fill={BAR_COLOR_FN(entry.youRate)} />
-                    ))}
-                  </Bar>
-                  <Bar dataKey="oppRate" name="Opp. Deviated" radius={[4, 4, 0, 0]}>
-                    {byMove.map(entry => (
-                      <Cell key={`opp-${entry.move}`} fill={
-                        entry.oppRate == null ? '#2e3560'
-                        : entry.oppRate >= 55 ? '#16a34a'
-                        : entry.oppRate >= 45 ? '#a37c1e'
-                        : '#b91c1c'
-                      } />
+                      <Cell key={`opp-${entry.move}`} fill={entry.oppRate == null ? '#2e3560' : '#f59e0b'} />
                     ))}
                   </Bar>
                 </BarChart>

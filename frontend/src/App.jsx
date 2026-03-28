@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
@@ -13,6 +14,17 @@ import Stats from './pages/Stats';
 import Visualization from './pages/Visualization';
 
 export default function App() {
+  useEffect(() => {
+    const onMove = (e) => {
+      const distX = window.innerWidth - e.clientX;
+      const distY = e.clientY;
+      const near = distX < 320 && distY < 320;
+      document.body.classList.toggle('board-creep', near);
+    };
+    window.addEventListener('mousemove', onMove);
+    return () => window.removeEventListener('mousemove', onMove);
+  }, []);
+
   return (
     <AuthProvider>
       <BrowserRouter>
