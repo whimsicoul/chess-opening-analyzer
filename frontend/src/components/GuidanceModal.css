@@ -1,0 +1,210 @@
+/* ── Guided Tour Floating Panel ── */
+
+.guidance-panel {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 540px;
+  max-width: calc(100vw - 2rem);
+  background: #111420;
+  border: 1px solid #2e3560;
+  border-top: 3px solid #c9a84c;
+  border-radius: 14px;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.75),
+    0 0 0 1px rgba(201, 168, 76, 0.1),
+    0 0 40px rgba(201, 168, 76, 0.06);
+  z-index: 500;
+  animation: guidance-rise 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes guidance-rise {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
+}
+
+/* ── Header ── */
+.guidance-panel-header {
+  padding: 1rem 1.25rem 0.5rem;
+  border-bottom: 1px solid #1e2338;
+}
+
+.guidance-panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.guidance-panel-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.guidance-panel-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #eceffe;
+  margin: 0;
+  flex: 1;
+  line-height: 1.3;
+}
+
+.guidance-close {
+  background: none;
+  border: none;
+  color: #5c6180;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+
+.guidance-close:hover {
+  color: #c8cce0;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Progress track */
+.guidance-step-track {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.guidance-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid #2e3560;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  flex-shrink: 0;
+}
+
+.guidance-dot:hover {
+  border-color: #5a6090;
+  transform: scale(1.25);
+}
+
+.guidance-dot--past {
+  background: #2e3560;
+  border-color: #2e3560;
+}
+
+.guidance-dot--active {
+  background: #c9a84c;
+  border-color: #c9a84c;
+  transform: scale(1.3);
+}
+
+.guidance-step-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: #5c6180;
+  margin-left: auto;
+  letter-spacing: 0.05em;
+}
+
+/* ── Body ── */
+.guidance-panel-body {
+  padding: 0.9rem 1.25rem;
+}
+
+.guidance-description {
+  color: #c8cce0;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  margin: 0 0 0.75rem;
+}
+
+.guidance-tip {
+  background: rgba(201, 168, 76, 0.07);
+  border: 1px solid rgba(201, 168, 76, 0.18);
+  border-radius: 8px;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.8rem;
+  color: #b8a070;
+  line-height: 1.6;
+}
+
+.guidance-tip-label {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #c9a84c;
+  background: rgba(201, 168, 76, 0.15);
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+  margin-right: 0.45rem;
+  vertical-align: middle;
+}
+
+/* ── Footer ── */
+.guidance-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 1.25rem 1rem;
+  border-top: 1px solid #1a1d2e;
+}
+
+.guidance-skip-btn {
+  background: none;
+  border: none;
+  color: #5c6180;
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0.3rem 0.4rem;
+  border-radius: 6px;
+  transition: color 0.15s;
+}
+
+.guidance-skip-btn:hover {
+  color: #c8cce0;
+}
+
+.guidance-nav-buttons {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.guidance-back-btn {
+  font-size: 0.82rem;
+  padding: 0.4rem 0.8rem;
+}
+
+.guidance-next-btn {
+  background: #c9a84c;
+  color: #0b0d14;
+  border: none;
+  font-weight: 600;
+  padding: 0.42rem 1.1rem;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.guidance-next-btn:hover {
+  background: #d9b75c;
+  transform: translateY(-1px);
+}
+
+.guidance-next-btn:active {
+  transform: translateY(0);
+}
