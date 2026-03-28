@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, AuthContext } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
+import GuidanceModal from './components/GuidanceModal';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -13,7 +14,10 @@ import Games from './pages/Games';
 import Stats from './pages/Stats';
 import Visualization from './pages/Visualization';
 
-export default function App() {
+function AppInner() {
+  const { isAuthenticated } = useContext(AuthContext);
+  const [showGuidance, setShowGuidance] = useState(false);
+
   useEffect(() => {
     const onMove = (e) => {
       const distX = window.innerWidth - e.clientX;
@@ -25,30 +29,48 @@ export default function App() {
     return () => window.removeEventListener('mousemove', onMove);
   }, []);
 
+  useEffect(() => {
+    if (isAuthenticated && !localStorage.getItem('guidance_seen')) {
+      setShowGuidance(true);
+    }
+  }, [isAuthenticated]);
+
+  function handleCloseGuidance() {
+    localStorage.setItem('guidance_seen', '1');
+    setShowGuidance(false);
+  }
+
+  return (
+    <BrowserRouter>
+      <Navbar onOpenGuidance={() => setShowGuidance(true)} />
+      <GuidanceModal open={showGuidance} onClose={handleCloseGuidance} />
+      <Routes>
+        {/* Public */}
+        <Route path="/"             element={<Home />} />
+        <Route path="/login"        element={<Login />} />
+        <Route path="/register"     element={<Register />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+
+        {/* Protected */}
+        <Route path="/white-repertoire" element={<ProtectedRoute><WhiteRepertoire /></ProtectedRoute>} />
+        <Route path="/black-repertoire" element={<ProtectedRoute><BlackRepertoire /></ProtectedRoute>} />
+        <Route path="/repertoire"       element={<Navigate to="/white-repertoire" replace />} />
+        <Route path="/games"            element={<ProtectedRoute><Games /></ProtectedRoute>} />
+        <Route path="/stats"            element={<ProtectedRoute><Stats /></ProtectedRoute>} />
+        <Route path="/visualization"    element={<ProtectedRoute><Visualization /></ProtectedRoute>} />
+
+        {/* Redirects */}
+        <Route path="/upload"    element={<Navigate to="/games" replace />} />
+        <Route path="/analytics" element={<Navigate to="/stats" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Navbar />
-        <Routes>
-          {/* Public */}
-          <Route path="/"             element={<Home />} />
-          <Route path="/login"        element={<Login />} />
-          <Route path="/register"     element={<Register />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-
-          {/* Protected */}
-          <Route path="/white-repertoire" element={<ProtectedRoute><WhiteRepertoire /></ProtectedRoute>} />
-          <Route path="/black-repertoire" element={<ProtectedRoute><BlackRepertoire /></ProtectedRoute>} />
-<Route path="/repertoire"       element={<Navigate to="/white-repertoire" replace />} />
-          <Route path="/games"         element={<ProtectedRoute><Games /></ProtectedRoute>} />
-          <Route path="/stats"         element={<ProtectedRoute><Stats /></ProtectedRoute>} />
-          <Route path="/visualization" element={<ProtectedRoute><Visualization /></ProtectedRoute>} />
-
-          {/* Redirects */}
-          <Route path="/upload"    element={<Navigate to="/games" replace />} />
-          <Route path="/analytics" element={<Navigate to="/stats" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <AppInner />
     </AuthProvider>
   );
 }

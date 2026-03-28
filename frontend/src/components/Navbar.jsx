@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import './Navbar.css';
 
-export default function Navbar() {
+export default function Navbar({ onOpenGuidance }) {
   const { isAuthenticated, user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -27,6 +27,7 @@ export default function Navbar() {
 <NavLink to="/games">Games</NavLink>
             <NavLink to="/stats">Analytics</NavLink>
             <NavLink to="/visualization">Visualization</NavLink>
+            <button className="navbar-help" onClick={onOpenGuidance} title="How to use OpeningAnalyzer">?</button>
             <div className="navbar-user">
               <span className="navbar-username">{user?.username}</span>
               <button className="navbar-logout" onClick={handleLogout}>Log out</button>
