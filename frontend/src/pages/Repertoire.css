@@ -4,6 +4,11 @@
    Dark navy base, warm gold accents
 ═══════════════════════════════════════════ */
 
+/* ── Wider page layout for repertoire ── */
+.page {
+  max-width: 1400px;
+}
+
 /* ── Page header enhancement ── */
 .page-header {
   padding-bottom: 2rem;
@@ -653,7 +658,7 @@
   flex-direction: column;
   gap: 0.6rem;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .book-panel::before {
@@ -737,19 +742,68 @@
   flex-shrink: 0;
 }
 
-.book-wdl-bar {
+.book-wdl-wrap {
   flex: 1;
+  position: relative;
+  min-width: 40px;
+}
+
+.book-wdl-bar {
   display: flex;
   height: 6px;
   border-radius: 3px;
   overflow: hidden;
   background: var(--border);
-  min-width: 40px;
+  width: 100%;
 }
 
 .book-wdl-w { background: #22c55e; height: 100%; transition: width 0.3s ease; }
 .book-wdl-d { background: #5c6180; height: 100%; transition: width 0.3s ease; }
 .book-wdl-l { background: #ef4444; height: 100%; transition: width 0.3s ease; }
+
+.book-wdl-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f1623;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 6px;
+  padding: 0.45rem 0.85rem;
+  display: flex;
+  gap: 0.85rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 100;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(201, 168, 76, 0.08);
+}
+
+.book-wdl-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background: #0f1623;
+  border-right: 1px solid rgba(201, 168, 76, 0.35);
+  border-bottom: 1px solid rgba(201, 168, 76, 0.35);
+}
+
+.book-move-row:hover .book-wdl-tooltip {
+  opacity: 1;
+}
+
+.wdl-tip-w { color: #22c55e; }
+.wdl-tip-d { color: #8b9dc3; }
+.wdl-tip-l { color: #ef4444; }
 
 .book-game-count {
   font-family: 'JetBrains Mono', monospace;
