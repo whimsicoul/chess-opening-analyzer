@@ -513,7 +513,7 @@ export default function WhiteRepertoire() {
             <Chessboard
               position={boardGame.fen()}
               onPieceDrop={onPieceDrop}
-              boardWidth={480}
+              boardWidth={600}
               boardOrientation="white"
               customPieces={woodenPieces}
               customBoardStyle={{ backgroundImage: 'url(/wood4.jpg)', backgroundSize: '100% 100%' }}
@@ -589,11 +589,17 @@ export default function WhiteRepertoire() {
                         return (
                           <li key={i} className="book-move-row">
                             <span className="book-move-san">{m.san}</span>
-                            <div className="book-wdl-bar"
-                              title={`W ${w.toFixed(0)}%  D ${d.toFixed(0)}%  L ${l.toFixed(0)}%`}>
-                              <div className="book-wdl-w" style={{ width: `${w}%` }} />
-                              <div className="book-wdl-d" style={{ width: `${d}%` }} />
-                              <div className="book-wdl-l" style={{ width: `${l}%` }} />
+                            <div className="book-wdl-wrap">
+                              <div className="book-wdl-bar">
+                                <div className="book-wdl-w" style={{ width: `${w}%` }} />
+                                <div className="book-wdl-d" style={{ width: `${d}%` }} />
+                                <div className="book-wdl-l" style={{ width: `${l}%` }} />
+                              </div>
+                              <div className="book-wdl-tooltip">
+                                <span className="wdl-tip-w">W {w.toFixed(0)}%</span>
+                                <span className="wdl-tip-d">D {d.toFixed(0)}%</span>
+                                <span className="wdl-tip-l">L {l.toFixed(0)}%</span>
+                              </div>
                             </div>
                             <span className="book-game-count muted">{formatGameCount(total)}</span>
                             <button type="button" className="btn btn-ghost btn-play"
