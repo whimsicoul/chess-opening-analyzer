@@ -10,27 +10,45 @@ const CENTER   = SVG_SIZE / 2;
 const MAX_DEPTH = 8;
 const RING_W   = (OUTER_R - INNER_R) / MAX_DEPTH; // ~21 px per ring
 
-// Depth-based hue fallback (original palette): green → amber → red for shallow → deep
-const DEPTH_HUES = [null, 145, 138, 112, 78, 50, 26, 10, 2];
+// Control points: [winRate, hue, baseLgt] — sorted descending
+// Interpolates smoothly between bands rather than jumping.
+const WR_STOPS = [
+  [60, 120, 16], // super dark green
+  [55, 112, 28], // normal green
+  [50, 88,  36], // light green
+  [48, 52,  36], // yellow
+  [45, 22,  32], // orange
+  [40, 0,   28], // red
+];
 
-// Combines depth (saturation/lightness) with win rate (hue when data available).
-// Nodes with no game data fall back to the original depth hue.
+function wrBand(wr) {
+  if (wr >= WR_STOPS[0][0]) return { hue: WR_STOPS[0][1], baseLgt: WR_STOPS[0][2] };
+  const last = WR_STOPS[WR_STOPS.length - 1];
+  if (wr <= last[0]) return { hue: last[1], baseLgt: last[2] };
+  for (let i = 0; i < WR_STOPS.length - 1; i++) {
+    const [wr1, h1, l1] = WR_STOPS[i];
+    const [wr2, h2, l2] = WR_STOPS[i + 1];
+    if (wr <= wr1 && wr >= wr2) {
+      const t = (wr1 - wr) / (wr1 - wr2);
+      return { hue: Math.round(h1 + (h2 - h1) * t), baseLgt: l1 + (l2 - l1) * t };
+    }
+  }
+  return { hue: 0, baseLgt: 28 };
+}
+
 function segColor(nodeId, depth, x0, x1, winRates, bright) {
   const stats = winRates?.[nodeId];
-  const frac  = (x0 + x1) / 2 / (2 * Math.PI); // 0–1, subtle angular variation
 
-  // Hue: win rate when available (0 = red … 105 = green), else depth palette
-  const hue = stats
-    ? Math.round(stats.winRate * 1.05)
-    : (DEPTH_HUES[Math.min(depth, DEPTH_HUES.length - 1)] ?? 0);
+  if (!stats) {
+    const lgt = bright ? Math.max(22, 32 - depth * 1.5) : Math.max(14, 22 - depth * 1.5);
+    return `hsl(220, 12%, ${lgt}%)`;
+  }
 
-  // Saturation & lightness: depth-based (darker / less saturated at deeper rings)
-  const sat = bright
-    ? Math.max(35, 68 - depth * 3 + frac * 14)
-    : Math.max(18, 54 - depth * 4 + frac * 11);
+  const { hue, baseLgt } = wrBand(stats.winRate);
+  const sat = bright ? 62 : 48;
   const lgt = bright
-    ? Math.max(28, 50 - depth * 2 + frac * 8)
-    : Math.max(15, 36 - depth * 2.5 + frac * 7);
+    ? Math.max(baseLgt, baseLgt + 8 - depth * 1.5)
+    : Math.max(baseLgt - 10, baseLgt - depth * 1.5);
 
   return `hsl(${hue}, ${sat}%, ${lgt}%)`;
 }

@@ -48,25 +48,26 @@ def _detect_player_color(white: str, black: str, username: str | None) -> str | 
 
 def _detect_deviation(cur, moves: list[str], user_id: int, color: str | None = None) -> dict | None:
     """
-    Walk the opening_tree following the game's moves (scoped to user_id and color).
-    opening_tree schema: id, parent_id, move_san, opening_name, eco_code, user_id, color
+    Walk the opening tree following the game's moves (scoped to user_id and color).
+    Uses white_opening_tree or black_opening_tree depending on player color.
     Root nodes have parent_id = 0.
     Returns dict with deviation_move_number, deviated_by, game_move, expected_moves
     or None if the game never left the tree.
     """
+    if color == "white":
+        table = "white_opening_tree"
+    elif color == "black":
+        table = "black_opening_tree"
+    else:
+        return None
+
     parent_id = 0
 
     for ply_index, san in enumerate(moves):
-        if color:
-            cur.execute(
-                "SELECT id, move_san FROM opening_tree WHERE parent_id = %s AND user_id = %s AND color = %s",
-                (parent_id, user_id, color),
-            )
-        else:
-            cur.execute(
-                "SELECT id, move_san FROM opening_tree WHERE parent_id = %s AND user_id = %s",
-                (parent_id, user_id),
-            )
+        cur.execute(
+            f"SELECT id, move_san FROM {table} WHERE parent_id = %s AND user_id = %s",
+            (parent_id, user_id),
+        )
         children = cur.fetchall()
 
         if not children:
@@ -239,6 +240,53 @@ def get_games(current_user: dict = Depends(get_current_user)):
                 (current_user["user_id"],),
             )
             return cur.fetchall()
+
+
+# ---------------------------------------------------------------------------
+# POST /games/reprocess
+# ---------------------------------------------------------------------------
+
+@router.post("/reprocess")
+def reprocess_deviations(current_user: dict = Depends(get_current_user)):
+    """Re-detect deviations for all user games using the current opening repertoire."""
+    user_id = current_user["user_id"]
+    reprocessed = 0
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, pgn, player_color FROM games WHERE user_id = %s",
+                (user_id,),
+            )
+            rows = cur.fetchall()
+            for row in rows:
+                game_id = row["id"]
+                pgn_text = row["pgn"]
+                player_color = row["player_color"]
+                try:
+                    game = _parse_pgn(pgn_text)
+                    moves = _extract_moves(game)
+                    deviation = _detect_deviation(cur, moves, user_id, player_color)
+
+                    cur.execute(
+                        "DELETE FROM game_deviations WHERE game_id = %s", (game_id,)
+                    )
+
+                    if deviation:
+                        opponent_deviation = None
+                        if player_color:
+                            opponent_deviation = (deviation["deviated_by"] != player_color)
+                        cur.execute(
+                            """
+                            INSERT INTO game_deviations (game_id, move_number, move_uci, opponent_deviation)
+                            VALUES (%s, %s, %s, %s)
+                            """,
+                            (game_id, deviation["deviation_move_number"], deviation["game_move"], opponent_deviation),
+                        )
+                    reprocessed += 1
+                except Exception:
+                    pass
+        conn.commit()
+    return {"reprocessed": reprocessed}
 
 
 # ---------------------------------------------------------------------------

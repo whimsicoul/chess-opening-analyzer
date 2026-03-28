@@ -166,6 +166,85 @@ def get_opening_tree(current_user: dict = Depends(get_current_user)):
 
 
 # ---------------------------------------------------------------------------
+# GET /openings/winrates
+# ---------------------------------------------------------------------------
+
+@router.get("/winrates")
+def get_opening_winrates(color: str, current_user: dict = Depends(get_current_user)):
+    """Return win/draw/loss stats per opening tree node for the given color."""
+    import io
+    import chess.pgn as cpgn
+
+    uid = current_user["user_id"]
+    if color not in ("white", "black"):
+        raise HTTPException(status_code=400, detail="color must be 'white' or 'black'")
+
+    tree_table = "white_opening_tree" if color == "white" else "black_opening_tree"
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT id, parent_id, move_san FROM {tree_table} WHERE user_id = %s",
+                (uid,),
+            )
+            rows = cur.fetchall()
+
+            # parent_id -> [(node_id, move_san)]
+            children_map: dict[int, list] = {}
+            for row in rows:
+                pid = row["parent_id"]
+                children_map.setdefault(pid, []).append((row["id"], row["move_san"]))
+
+            cur.execute(
+                "SELECT pgn, result FROM games WHERE user_id = %s AND player_color = %s",
+                (uid, color),
+            )
+            games = cur.fetchall()
+
+    stats: dict[int, dict] = {}
+
+    for game in games:
+        result = game["result"]
+        if not result or result == "*":
+            continue
+
+        win  = (color == "white" and result == "1-0") or (color == "black" and result == "0-1")
+        draw = result == "1/2-1/2"
+
+        g = cpgn.read_game(io.StringIO(game["pgn"]))
+        if g is None:
+            continue
+
+        board = g.board()
+        parent_id = 0
+        for move in g.mainline_moves():
+            san = board.san(move)
+            board.push(move)
+
+            match = next((c for c in children_map.get(parent_id, []) if c[1] == san), None)
+            if not match:
+                break
+
+            node_id = match[0]
+            if node_id not in stats:
+                stats[node_id] = {"wins": 0, "draws": 0, "losses": 0}
+            if win:
+                stats[node_id]["wins"] += 1
+            elif draw:
+                stats[node_id]["draws"] += 1
+            else:
+                stats[node_id]["losses"] += 1
+            parent_id = node_id
+
+    result_map = {}
+    for node_id, s in stats.items():
+        total = s["wins"] + s["draws"] + s["losses"]
+        result_map[node_id] = {**s, "total": total, "winRate": s["wins"] / total * 100}
+
+    return result_map
+
+
+# ---------------------------------------------------------------------------
 # GET /openings/eco-lookup
 # ---------------------------------------------------------------------------
 
