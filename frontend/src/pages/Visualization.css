@@ -107,6 +107,21 @@
   margin-bottom: 0.3rem;
 }
 
+.viz-node-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.viz-node-record {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  letter-spacing: 0.03em;
+}
+
 .viz-idle {
   margin-bottom: 1.25rem;
   padding: 0.5rem 0;

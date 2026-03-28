@@ -58,6 +58,11 @@ export default function Home() {
             </div>
           </div>
 
+          <div className="hero-visual" aria-hidden="true">
+            <div className="logo-glow-ring logo-glow-ring--outer" />
+            <div className="logo-glow-ring" />
+            <img src="/logo.svg" alt="" className="hero-logo" />
+          </div>
         </div>
 
         {/* Notation ticker */}

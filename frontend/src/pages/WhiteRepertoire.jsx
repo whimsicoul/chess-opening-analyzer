@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
+import { woodenPieces } from '../utils/woodenPieces.jsx';
 import api from '../api';
 import './Repertoire.css';
 
@@ -468,8 +469,10 @@ export default function WhiteRepertoire() {
               onPieceDrop={onPieceDrop}
               boardWidth={480}
               boardOrientation="white"
-              customDarkSquareStyle={{ backgroundColor: '#b58863' }}
-              customLightSquareStyle={{ backgroundColor: '#f0d9b5' }}
+              customPieces={woodenPieces}
+              customBoardStyle={{ backgroundImage: 'url(/wood4.jpg)', backgroundSize: '100% 100%' }}
+              customDarkSquareStyle={{}}
+              customLightSquareStyle={{}}
             />
           </div>
 
