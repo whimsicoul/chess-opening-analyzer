@@ -21,6 +21,20 @@ function formatEval(cp, mate) {
   return cp >= 0 ? `+${val}` : `${val}`;
 }
 
+// Format game count: 12345 -> "12.3K", 980 -> "980"
+function formatGameCount(n) {
+  if (n == null) return '0';
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return String(n);
+}
+
+// Compute W/D/L percentages for a move row
+function wdlPercents(white, draws, black) {
+  const total = (white ?? 0) + (draws ?? 0) + (black ?? 0);
+  if (total === 0) return { w: 0, d: 0, l: 0, total: 0 };
+  return { w: (white / total) * 100, d: (draws / total) * 100, l: (black / total) * 100, total };
+}
+
 // Convert a UCI move string to SAN given a Chess position
 function uciToSan(fen, uci) {
   try {
@@ -150,6 +164,12 @@ export default function WhiteRepertoire() {
   const [evalData,    setEvalData]    = useState(null);
   const [evalLoading, setEvalLoading] = useState(false);
 
+  // Opening explorer state
+  const [explorerTab,     setExplorerTab]     = useState('masters');
+  const [explorerMasters, setExplorerMasters] = useState(null);
+  const [explorerLichess, setExplorerLichess] = useState(null);
+  const [explorerLoading, setExplorerLoading] = useState(false);
+
   // ── Board helpers ──────────────────────────────────────────────────────────
 
   function buildBoard(moves, step) {
@@ -256,6 +276,9 @@ export default function WhiteRepertoire() {
     setInputText('');
     setForm({ moves: '', opening_name: '', eco_code: '' });
     setEvalData(null);
+    setExplorerMasters(null);
+    setExplorerLichess(null);
+    setExplorerTab('masters');
   }, []);
 
   function playEngineMove(uciMove) {
@@ -317,26 +340,49 @@ export default function WhiteRepertoire() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardGame]);
 
-  // ECO lookup: auto-fill opening name + ECO code from Lichess whenever position changes
+  // Explorer: fetch Masters data + eco autofill whenever position changes (debounced 500ms)
   useEffect(() => {
-    if (stepIndex === 0) return;
+    if (stepIndex === 0) { setExplorerMasters(null); setExplorerLichess(null); return; }
+    setExplorerLoading(true);
+    setExplorerLichess(null);
     const timer = setTimeout(async () => {
       try {
-        const res = await api.get('/openings/eco-lookup', {
-          params: { fen: boardGame.fen() },
+        const res = await api.get('/openings/explorer', {
+          params: { fen: boardGame.fen(), source: 'masters' },
         });
-        if (res.data) {
+        const data = res.data ?? null;
+        setExplorerMasters(data);
+        if (data?.opening) {
           setForm(f => ({
             ...f,
-            eco_code:     f.eco_code     || res.data.eco,
-            opening_name: f.opening_name || res.data.name,
+            eco_code:     f.eco_code     || data.opening.eco  || '',
+            opening_name: f.opening_name || data.opening.name || '',
           }));
         }
-      } catch { /* ignore */ }
-    }, 600);
+      } catch { setExplorerMasters(null); }
+      finally  { setExplorerLoading(false); }
+    }, 500);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardGame]);
+
+  // Explorer: fetch Lichess DB data on-demand when that tab is selected
+  useEffect(() => {
+    if (explorerTab !== 'lichess' || stepIndex === 0 || explorerLichess !== null) return;
+    let cancelled = false;
+    setExplorerLoading(true);
+    (async () => {
+      try {
+        const res = await api.get('/openings/explorer', {
+          params: { fen: boardGame.fen(), source: 'lichess' },
+        });
+        if (!cancelled) setExplorerLichess(res.data ?? null);
+      } catch { if (!cancelled) setExplorerLichess(null); }
+      finally  { if (!cancelled) setExplorerLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [explorerTab, boardGame]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -510,6 +556,54 @@ export default function WhiteRepertoire() {
                 {!evalLoading && engineMoves.length === 0 && (
                   <p className="engine-empty muted">Position not in cloud database</p>
                 )}
+              </div>
+            )}
+
+            {stepIndex > 0 && (
+              <div className="book-panel">
+                <div className="book-header">
+                  <span className="book-title">Opening Book</span>
+                  {explorerLoading && <span className="engine-loading">…</span>}
+                </div>
+
+                <div className="book-tabs" role="tablist">
+                  {['masters', 'lichess'].map(tab => (
+                    <button key={tab} type="button" role="tab" aria-selected={explorerTab === tab}
+                      className={`book-tab${explorerTab === tab ? ' book-tab-active' : ''}`}
+                      onClick={() => setExplorerTab(tab)}>
+                      {tab === 'masters' ? 'Masters' : 'Lichess DB'}
+                    </button>
+                  ))}
+                </div>
+
+                {(() => {
+                  const data  = explorerTab === 'masters' ? explorerMasters : explorerLichess;
+                  const moves = data?.moves ?? [];
+                  if (!explorerLoading && moves.length === 0) {
+                    return <p className="engine-empty muted">No data for this position</p>;
+                  }
+                  return (
+                    <ul className="book-moves">
+                      {moves.map((m, i) => {
+                        const { w, d, l, total } = wdlPercents(m.white, m.draws, m.black);
+                        return (
+                          <li key={i} className="book-move-row">
+                            <span className="book-move-san">{m.san}</span>
+                            <div className="book-wdl-bar"
+                              title={`W ${w.toFixed(0)}%  D ${d.toFixed(0)}%  L ${l.toFixed(0)}%`}>
+                              <div className="book-wdl-w" style={{ width: `${w}%` }} />
+                              <div className="book-wdl-d" style={{ width: `${d}%` }} />
+                              <div className="book-wdl-l" style={{ width: `${l}%` }} />
+                            </div>
+                            <span className="book-game-count muted">{formatGameCount(total)}</span>
+                            <button type="button" className="btn btn-ghost btn-play"
+                              onClick={() => playEngineMove(m.uci)}>▶ Play</button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  );
+                })()}
               </div>
             )}
 

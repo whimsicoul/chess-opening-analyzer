@@ -1,3 +1,4 @@
+import os
 import chess
 import requests as http
 
@@ -275,10 +276,63 @@ def get_eco_lookup(fen: str, current_user: dict = Depends(get_current_user)):
 # GET /openings/cloud-eval
 # ---------------------------------------------------------------------------
 
+_LICHESS_TOKEN = os.getenv("LICHESS_TOKEN", "")
+
 _HEADERS = {
     "Accept": "application/json",
     "User-Agent": "chess-analyzer-web/1.0",
+    **( {"Authorization": f"Bearer {_LICHESS_TOKEN}"} if _LICHESS_TOKEN else {} ),
 }
+
+
+@router.get("/explorer")
+def get_explorer(
+    fen: str,
+    source: str = "masters",
+    ratings: str = "1600,1800,2000,2200,2500",
+    speeds: str = "rapid,classical,blitz",
+    current_user: dict = Depends(get_current_user),
+):
+    """Proxy Lichess Opening Explorer. source='masters' or 'lichess'."""
+    if source == "masters":
+        url = "https://explorer.lichess.ovh/masters"
+        params = {"fen": fen, "moves": 10, "topGames": 0, "recentGames": 0}
+    else:
+        import urllib.parse
+        url = (
+            f"https://explorer.lichess.ovh/lichess"
+            f"?fen={urllib.parse.quote(fen, safe='')}"
+            f"&ratings={ratings}&speeds={speeds}"
+            f"&moves=10&topGames=0&recentGames=0"
+        )
+        params = None
+    try:
+        r = http.get(url, params=params, headers=_HEADERS, timeout=6)
+        print(f"[explorer] {source} status={r.status_code} url={r.url}")
+        if r.status_code == 404:
+            return None
+        if not r.ok:
+            print(f"[explorer] error body: {r.text[:300]}")
+            r.raise_for_status()
+        data = r.json()
+        print(f"[explorer] {source} moves={len(data.get('moves', []))}")
+        return {
+            "opening": data.get("opening"),
+            "moves": [
+                {
+                    "uci": m.get("uci"),
+                    "san": m.get("san"),
+                    "white": m.get("white", 0),
+                    "draws": m.get("draws", 0),
+                    "black": m.get("black", 0),
+                    "averageRating": m.get("averageRating"),
+                }
+                for m in data.get("moves", [])
+            ],
+        }
+    except Exception as e:
+        print(f"[explorer] failed: {e}")
+        return None
 
 
 @router.get("/cloud-eval")

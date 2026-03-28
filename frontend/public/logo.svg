@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 280" fill="none">
+
+  <!-- ══ Open Book ══ -->
+
+  <!-- Left page body -->
+  <path d="M140 216 L24 160 L24 86 L140 138 Z" fill="#c9a84c" opacity="0.80"/>
+
+  <!-- Left page outer-edge (page thickness/stack) -->
+  <path d="M24 86 L24 160 L31 164 L31 90 Z" fill="#a07830" opacity="0.85"/>
+
+  <!-- Right page body -->
+  <path d="M140 216 L256 160 L256 86 L140 138 Z" fill="#d4b565" opacity="0.90"/>
+
+  <!-- Right page outer-edge (page thickness/stack) -->
+  <path d="M256 86 L256 160 L249 164 L249 90 Z" fill="#b89640" opacity="0.85"/>
+
+  <!-- Spine (binding strip at centre) -->
+  <rect x="133" y="138" width="14" height="78" rx="2" fill="#9a7228"/>
+
+  <!-- Spine top cap -->
+  <rect x="131" y="134" width="18" height="8" rx="3" fill="#b48a35"/>
+
+  <!-- Page top-edge highlight line -->
+  <path d="M24 86 L140 138 L256 86" stroke="rgba(255,245,180,0.45)" stroke-width="1.5" fill="none"/>
+
+  <!-- ══ Chess Queen Piece ══ -->
+
+  <!-- Base plate -->
+  <rect x="98" y="132" width="84" height="13" rx="3.5" fill="#c9a84c"/>
+  <!-- Base top highlight -->
+  <rect x="98" y="132" width="84" height="3" rx="2" fill="rgba(255,245,190,0.18)"/>
+
+  <!-- Lower trunk (trapezoid) -->
+  <path d="M107 104 L173 104 L178 132 L102 132 Z" fill="#b8933b"/>
+
+  <!-- Waist (narrow rectangle) -->
+  <rect x="119" y="76" width="42" height="31" rx="6" fill="#c9a84c"/>
+
+  <!-- Shoulder / crown base (wide trapezoid) -->
+  <path d="M104 59 L176 59 L171 76 L109 76 Z" fill="#c9a84c"/>
+  <!-- Shoulder highlight -->
+  <rect x="104" y="59" width="72" height="3" rx="1.5" fill="rgba(255,245,190,0.16)"/>
+
+  <!-- Neck -->
+  <rect x="123" y="45" width="34" height="17" rx="5" fill="#a47c30"/>
+
+  <!-- Head sphere -->
+  <circle cx="140" cy="37" r="17" fill="#c9a84c"/>
+  <!-- Head ambient highlight -->
+  <circle cx="134" cy="31" r="5.5" fill="rgba(255,248,210,0.18)"/>
+
+  <!-- Crown orbs -->
+  <circle cx="120" cy="21" r="6.5" fill="#c9a84c"/>
+  <circle cx="120" cy="21" r="3"   fill="rgba(255,248,210,0.22)"/>
+
+  <circle cx="140" cy="14" r="8.5" fill="#c9a84c"/>
+  <circle cx="140" cy="14" r="4"   fill="rgba(255,248,210,0.22)"/>
+
+  <circle cx="160" cy="21" r="6.5" fill="#c9a84c"/>
+  <circle cx="160" cy="21" r="3"   fill="rgba(255,248,210,0.22)"/>
+
+</svg>
