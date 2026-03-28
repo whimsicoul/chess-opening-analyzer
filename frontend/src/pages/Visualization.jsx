@@ -1,59 +1,8 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import api from '../api';
 import OpeningSunburst from '../components/OpeningSunburst';
 import ChessBoardViewer from '../components/ChessBoardViewer';
 import './Visualization.css';
-
-// ── PGN helpers ───────────────────────────────────────────────────────────────
-
-function parsePgnMoves(pgn) {
-  if (!pgn) return [];
-  let text = pgn
-    .replace(/\[[^\]]*\]/g, '')  // remove [Tag "Value"] headers
-    .replace(/\{[^}]*\}/g, ' ') // remove { comments }
-    .replace(/\([^)]*\)/g, ' ') // remove (variations)
-    .replace(/\$\d+/g, ' ');    // remove $NAG annotations
-  return text.trim().split(/\s+/)
-    .filter(t => t && !/^\d+\.+$/.test(t) && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(t));
-}
-
-// Returns { [nodeId]: { winRate, wins, draws, losses, total } }
-function buildWinRateMap(games, treeData, color) {
-  const childMap = {};
-  function index(node) {
-    if (node.children?.length) {
-      childMap[node.id] = node.children.map(c => ({ id: c.id, name: c.name }));
-      node.children.forEach(index);
-    }
-  }
-  index(treeData);
-
-  const stats = {};
-  for (const game of games.filter(g => g.player_color === color)) {
-    if (!game.result || game.result === '*') continue;
-    const moves = parsePgnMoves(game.pgn);
-    const win  = color === 'white' ? game.result === '1-0' : game.result === '0-1';
-    const draw = game.result === '1/2-1/2';
-
-    let parentId = treeData.id; // 0
-    for (const san of moves) {
-      const match = (childMap[parentId] || []).find(c => c.name === san);
-      if (!match) break;
-      if (!stats[match.id]) stats[match.id] = { wins: 0, draws: 0, losses: 0 };
-      if (win) stats[match.id].wins++;
-      else if (draw) stats[match.id].draws++;
-      else stats[match.id].losses++;
-      parentId = match.id;
-    }
-  }
-
-  const result = {};
-  for (const [id, s] of Object.entries(stats)) {
-    const total = s.wins + s.draws + s.losses;
-    result[id] = { winRate: (s.wins / total) * 100, ...s, total };
-  }
-  return result;
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -88,7 +37,7 @@ function MoveSequence({ moves }) {
 export default function Visualization() {
   const [color,       setColor      ] = useState('white');
   const [treeData,    setTreeData   ] = useState(null);
-  const [games,       setGames      ] = useState([]);
+  const [winRates,    setWinRates   ] = useState({});
   const [loading,     setLoading    ] = useState(true);
   const [error,       setError      ] = useState(null);
   const [activeMoves, setActiveMoves] = useState([]);
@@ -99,20 +48,15 @@ export default function Visualization() {
     setError(null);
     Promise.all([
       api.get('/openings/tree', { params: { color } }),
-      api.get('/games/'),
+      api.get('/openings/winrates', { params: { color } }),
     ])
-      .then(([treeRes, gamesRes]) => {
+      .then(([treeRes, wrRes]) => {
         setTreeData(treeRes.data);
-        setGames(gamesRes.data);
+        setWinRates(wrRes.data);
       })
       .catch(() => setError('Failed to load data.'))
       .finally(() => setLoading(false));
   }, [color]);
-
-  const winRates = useMemo(
-    () => (treeData && games.length ? buildWinRateMap(games, treeData, color) : {}),
-    [treeData, games, color],
-  );
 
   const handleActivePath = useCallback((moves, info) => {
     setActiveMoves(moves);
@@ -175,31 +119,34 @@ export default function Visualization() {
 
             {/* Legend */}
             <div className="viz-legend">
-              <div className="viz-legend-label">Hue — win rate (when game data exists)</div>
+              <div className="viz-legend-label">Hue — win rate</div>
               <div className="viz-legend-item">
-                <div className="viz-legend-dot" style={{ background: 'hsl(105,52%,30%)' }} />
-                <span>High win rate (&gt;55%)</span>
+                <div className="viz-legend-dot" style={{ background: 'hsl(120,48%,16%)' }} />
+                <span>&gt;60%</span>
               </div>
               <div className="viz-legend-item">
-                <div className="viz-legend-dot" style={{ background: 'hsl(47,52%,30%)' }} />
-                <span>Neutral (45–55%)</span>
+                <div className="viz-legend-dot" style={{ background: 'hsl(112,48%,28%)' }} />
+                <span>55–60%</span>
               </div>
               <div className="viz-legend-item">
-                <div className="viz-legend-dot" style={{ background: 'hsl(0,52%,30%)' }} />
-                <span>Low win rate (&lt;45%)</span>
-              </div>
-              <div className="viz-legend-label" style={{ marginTop: '0.5rem' }}>Hue — depth (no game data)</div>
-              <div className="viz-legend-item">
-                <div className="viz-legend-dot" style={{ background: 'hsl(145,52%,32%)' }} />
-                <span>Early moves (depth 1–3)</span>
+                <div className="viz-legend-dot" style={{ background: 'hsl(88,48%,36%)' }} />
+                <span>50–55%</span>
               </div>
               <div className="viz-legend-item">
-                <div className="viz-legend-dot" style={{ background: 'hsl(65,50%,30%)' }} />
-                <span>Mid lines (depth 4–5)</span>
+                <div className="viz-legend-dot" style={{ background: 'hsl(52,48%,36%)' }} />
+                <span>48–50%</span>
               </div>
               <div className="viz-legend-item">
-                <div className="viz-legend-dot" style={{ background: 'hsl(18,50%,28%)' }} />
-                <span>Deep lines (depth 6+)</span>
+                <div className="viz-legend-dot" style={{ background: 'hsl(22,48%,32%)' }} />
+                <span>45–48%</span>
+              </div>
+              <div className="viz-legend-item">
+                <div className="viz-legend-dot" style={{ background: 'hsl(0,48%,28%)' }} />
+                <span>&lt;45%</span>
+              </div>
+              <div className="viz-legend-item">
+                <div className="viz-legend-dot" style={{ background: 'hsl(220,12%,22%)' }} />
+                <span>No game data</span>
               </div>
             </div>
           </div>
@@ -218,6 +165,21 @@ export default function Visualization() {
                   <span className="badge badge-eco" style={{ marginTop: '0.25rem', display: 'inline-block' }}>
                     {activeInfo.eco_code}
                   </span>
+                )}
+                {winRates[activeInfo.id] ? (() => {
+                  const s = winRates[activeInfo.id];
+                  const wr = s.winRate;
+                  const cls = wr >= 55 ? 'badge-green' : wr >= 45 ? 'badge-amber' : 'badge-red';
+                  return (
+                    <div className="viz-node-stats">
+                      <span className={`badge ${cls}`}>{wr.toFixed(1)}% win rate</span>
+                      <span className="viz-node-record">{s.wins}W · {s.draws}D · {s.losses}L</span>
+                    </div>
+                  );
+                })() : (
+                  <div className="viz-node-stats">
+                    <span className="muted" style={{ fontSize: '0.78rem' }}>No game data for this position</span>
+                  </div>
                 )}
               </div>
             ) : (

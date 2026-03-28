@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
+import { woodenPieces } from "../utils/woodenPieces.jsx";
 import "./ChessBoardViewer.css";
 
 export default function ChessBoardViewer({
@@ -212,8 +213,10 @@ export default function ChessBoardViewer({
           arePiecesDraggable={false}
           animationDuration={150}
           customSquareStyles={squareStyles}
-          customDarkSquareStyle={{ backgroundColor: "#3d5a80" }}
-          customLightSquareStyle={{ backgroundColor: "#c8d8e8" }}
+          customPieces={woodenPieces}
+          customBoardStyle={{ backgroundImage: "url(/wood4.jpg)", backgroundSize: "100% 100%" }}
+          customDarkSquareStyle={{}}
+          customLightSquareStyle={{}}
         />
         </div>
       </div>
