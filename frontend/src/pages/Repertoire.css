@@ -642,3 +642,120 @@
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.04em;
 }
+
+/* ── Opening Book panel ── */
+.book-panel {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.book-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(201,168,76,0.3), transparent);
+}
+
+.book-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.book-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.50);
+}
+
+.book-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.book-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.28rem 0.65rem 0.4rem;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.book-tab:hover { color: #e8dfca; }
+.book-tab-active { color: #c9a84c; border-bottom-color: #c9a84c; }
+
+.book-moves {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.book-move-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.book-move-row:hover {
+  border-color: rgba(201, 168, 76, 0.2);
+  background: rgba(201, 168, 76, 0.03);
+}
+
+.book-move-san {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #e8dfca;
+  min-width: 2.5rem;
+  flex-shrink: 0;
+}
+
+.book-wdl-bar {
+  flex: 1;
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--border);
+  min-width: 40px;
+}
+
+.book-wdl-w { background: #22c55e; height: 100%; transition: width 0.3s ease; }
+.book-wdl-d { background: #5c6180; height: 100%; transition: width 0.3s ease; }
+.book-wdl-l { background: #ef4444; height: 100%; transition: width 0.3s ease; }
+
+.book-game-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  min-width: 3.8rem;
+  text-align: right;
+  flex-shrink: 0;
+}

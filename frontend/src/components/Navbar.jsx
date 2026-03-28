@@ -16,7 +16,7 @@ export default function Navbar() {
     <nav className="navbar">
       <NavLink to="/" className="navbar-brand">
         <div className="navbar-logo">♟</div>
-        <span className="navbar-name">Chess<span>Analyzer</span></span>
+        <span className="navbar-name">Opening<span>Analyzer</span></span>
       </NavLink>
 
       <div className="navbar-links">

@@ -57,6 +57,35 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Chess board grid — global top-right decoration */
+body::after {
+  content: '';
+  position: fixed;
+  top: -30px;
+  right: -30px;
+  width: 520px;
+  height: 520px;
+  background-image: repeating-conic-gradient(
+    rgba(201, 168, 76, 0.048) 0% 25%,
+    transparent 0% 50%
+  );
+  background-size: 65px 65px;
+  pointer-events: none;
+  z-index: 0;
+  mask-image: radial-gradient(ellipse 80% 80% at 90% 10%, black 20%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 80% at 90% 10%, black 20%, transparent 70%);
+  transition: width 12s cubic-bezier(0.0, 0, 0.2, 1),
+              height 12s cubic-bezier(0.0, 0, 0.2, 1),
+              opacity 3s ease;
+}
+
+body.board-creep::after {
+  width: 1500px;
+  height: 1500px;
+  mask-image: radial-gradient(ellipse 85% 85% at 88% 8%, black 25%, transparent 65%);
+  -webkit-mask-image: radial-gradient(ellipse 85% 85% at 88% 8%, black 25%, transparent 65%);
+}
+
 #root {
   min-height: 100svh;
   display: flex;
