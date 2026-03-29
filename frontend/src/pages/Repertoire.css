@@ -978,6 +978,24 @@
   color: #ef4444;
 }
 
+.tree-ctx-warn {
+  color: rgba(251, 146, 60, 0.9);
+}
+
+.tree-ctx-warn:hover {
+  background: rgba(251, 146, 60, 0.08);
+  color: #fb923c;
+}
+
+.tree-ctx-muted {
+  color: rgba(148, 163, 184, 0.7);
+}
+
+.tree-ctx-muted:hover {
+  background: rgba(201, 168, 76, 0.06);
+  color: rgba(148, 163, 184, 1);
+}
+
 .tree-ctx-divider {
   height: 1px;
   background: rgba(201, 168, 76, 0.10);
