@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { woodenPieces } from '../utils/woodenPieces.jsx';
@@ -82,15 +82,30 @@ function isPathActive(activePath, movePath) {
   );
 }
 
+// Coach banner shown during repertoire construction
+function CoachBanner({ children, onDismiss }) {
+  return (
+    <div className="coach-banner">
+      <span className="coach-icon">🎓</span>
+      <p className="coach-message">{children}</p>
+      <button className="coach-dismiss" onClick={onDismiss} aria-label="Dismiss coach">✕</button>
+    </div>
+  );
+}
+
 // Recursive compact tree node — ChessTempo pairing style:
 // Each row shows this move + its single child inline; branches nest below.
-function TreeNode({ node, depth, pathMoves, onSelect, activePath }) {
-  const [collapsed, setCollapsed] = useState(true);
-
+function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef, onMoveMenu }) {
   const myPath = [...pathMoves, node.name];
   const singleChild = node.children.length === 1 ? node.children[0] : null;
   const multiChildren = node.children.length > 1 ? node.children : [];
   const childPath = singleChild ? [...myPath, singleChild.name] : null;
+
+  const isExact = activePath.length === myPath.length && activePath.join(',') === myPath.join(',');
+  const isAncestor = activePath.length > myPath.length &&
+    activePath.slice(0, myPath.length).join(',') === myPath.join(',');
+  const childIsExact = childPath && activePath.length === childPath.length &&
+    activePath.join(',') === childPath.join(',');
 
   // What to render below this row
   const grandchildren = singleChild ? singleChild.children : [];
@@ -99,11 +114,19 @@ function TreeNode({ node, depth, pathMoves, onSelect, activePath }) {
   const branchBase = multiChildren.length > 0 ? myPath : childPath;
   const hasBranches = branchChildren.length > 0;
 
+  // Auto-expand when active path passes through this node
+  const [collapsed, setCollapsed] = useState(!(isExact || isAncestor));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (isExact || isAncestor) setCollapsed(false);
+  }, [activePath.join(',')]);
+
   return (
     <div className="tree-line">
       <div className="tree-run">
         {hasBranches && (
           <button
+            type="button"
             className="tree-toggle"
             onClick={() => setCollapsed(c => !c)}
             aria-label={collapsed ? 'Expand' : 'Collapse'}
@@ -112,16 +135,20 @@ function TreeNode({ node, depth, pathMoves, onSelect, activePath }) {
           </button>
         )}
         <span
+          ref={isExact ? activeNodeRef : undefined}
           className={`tree-move${isPathActive(activePath, myPath) ? ' tree-move-active' : ''}`}
           onClick={() => onSelect(myPath)}
+          onContextMenu={e => onMoveMenu(e, myPath)}
           title={node.opening_name || undefined}
         >
           {moveLabel(depth, node.name)}
         </span>
         {singleChild && (
           <span
+            ref={childIsExact ? activeNodeRef : undefined}
             className={`tree-move${isPathActive(activePath, childPath) ? ' tree-move-active' : ''}`}
             onClick={() => onSelect(childPath)}
+            onContextMenu={e => onMoveMenu(e, childPath)}
             title={singleChild.opening_name || undefined}
           >
             {moveLabel(depth + 1, singleChild.name)}
@@ -139,6 +166,8 @@ function TreeNode({ node, depth, pathMoves, onSelect, activePath }) {
               pathMoves={branchBase}
               onSelect={onSelect}
               activePath={activePath}
+              activeNodeRef={activeNodeRef}
+              onMoveMenu={onMoveMenu}
             />
           ))}
         </div>
@@ -169,6 +198,16 @@ export default function WhiteRepertoire() {
   const [explorerMasters, setExplorerMasters] = useState(null);
   const [explorerLichess, setExplorerLichess] = useState(null);
   const [explorerLoading, setExplorerLoading] = useState(false);
+
+  // Coach state
+  const [coachDismissed, setCoachDismissed] = useState(false);
+
+  // Live tree scroll ref — scrolls to the active move when allMoves changes
+  const activeNodeRef = useRef(null);
+
+  // Context menu state for right-clicking tree moves
+  const [contextMenu, setContextMenu] = useState(null);
+  // { x, y, path: string[], matchingLines: Line[] }
 
   // ── Board helpers ──────────────────────────────────────────────────────────
 
@@ -290,6 +329,54 @@ export default function WhiteRepertoire() {
       _applyMoves([...allMoves.slice(0, stepIndex), move.san]);
     } catch { /* ignore invalid */ }
   }
+
+  // Arrow-key navigation (skip when an input/textarea is focused)
+  const stepBackRef = useRef(stepBack);
+  const stepForwardRef = useRef(stepForward);
+  useEffect(() => { stepBackRef.current = stepBack; });
+  useEffect(() => { stepForwardRef.current = stepForward; });
+  useEffect(() => {
+    function handleKeyDown(e) {
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === 'ArrowLeft')  stepBackRef.current();
+      if (e.key === 'ArrowRight') stepForwardRef.current();
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Auto-scroll tree to active move when board position changes
+  useEffect(() => {
+    if (activeNodeRef.current) {
+      activeNodeRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allMoves.join(',')]);
+
+  // Context menu: open on right-click of a tree move
+  function openContextMenu(e, path) {
+    e.preventDefault();
+    e.stopPropagation();
+    const matchingLines = lines.filter(line => {
+      const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
+      return path.length <= tokens.length &&
+        path.join(',') === tokens.slice(0, path.length).join(',');
+    });
+    setContextMenu({ x: e.clientX, y: e.clientY, path, matchingLines });
+  }
+
+  // Close context menu on any outside click
+  useEffect(() => {
+    if (!contextMenu) return;
+    function close() { setContextMenu(null); }
+    window.addEventListener('click', close);
+    window.addEventListener('contextmenu', close);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('contextmenu', close);
+    };
+  }, [contextMenu]);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -431,29 +518,26 @@ export default function WhiteRepertoire() {
       ? evalData.pvs[0].mate > 0
       : true;
 
-  // ── Opening tree renderer ──────────────────────────────────────────────────
+  // ── Live opening tree (rendered inline with board) ────────────────────────
 
-  function renderOpeningTree() {
+  function renderLiveTree() {
     const displayTree = (tree && tree.children.length > 0) ? tree : buildTreeFromLines(lines);
     const isEmpty = displayTree.children.length === 0;
 
     return (
-      <section className="rep-section">
-        <div className="rep-section-header">
-          <span className="badge badge-color-white">♔ White Opening Tree</span>
+      <div className="live-tree-col">
+        <div className="live-tree-header">
+          <span className="engine-title">Opening Tree</span>
           <span className="rep-section-count muted">
             {lines.length} line{lines.length !== 1 ? 's' : ''}
           </span>
         </div>
 
-        {isEmpty ? (
-          <div className="card empty-state">
-            <div className="empty-icon">♔</div>
-            <p>No white opening lines yet. Add your first line above.</p>
-          </div>
-        ) : (
-          <div className="opening-tree card">
-            {displayTree.children.map(child => (
+        <div className="live-tree-scroll">
+          {isEmpty ? (
+            <p className="engine-empty muted">No lines saved yet — add your first line above</p>
+          ) : (
+            displayTree.children.map(child => (
               <TreeNode
                 key={child.id}
                 node={child}
@@ -461,36 +545,49 @@ export default function WhiteRepertoire() {
                 pathMoves={[]}
                 onSelect={loadPosition}
                 activePath={allMoves}
+                activeNodeRef={activeNodeRef}
+                onMoveMenu={openContextMenu}
               />
-            ))}
-          </div>
-        )}
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
 
-        {lines.length > 0 && (
-          <details className="tree-manage-lines">
-            <summary>Manage saved lines ({lines.length})</summary>
-            <ul className="tree-line-list">
-              {lines.map(line => (
-                <li key={line.id} className="tree-line-item">
-                  <span className="tree-line-label">
-                    {line.opening_name
-                      ? <><strong>{line.opening_name}</strong>{line.eco_code ? ` (${line.eco_code})` : ''} — <code>{line.moves}</code></>
-                      : <code>{line.moves}</code>
-                    }
-                  </span>
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={() => handleDelete(line.id)}
-                    aria-label={`Delete ${line.opening_name || line.moves}`}
-                  >
-                    ✕
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </details>
+  function renderContextMenu() {
+    if (!contextMenu) return null;
+    const { x, y, path, matchingLines } = contextMenu;
+    const label = moveLabel(path.length - 1, path[path.length - 1]);
+    return (
+      <div
+        className="tree-ctx-menu"
+        style={{ top: y, left: x }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="tree-ctx-header">{label}</div>
+        <button
+          className="tree-ctx-item"
+          onClick={() => { loadPosition(path); setContextMenu(null); }}
+        >
+          Load position
+        </button>
+        {matchingLines.length > 0 && (
+          <div className="tree-ctx-divider" />
         )}
-      </section>
+        {matchingLines.map(line => (
+          <button
+            key={line.id}
+            className="tree-ctx-item tree-ctx-delete"
+            onClick={() => { handleDelete(line.id); setContextMenu(null); }}
+          >
+            Delete — {line.opening_name || <code>{line.moves}</code>}
+          </button>
+        ))}
+        {matchingLines.length === 0 && (
+          <p className="tree-ctx-empty">No saved lines at this move</p>
+        )}
+      </div>
     );
   }
 
@@ -508,12 +605,23 @@ export default function WhiteRepertoire() {
           Add White ♔ Opening Line
         </div>
 
+        {!coachDismissed && stepIndex === 0 && (
+          <CoachBanner onDismiss={() => setCoachDismissed(true)}>
+            Start by choosing a first move — I recommend <strong>e4</strong>, <strong>d4</strong>, or <strong>c4</strong>!
+          </CoachBanner>
+        )}
+        {!coachDismissed && stepIndex === 1 && (
+          <CoachBanner onDismiss={() => setCoachDismissed(true)}>
+            Great choice! Let&apos;s go through the most common responses and build out a repertoire. The top responses are highlighted in the Opening Book →
+          </CoachBanner>
+        )}
+
         <div className="rep-board-engine-row">
           <div className="rep-input-board">
             <Chessboard
               position={boardGame.fen()}
               onPieceDrop={onPieceDrop}
-              boardWidth={600}
+              boardWidth={720}
               boardOrientation="white"
               customPieces={woodenPieces}
               customBoardStyle={{ backgroundImage: 'url(/wood4.jpg)', backgroundSize: '100% 100%' }}
@@ -582,12 +690,13 @@ export default function WhiteRepertoire() {
                   if (!explorerLoading && moves.length === 0) {
                     return <p className="engine-empty muted">No data for this position</p>;
                   }
+                  const coachHighlight = stepIndex === 1 && !coachDismissed;
                   return (
                     <ul className="book-moves">
                       {moves.map((m, i) => {
                         const { w, d, l, total } = wdlPercents(m.white, m.draws, m.black);
                         return (
-                          <li key={i} className="book-move-row">
+                          <li key={i} className={`book-move-row${coachHighlight && i < 3 ? ' coach-highlight' : ''}`}>
                             <span className="book-move-san">{m.san}</span>
                             <div className="book-wdl-wrap">
                               <div className="book-wdl-bar">
@@ -657,6 +766,8 @@ export default function WhiteRepertoire() {
               )}
             </div>
           </div>{/* rep-right-col */}
+
+          {renderLiveTree()}
         </div>{/* rep-board-engine-row */}
 
         <div className="form-grid rep-meta-grid">
@@ -687,8 +798,7 @@ export default function WhiteRepertoire() {
       </form>
 
       {error && <p className="msg-error">{error}</p>}
-
-      {renderOpeningTree()}
+      {renderContextMenu()}
     </main>
   );
 }
