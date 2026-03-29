@@ -94,15 +94,16 @@ function CoachBanner({ children, onDismiss }) {
 }
 
 // Recursive compact tree node — ChessTempo pairing style
-function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef, onMoveMenu }) {
+function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef, onMoveMenu, collapsedPaths }) {
   const myPath = [...pathMoves, node.name];
+  const myKey  = myPath.join(',');
   const singleChild = node.children.length === 1 ? node.children[0] : null;
   const multiChildren = node.children.length > 1 ? node.children : [];
   const childPath = singleChild ? [...myPath, singleChild.name] : null;
 
-  const isExact = activePath.length === myPath.length && activePath.join(',') === myPath.join(',');
+  const isExact = activePath.length === myPath.length && activePath.join(',') === myKey;
   const isAncestor = activePath.length > myPath.length &&
-    activePath.slice(0, myPath.length).join(',') === myPath.join(',');
+    activePath.slice(0, myPath.length).join(',') === myKey;
   const childIsExact = childPath && activePath.length === childPath.length &&
     activePath.join(',') === childPath.join(',');
 
@@ -112,12 +113,15 @@ function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef,
   const branchBase = multiChildren.length > 0 ? myPath : childPath;
   const hasBranches = branchChildren.length > 0;
 
+  const isForceCollapsed = collapsedPaths?.has(myKey) ?? false;
+
   // Auto-expand when active path passes through this node
-  const [collapsed, setCollapsed] = useState(!(isExact || isAncestor));
+  const [collapsed, setCollapsed] = useState(isForceCollapsed || !(isExact || isAncestor));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isExact || isAncestor) setCollapsed(false);
-  }, [activePath.join(',')]);
+    else if (isForceCollapsed) setCollapsed(true);
+  }, [activePath.join(','), isForceCollapsed]);
 
   return (
     <div className="tree-line">
@@ -136,7 +140,7 @@ function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef,
           ref={isExact ? activeNodeRef : undefined}
           className={`tree-move${isPathActive(activePath, myPath) ? ' tree-move-active' : ''}`}
           onClick={() => onSelect(myPath)}
-          onContextMenu={e => onMoveMenu(e, myPath)}
+          onContextMenu={e => onMoveMenu(e, myPath, hasBranches, collapsed)}
           title={node.opening_name || undefined}
         >
           {moveLabel(depth, node.name)}
@@ -146,7 +150,7 @@ function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef,
             ref={childIsExact ? activeNodeRef : undefined}
             className={`tree-move${isPathActive(activePath, childPath) ? ' tree-move-active' : ''}`}
             onClick={() => onSelect(childPath)}
-            onContextMenu={e => onMoveMenu(e, childPath)}
+            onContextMenu={e => onMoveMenu(e, childPath, singleChild.children.length > 0, false)}
             title={singleChild.opening_name || undefined}
           >
             {moveLabel(depth + 1, singleChild.name)}
@@ -166,6 +170,7 @@ function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef,
               activePath={activePath}
               activeNodeRef={activeNodeRef}
               onMoveMenu={onMoveMenu}
+              collapsedPaths={collapsedPaths}
             />
           ))}
         </div>
@@ -205,7 +210,10 @@ export default function BlackRepertoire() {
 
   // Context menu state for right-clicking tree moves
   const [contextMenu, setContextMenu] = useState(null);
-  // { x, y, path: string[], matchingLines: Line[] }
+  // { x, y, path, matchingLines, hasBranches, isCollapsed }
+
+  // Paths that have been manually collapsed via context menu
+  const [collapsedPaths, setCollapsedPaths] = useState(new Set());
 
   // ── Board helpers ──────────────────────────────────────────────────────────
 
@@ -353,7 +361,7 @@ export default function BlackRepertoire() {
   }, [allMoves.join(',')]);
 
   // Context menu: open on right-click of a tree move
-  function openContextMenu(e, path) {
+  function openContextMenu(e, path, hasBranches = false, isCollapsed = false) {
     e.preventDefault();
     e.stopPropagation();
     const matchingLines = lines.filter(line => {
@@ -361,7 +369,7 @@ export default function BlackRepertoire() {
       return path.length <= tokens.length &&
         path.join(',') === tokens.slice(0, path.length).join(',');
     });
-    setContextMenu({ x: e.clientX, y: e.clientY, path, matchingLines });
+    setContextMenu({ x: e.clientX, y: e.clientY, path, matchingLines, hasBranches, isCollapsed });
   }
 
   // Close context menu on any outside click
@@ -497,6 +505,42 @@ export default function BlackRepertoire() {
     }
   }
 
+  async function handleDeleteFromMove(path) {
+    const linesToDelete = lines.filter(line => {
+      const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
+      return path.length <= tokens.length &&
+        path.join(',') === tokens.slice(0, path.length).join(',');
+    });
+    try {
+      await Promise.all(linesToDelete.map(line => api.delete(`/openings/black/${line.id}`)));
+      await fetchLines();
+      await fetchTree();
+    } catch {
+      setError('Failed to delete lines from this move.');
+    }
+  }
+
+  function handleCopyLine(path) {
+    const pgn = path.map((move, i) =>
+      i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${move}` : move
+    ).join(' ');
+    navigator.clipboard.writeText(pgn).catch(() => {});
+  }
+
+  function handleCollapseBranch(path) {
+    const key = path.join(',');
+    setCollapsedPaths(prev => new Set([...prev, key]));
+  }
+
+  function handleExpandBranch(path) {
+    const key = path.join(',');
+    setCollapsedPaths(prev => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  }
+
   // ── Derived engine display data ────────────────────────────────────────────
 
   const engineMoves = evalData?.pvs?.slice(0, 3).map(pv => {
@@ -545,6 +589,7 @@ export default function BlackRepertoire() {
                 activePath={allMoves}
                 activeNodeRef={activeNodeRef}
                 onMoveMenu={openContextMenu}
+                collapsedPaths={collapsedPaths}
               />
             ))
           )}
@@ -555,8 +600,9 @@ export default function BlackRepertoire() {
 
   function renderContextMenu() {
     if (!contextMenu) return null;
-    const { x, y, path, matchingLines } = contextMenu;
+    const { x, y, path, matchingLines, hasBranches, isCollapsed } = contextMenu;
     const label = moveLabel(path.length - 1, path[path.length - 1]);
+    const isForcedCollapsed = collapsedPaths.has(path.join(','));
     return (
       <div
         className="tree-ctx-menu"
@@ -564,24 +610,65 @@ export default function BlackRepertoire() {
         onClick={e => e.stopPropagation()}
       >
         <div className="tree-ctx-header">{label}</div>
+
         <button
           className="tree-ctx-item"
           onClick={() => { loadPosition(path); setContextMenu(null); }}
         >
           Load position
         </button>
-        {matchingLines.length > 0 && (
-          <div className="tree-ctx-divider" />
+
+        <button
+          className="tree-ctx-item"
+          onClick={() => { handleCopyLine(path); setContextMenu(null); }}
+        >
+          Copy line
+        </button>
+
+        {hasBranches && (
+          isForcedCollapsed ? (
+            <button
+              className="tree-ctx-item tree-ctx-muted"
+              onClick={() => { handleExpandBranch(path); setContextMenu(null); }}
+            >
+              Expand children
+            </button>
+          ) : (
+            <button
+              className="tree-ctx-item tree-ctx-muted"
+              onClick={() => { handleCollapseBranch(path); setContextMenu(null); }}
+            >
+              Collapse children
+            </button>
+          )
         )}
-        {matchingLines.map(line => (
+
+        <div className="tree-ctx-divider" />
+
+        {matchingLines.length > 0 && (
           <button
-            key={line.id}
-            className="tree-ctx-item tree-ctx-delete"
-            onClick={() => { handleDelete(line.id); setContextMenu(null); }}
+            className="tree-ctx-item tree-ctx-warn"
+            onClick={() => { handleDeleteFromMove(path); setContextMenu(null); }}
           >
-            Delete — {line.opening_name || <code>{line.moves}</code>}
+            Delete from move ({matchingLines.length} line{matchingLines.length !== 1 ? 's' : ''})
           </button>
-        ))}
+        )}
+
+        {matchingLines.length > 0 && (
+          <>
+            <div className="tree-ctx-divider" />
+            {matchingLines.map(line => (
+              <button
+                key={line.id}
+                className="tree-ctx-item tree-ctx-delete"
+                onClick={() => { handleDelete(line.id); setContextMenu(null); }}
+              >
+                Delete — {line.opening_name || <code>{line.moves}</code>}
+              </button>
+            ))}
+          </>
+        )}
+
         {matchingLines.length === 0 && (
           <p className="tree-ctx-empty">No saved lines at this move</p>
         )}
