@@ -6,7 +6,7 @@
 
 /* ── Wider page layout for repertoire ── */
 .page {
-  max-width: 1400px;
+  max-width: 1600px;
 }
 
 /* ── Page header enhancement ── */
@@ -97,7 +97,7 @@
 /* ── Board + engine side-by-side ── */
 .rep-board-engine-row {
   display: flex;
-  gap: 1.25rem;
+  gap: 1.5rem;
   align-items: flex-start;
   margin-bottom: 1rem;
   flex-wrap: wrap;
@@ -113,7 +113,8 @@
 /* ── Right column (engine + nav + move input) ── */
 .rep-right-col {
   flex: 1;
-  min-width: 200px;
+  min-width: 260px;
+  max-width: 400px;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -371,6 +372,62 @@
   color: #c9a84c;
 }
 
+/* ── Live opening tree — third column alongside board ── */
+.live-tree-col {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 0.9rem;
+  position: relative;
+  overflow: hidden;
+  align-self: stretch;
+}
+
+.live-tree-col::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(201,168,76,0.3), transparent);
+}
+
+.live-tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(201,168,76,0.10);
+  flex-shrink: 0;
+}
+
+.live-tree-scroll {
+  overflow-y: auto;
+  flex: 1;
+  max-height: 660px;
+  min-height: 120px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201,168,76,0.20) transparent;
+}
+
+.live-tree-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.live-tree-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.live-tree-scroll::-webkit-scrollbar-thumb {
+  background: rgba(201,168,76,0.20);
+  border-radius: 2px;
+}
+
 /* ── Opening tree card — gold hover like home feature cards ── */
 .opening-tree {
   font-family: 'JetBrains Mono', monospace;
@@ -423,10 +480,11 @@
 }
 
 .tree-move-active {
-  background: rgba(201, 168, 76, 0.13);
+  background: rgba(201, 168, 76, 0.20);
   color: #f0e8d5;
-  font-weight: 600;
-  border: 1px solid rgba(201, 168, 76, 0.28);
+  font-weight: 700;
+  border: 1px solid rgba(201, 168, 76, 0.45);
+  box-shadow: 0 0 0 1px rgba(201,168,76,0.08);
 }
 
 .tree-toggle {
@@ -812,4 +870,132 @@
   min-width: 3.8rem;
   text-align: right;
   flex-shrink: 0;
+}
+
+/* ── Coach banner ─────────────────────────────────────────────────────────── */
+
+.coach-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-left: 3px solid #c9a84c;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  position: relative;
+}
+
+.coach-icon {
+  font-size: 1.3rem;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+.coach-message {
+  flex: 1;
+  font-size: 0.88rem;
+  color: var(--text-secondary, #c8c8d4);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.coach-message strong {
+  color: #e8dfca;
+  font-weight: 600;
+}
+
+.coach-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-dim, #6a7490);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0 0.1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  align-self: flex-start;
+  transition: color 0.15s;
+}
+
+.coach-dismiss:hover {
+  color: #e8dfca;
+}
+
+/* ── Tree context menu (right-click on move) ── */
+.tree-ctx-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 220px;
+  background: #0f1623;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 8px;
+  padding: 0.35rem 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(201, 168, 76, 0.08);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.tree-ctx-header {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #c9a84c;
+  padding: 0.45rem 1rem 0.55rem;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.15);
+  margin-bottom: 0.2rem;
+}
+
+.tree-ctx-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 0.45rem 1rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: rgba(168, 176, 208, 0.9);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-ctx-item:hover {
+  background: rgba(201, 168, 76, 0.08);
+  color: #e8dfca;
+}
+
+.tree-ctx-delete {
+  color: rgba(239, 68, 68, 0.85);
+}
+
+.tree-ctx-delete:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+}
+
+.tree-ctx-divider {
+  height: 1px;
+  background: rgba(201, 168, 76, 0.10);
+  margin: 0.2rem 0;
+}
+
+.tree-ctx-empty {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  padding: 0.4rem 1rem;
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Book move highlight when coach is active */
+.book-move-row.coach-highlight {
+  border-left: 2px solid #c9a84c;
+  background: rgba(201, 168, 76, 0.06);
+  padding-left: calc(0.5rem - 2px);
+  border-radius: 0 4px 4px 0;
 }
