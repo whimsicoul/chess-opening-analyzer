@@ -4,6 +4,8 @@ import { Chessboard } from 'react-chessboard';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { woodenPieces } from '../utils/woodenPieces.jsx';
 import api from '../api';
+import RepertoireWizard from '../components/RepertoireWizard.jsx';
+import { WHITE_WIZARD_STEPS } from '../components/wizardSteps.js';
 import './Repertoire.css';
 
 // Convert a bare SAN moves array into a numbered PGN string: "1. e4 e5 2. Nf3 …"
@@ -126,16 +128,6 @@ function findConflicts(node, depth, isWhiteRep, path = []) {
   return conflicts;
 }
 
-// Coach banner shown during repertoire construction
-function CoachBanner({ children, onDismiss }) {
-  return (
-    <div className="coach-banner">
-      <span className="coach-icon">🎓</span>
-      <p className="coach-message">{children}</p>
-      <button className="coach-dismiss" onClick={onDismiss} aria-label="Dismiss coach">✕</button>
-    </div>
-  );
-}
 
 // Recursive compact tree node — ChessTempo pairing style:
 // Each row shows this move + its single child inline; branches nest below.
@@ -254,8 +246,17 @@ export default function WhiteRepertoire() {
   const [explorerLichess, setExplorerLichess] = useState(null);
   const [explorerLoading, setExplorerLoading] = useState(false);
 
-  // Coach state
-  const [coachDismissed, setCoachDismissed] = useState(false);
+  // Wizard state
+  const [wizardStep, setWizardStep] = useState(0);
+  const [wizardDismissed, setWizardDismissed] = useState(
+    () => localStorage.getItem('wizard_white_seen') === '1'
+  );
+
+  function advanceWizard(trigger) {
+    if (wizardDismissed) return;
+    const step = WHITE_WIZARD_STEPS[wizardStep];
+    if (step?.advanceOn === trigger) setWizardStep(s => s + 1);
+  }
 
   // Live tree scroll ref — scrolls to the active move when allMoves changes
   const activeNodeRef = useRef(null);
@@ -300,8 +301,11 @@ export default function WhiteRepertoire() {
     try {
       const move = next.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
       if (!move) return false;
+      const wasFirst = allMoves.length === 0;
       setBoardGame(next);
       _applyMoves([...allMoves.slice(0, stepIndex), move.san]);
+      if (wasFirst) advanceWizard('first-move');
+      else advanceWizard('move-made');
       return true;
     } catch {
       return false;
@@ -390,6 +394,7 @@ export default function WhiteRepertoire() {
   }, []);
 
   function playEngineMove(uciMove) {
+    advanceWizard('book-click');
     const next = new Chess(boardGame.fen());
     try {
       const move = next.move({ from: uciMove.slice(0, 2), to: uciMove.slice(2, 4), promotion: uciMove[4] || 'q' });
@@ -425,6 +430,7 @@ export default function WhiteRepertoire() {
 
   // Context menu: open on right-click of a tree move
   function openContextMenu(e, path, hasBranches = false, isCollapsed = false) {
+    if (!wizardDismissed && wizardStep < WHITE_WIZARD_STEPS.length) return;
     e.preventDefault();
     e.stopPropagation();
     const matchingLines = lines.filter(line => {
@@ -872,6 +878,17 @@ export default function WhiteRepertoire() {
       <div className="card add-form">
         <div className="card-label">
           White ♔ Repertoire Builder
+          <button
+            className="rw-summon-btn"
+            onClick={() => {
+              setWizardStep(0);
+              setWizardDismissed(false);
+              localStorage.removeItem('wizard_white_seen');
+            }}
+            title="Open wizard"
+          >
+            ✦ Wizard
+          </button>
         </div>
 
         {form.opening_name && (
@@ -881,15 +898,16 @@ export default function WhiteRepertoire() {
           </div>
         )}
 
-        {!coachDismissed && stepIndex === 0 && (
-          <CoachBanner onDismiss={() => setCoachDismissed(true)}>
-            Start by choosing a first move — I recommend <strong>e4</strong>, <strong>d4</strong>, or <strong>c4</strong>!
-          </CoachBanner>
-        )}
-        {!coachDismissed && stepIndex === 1 && (
-          <CoachBanner onDismiss={() => setCoachDismissed(true)}>
-            Great choice! Let&apos;s go through the most common responses and build out a repertoire. The top responses are highlighted in the Opening Book →
-          </CoachBanner>
+        {!wizardDismissed && wizardStep < WHITE_WIZARD_STEPS.length && (
+          <RepertoireWizard
+            steps={WHITE_WIZARD_STEPS}
+            stepIndex={wizardStep}
+            onAdvance={() => setWizardStep(s => s + 1)}
+            onDismiss={() => {
+              setWizardDismissed(true);
+              localStorage.setItem('wizard_white_seen', '1');
+            }}
+          />
         )}
 
         <PanelGroup direction="horizontal" className="rep-panel-group">
@@ -971,13 +989,12 @@ export default function WhiteRepertoire() {
                   if (!explorerLoading && moves.length === 0) {
                     return <p className="engine-empty muted">No data for this position</p>;
                   }
-                  const coachHighlight = stepIndex === 1 && !coachDismissed;
                   return (
                     <ul className="book-moves">
                       {moves.map((m, i) => {
                         const { w, d, l, total } = wdlPercents(m.white, m.draws, m.black);
                         return (
-                          <li key={i} className={`book-move-row${coachHighlight && i < 3 ? ' coach-highlight' : ''}`}
+                          <li key={i} className="book-move-row"
                             onClick={() => playEngineMove(m.uci)} style={{ cursor: 'pointer' }}>
                             <span className="book-move-san">{m.san}</span>
                             <div className="book-wdl-wrap">
