@@ -235,8 +235,10 @@ export default function BlackRepertoire() {
   const [inputText, setInputText] = useState('');
 
   // Engine state
-  const [evalData,    setEvalData]    = useState(null);
-  const [evalLoading, setEvalLoading] = useState(false);
+  const [evalData,       setEvalData]       = useState(null);
+  const [evalLoading,    setEvalLoading]    = useState(false);
+  const [engineHoverFen, setEngineHoverFen] = useState(null);
+  const [engineHoverPos, setEngineHoverPos] = useState(null);
 
   // Opening explorer state
   const [explorerTab,     setExplorerTab]     = useState('masters');
@@ -683,7 +685,17 @@ export default function BlackRepertoire() {
       const firstUci = uciList[0] ?? '';
       const eval_ = formatEval(pv.cp, pv.mate ?? null);
       const continuation = buildContinuation(evalData.fen ?? boardGame.fen(), uciList, 10);
-      return { uci: firstUci, eval: eval_, continuation };
+      let previewFen = null;
+      if (uciList.length > 0) {
+        try {
+          const preview = new Chess(evalData.fen ?? boardGame.fen());
+          for (const uci of uciList) {
+            if (!preview.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] || 'q' })) break;
+          }
+          previewFen = preview.fen();
+        } catch {}
+      }
+      return { uci: firstUci, eval: eval_, continuation, previewFen };
     })
     .filter(m => m.continuation.length > 0)
     .slice(0, 3);
@@ -943,7 +955,17 @@ export default function BlackRepertoire() {
                 {!evalLoading && engineMoves.length > 0 && (
                   <ul className="engine-moves">
                     {engineMoves.map((m, i) => (
-                      <li key={i} className="engine-move-row" onClick={() => playEngineMove(m.uci)}>
+                      <li key={i} className="engine-move-row" onClick={() => playEngineMove(m.uci)}
+                        onMouseEnter={e => {
+                          if (!m.previewFen) return;
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const popupSize = 220;
+                          const top = Math.min(rect.top, window.innerHeight - popupSize - 16);
+                          setEngineHoverFen(m.previewFen);
+                          setEngineHoverPos({ top: Math.max(8, top), right: window.innerWidth - rect.left + 8 });
+                        }}
+                        onMouseLeave={() => { setEngineHoverFen(null); setEngineHoverPos(null); }}
+                      >
                         <span className={`engine-line-eval${m.eval?.startsWith('-') ? ' eval-neg' : ' eval-pos'}`}>
                           {m.eval}
                         </span>
@@ -1049,6 +1071,22 @@ export default function BlackRepertoire() {
 
       {error && <p className="msg-error">{error}</p>}
       {renderContextMenu()}
+
+      {engineHoverFen && engineHoverPos && (
+        <div className="engine-hover-board" style={{ top: engineHoverPos.top, right: engineHoverPos.right }}>
+          <Chessboard
+            position={engineHoverFen}
+            arePiecesDraggable={false}
+            boardWidth={220}
+            boardOrientation="black"
+            customPieces={woodenPieces}
+            customBoardStyle={{ backgroundImage: 'url(/wood4.jpg)', backgroundSize: '100% 100%' }}
+            customDarkSquareStyle={{}}
+            customLightSquareStyle={{}}
+            animationDuration={0}
+          />
+        </div>
+      )}
     </main>
   );
 }
