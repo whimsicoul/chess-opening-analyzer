@@ -28,6 +28,7 @@ export default function Navbar({ onOpenGuidance }) {
             <NavLink to="/stats">Analytics</NavLink>
             <NavLink to="/visualization">Visualization</NavLink>
             <button className="navbar-help" onClick={onOpenGuidance} title="How to use OpeningAnalyzer">?</button>
+            <NavLink to="/settings" title="Account Settings">⚙</NavLink>
             <div className="navbar-user">
               <span className="navbar-username">{user?.username}</span>
               <button className="navbar-logout" onClick={handleLogout}>Log out</button>

@@ -197,7 +197,7 @@ def get_opening_winrates(color: str, current_user: dict = Depends(get_current_us
                 children_map.setdefault(pid, []).append((row["id"], row["move_san"]))
 
             cur.execute(
-                "SELECT pgn, result FROM games WHERE user_id = %s AND player_color = %s",
+                "SELECT pgn, result, opponent_rating FROM games WHERE user_id = %s AND player_color = %s",
                 (uid, color),
             )
             games = cur.fetchall()
@@ -228,19 +228,30 @@ def get_opening_winrates(color: str, current_user: dict = Depends(get_current_us
 
             node_id = match[0]
             if node_id not in stats:
-                stats[node_id] = {"wins": 0, "draws": 0, "losses": 0}
+                stats[node_id] = {"wins": 0, "draws": 0, "losses": 0, "rating_sum": 0, "rating_count": 0}
             if win:
                 stats[node_id]["wins"] += 1
             elif draw:
                 stats[node_id]["draws"] += 1
             else:
                 stats[node_id]["losses"] += 1
+            if game["opponent_rating"] is not None:
+                stats[node_id]["rating_sum"] += game["opponent_rating"]
+                stats[node_id]["rating_count"] += 1
             parent_id = node_id
 
     result_map = {}
     for node_id, s in stats.items():
         total = s["wins"] + s["draws"] + s["losses"]
-        result_map[node_id] = {**s, "total": total, "winRate": s["wins"] / total * 100}
+        avg_opp_rating = (s["rating_sum"] / s["rating_count"]) if s["rating_count"] > 0 else None
+        result_map[node_id] = {
+            "wins": s["wins"],
+            "draws": s["draws"],
+            "losses": s["losses"],
+            "total": total,
+            "winRate": s["wins"] / total * 100,
+            "avgOppRating": round(avg_opp_rating) if avg_opp_rating is not None else None,
+        }
 
     return result_map
 

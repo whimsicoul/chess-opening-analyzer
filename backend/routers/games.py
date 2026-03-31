@@ -36,6 +36,14 @@ def _extract_moves(game: chess.pgn.Game) -> list[str]:
     return moves
 
 
+def _parse_elo(s: str | None) -> int | None:
+    try:
+        v = int(s)
+        return v if v > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _detect_player_color(white: str, black: str, username: str | None) -> str | None:
     if not username:
         return None
@@ -107,17 +115,26 @@ def _process_pgn(cur, pgn_text: str, username: str | None, user_id: int) -> dict
 
     player_color = _detect_player_color(white, black, username)
 
+    white_elo = _parse_elo(_pgn_tag(pgn_text, "WhiteElo"))
+    black_elo = _parse_elo(_pgn_tag(pgn_text, "BlackElo"))
+    if player_color == "white":
+        opponent_rating = black_elo
+    elif player_color == "black":
+        opponent_rating = white_elo
+    else:
+        opponent_rating = None
+
     moves = _extract_moves(game)
 
     cur.execute(
         """
         INSERT INTO games (result, eco_code, opening_name, game_date, pgn,
-                           player_color, white_player, black_player, user_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                           player_color, white_player, black_player, user_id, opponent_rating)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id
         """,
         (result, eco_code, opening_name, game_date, pgn_text,
-         player_color, white or None, black or None, user_id),
+         player_color, white or None, black or None, user_id, opponent_rating),
     )
     game_id = cur.fetchone()["id"]
 
@@ -229,6 +246,7 @@ def get_games(current_user: dict = Depends(get_current_user)):
                     g.player_color,
                     g.white_player,
                     g.black_player,
+                    g.opponent_rating,
                     gd.move_number,
                     gd.move_uci,
                     gd.opponent_deviation

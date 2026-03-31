@@ -174,6 +174,9 @@ export default function Visualization() {
                     <div className="viz-node-stats">
                       <span className={`badge ${cls}`}>{wr.toFixed(1)}% win rate</span>
                       <span className="viz-node-record">{s.wins}W · {s.draws}D · {s.losses}L</span>
+                      {s.avgOppRating != null && (
+                        <span className="viz-node-rating">Avg opp rating: <strong>{s.avgOppRating}</strong></span>
+                      )}
                     </div>
                   );
                 })() : (
