@@ -82,6 +82,22 @@ function isPathActive(activePath, movePath) {
   );
 }
 
+// Find all positions where the player has multiple moves saved.
+// White rep: player moves at even depths (0,2,4…); Black rep: odd depths.
+function findConflicts(node, depth, isWhiteRep, path = []) {
+  const conflicts = [];
+  const isPlayerTurn = isWhiteRep ? (depth % 2 === 0) : (depth % 2 === 1);
+  if (isPlayerTurn && node.children && node.children.length > 1) {
+    conflicts.push({ path, node, children: node.children });
+  }
+  if (node.children) {
+    for (const child of node.children) {
+      conflicts.push(...findConflicts(child, depth + 1, isWhiteRep, [...path, child.name]));
+    }
+  }
+  return conflicts;
+}
+
 // Coach banner shown during repertoire construction
 function CoachBanner({ children, onDismiss }) {
   return (
@@ -185,8 +201,14 @@ export default function WhiteRepertoire() {
   const [lines, setLines]   = useState([]);
   const [tree,  setTree]    = useState(null);
   const [error, setError]   = useState(null);
-  const [form, setForm]             = useState({ moves: '', opening_name: '', eco_code: '' });
-  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({ moves: '', opening_name: '', eco_code: '' });
+
+  // Auto-save & review state
+  const [saveStatus,     setSaveStatus]     = useState(null); // null | 'saving' | 'saved' | 'error'
+  const [reviewMode,     setReviewMode]     = useState(false);
+  const [conflicts,      setConflicts]      = useState([]);
+  const [conflictIndex,  setConflictIndex]  = useState(0);
+  const [reviewComplete, setReviewComplete] = useState(false);
 
   // Interactive input board state
   const [boardGame, setBoardGame] = useState(() => new Chess());
@@ -326,6 +348,7 @@ export default function WhiteRepertoire() {
     setExplorerMasters(null);
     setExplorerLichess(null);
     setExplorerTab('masters');
+    setSaveStatus(null);
   }, []);
 
   function playEngineMove(uciMove) {
@@ -479,23 +502,37 @@ export default function WhiteRepertoire() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [explorerTab, boardGame]);
 
-  // ── Actions ────────────────────────────────────────────────────────────────
+  // Auto-save: debounced 1.5s after any move; skipped in review mode
+  useEffect(() => {
+    if (allMoves.length === 0 || reviewMode) return;
+    setSaveStatus('saving');
+    const timer = setTimeout(async () => {
+      try {
+        await api.post('/openings/', {
+          moves: allMoves.join(' '),
+          opening_name: form.opening_name || '',
+          eco_code: form.eco_code || '',
+          color: 'white',
+        });
+        await fetchLines();
+        await fetchTree();
+        setSaveStatus('saved');
+      } catch {
+        setSaveStatus('error');
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allMoves.join(','), reviewMode]);
 
-  async function handleAdd(e) {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      await api.post('/openings/', { ...form, color: 'white' });
-      setForm({ moves: '', opening_name: '', eco_code: '' });
-      resetBoard();
-      await fetchLines();
-      await fetchTree();
-    } catch {
-      setError('Failed to add opening line.');
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  // Clear 'saved' indicator after 3s
+  useEffect(() => {
+    if (saveStatus !== 'saved') return;
+    const timer = setTimeout(() => setSaveStatus(null), 3000);
+    return () => clearTimeout(timer);
+  }, [saveStatus]);
+
+  // ── Actions ────────────────────────────────────────────────────────────────
 
   async function handleDelete(id) {
     try {
@@ -543,6 +580,63 @@ export default function WhiteRepertoire() {
     });
   }
 
+  // ── Review mode ────────────────────────────────────────────────────────────
+
+  function enterReviewMode() {
+    if (!tree) return;
+    const found = findConflicts(tree, 0, true);
+    if (found.length === 0) {
+      setReviewComplete(true);
+      return;
+    }
+    setConflicts(found);
+    setConflictIndex(0);
+    setReviewMode(true);
+    loadPosition(found[0].path);
+  }
+
+  function exitReviewMode() {
+    setReviewMode(false);
+    setConflicts([]);
+    setConflictIndex(0);
+    setReviewComplete(false);
+  }
+
+  async function handleConflictResolve(keepMove) {
+    const conflict = conflicts[conflictIndex];
+    const movesToDelete = conflict.children.filter(c => c.name !== keepMove.name);
+    try {
+      const toDeleteIds = [];
+      for (const moveNode of movesToDelete) {
+        const deletePath = [...conflict.path, moveNode.name];
+        const matching = lines.filter(line => {
+          const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
+          return deletePath.length <= tokens.length &&
+            deletePath.join(',') === tokens.slice(0, deletePath.length).join(',');
+        });
+        toDeleteIds.push(...matching.map(l => l.id));
+      }
+      await Promise.all(toDeleteIds.map(id => api.delete(`/openings/${id}`)));
+      const res = await api.get('/openings/tree');
+      const freshTree = res.data;
+      setTree(freshTree);
+      await fetchLines();
+      const remaining = findConflicts(freshTree, 0, true);
+      if (remaining.length === 0) {
+        setReviewMode(false);
+        setReviewComplete(true);
+        setConflicts([]);
+        setConflictIndex(0);
+      } else {
+        setConflicts(remaining);
+        setConflictIndex(0);
+        loadPosition(remaining[0].path);
+      }
+    } catch {
+      setError('Failed to resolve conflict.');
+    }
+  }
+
   // ── Derived engine display data ────────────────────────────────────────────
 
   const engineMoves = evalData?.pvs?.slice(0, 3).map(pv => {
@@ -567,6 +661,7 @@ export default function WhiteRepertoire() {
   function renderLiveTree() {
     const displayTree = (tree && tree.children.length > 0) ? tree : buildTreeFromLines(lines);
     const isEmpty = displayTree.children.length === 0;
+    const currentConflict = reviewMode ? conflicts[conflictIndex] : null;
 
     return (
       <div className="live-tree-col">
@@ -575,11 +670,56 @@ export default function WhiteRepertoire() {
           <span className="rep-section-count muted">
             {lines.length} line{lines.length !== 1 ? 's' : ''}
           </span>
+          {!isEmpty && !reviewMode && (
+            <button type="button" className="btn btn-ghost btn-review" onClick={enterReviewMode}>
+              Review Repertoire
+            </button>
+          )}
+          {reviewMode && (
+            <button type="button" className="btn btn-ghost btn-review-stop" onClick={exitReviewMode}>
+              Stop Review
+            </button>
+          )}
         </div>
+
+        {saveStatus && (
+          <div className={`save-status save-status-${saveStatus}`}>
+            {saveStatus === 'saving' && 'Saving\u2026'}
+            {saveStatus === 'saved'  && 'Saved \u2713'}
+            {saveStatus === 'error'  && 'Save error'}
+          </div>
+        )}
+
+        {reviewComplete && !reviewMode && (
+          <div className="review-complete-banner">Repertoire looks good! No conflicts found.</div>
+        )}
+
+        {reviewMode && currentConflict && (
+          <div className="review-panel">
+            <div className="review-panel-header">
+              Review your repertoire
+              <span className="review-conflicts-count">
+                {conflicts.length - conflictIndex} conflict{conflicts.length - conflictIndex !== 1 ? 's' : ''} remaining
+              </span>
+            </div>
+            <p className="review-panel-prompt">You have multiple moves from this position. Keep one:</p>
+            <div className="review-move-choices">
+              {currentConflict.children.map(child => (
+                <button key={child.name} type="button" className="btn review-move-btn"
+                  onClick={() => handleConflictResolve(child)}>
+                  {moveLabel(currentConflict.path.length, child.name)}
+                  {child.opening_name && (
+                    <span className="review-move-opening">{child.opening_name}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="live-tree-scroll">
           {isEmpty ? (
-            <p className="engine-empty muted">No lines saved yet — add your first line above</p>
+            <p className="engine-empty muted">No lines saved yet — play some moves above</p>
           ) : (
             displayTree.children.map(child => (
               <TreeNode
@@ -684,13 +824,20 @@ export default function WhiteRepertoire() {
     <main className="page">
       <div className="page-header">
         <h1>White Repertoire ♔</h1>
-        <p>Build your opening tree — play moves on the board, then save the line</p>
+        <p>Play moves on the board — your lines are saved automatically as you build</p>
       </div>
 
-      <form className="card add-form" onSubmit={handleAdd}>
+      <div className="card add-form">
         <div className="card-label">
-          Add White ♔ Opening Line
+          White ♔ Repertoire Builder
         </div>
+
+        {form.opening_name && (
+          <div className="rep-opening-info">
+            <span className="rep-opening-name">{form.opening_name}</span>
+            {form.eco_code && <span className="badge-eco">{form.eco_code}</span>}
+          </div>
+        )}
 
         {!coachDismissed && stepIndex === 0 && (
           <CoachBanner onDismiss={() => setCoachDismissed(true)}>
@@ -856,33 +1003,7 @@ export default function WhiteRepertoire() {
 
           {renderLiveTree()}
         </div>{/* rep-board-engine-row */}
-
-        <div className="form-grid rep-meta-grid">
-          <div className="field">
-            <label htmlFor="rep-opening">Opening Name</label>
-            <input
-              id="rep-opening"
-              placeholder="e.g. Sicilian Defense"
-              value={form.opening_name}
-              onChange={e => setForm(f => ({ ...f, opening_name: e.target.value }))}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="rep-eco">ECO Code</label>
-            <input
-              id="rep-eco"
-              placeholder="e.g. B20"
-              value={form.eco_code}
-              onChange={e => setForm(f => ({ ...f, eco_code: e.target.value }))}
-            />
-          </div>
-          <div className="field field-submit">
-            <button className="btn" type="submit" disabled={submitting || stepIndex === 0}>
-              {submitting ? 'Adding…' : '+ Add Line'}
-            </button>
-          </div>
-        </div>
-      </form>
+      </div>
 
       {error && <p className="msg-error">{error}</p>}
       {renderContextMenu()}
