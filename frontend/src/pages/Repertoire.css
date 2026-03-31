@@ -6,7 +6,9 @@
 
 /* ── Wider page layout for repertoire ── */
 .page {
-  max-width: 1600px;
+  max-width: 100%;
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 
 /* ── Page header enhancement ── */
@@ -94,30 +96,54 @@
   border-color: rgba(201, 168, 76, 0.18);
 }
 
-/* ── Board + engine side-by-side ── */
-.rep-board-engine-row {
-  display: flex;
-  gap: 1.5rem;
-  align-items: flex-start;
+/* ── Resizable panel group ── */
+.rep-panel-group {
   margin-bottom: 1rem;
-  flex-wrap: wrap;
+  height: 750px;
 }
 
-/* ── Input board ── */
-.rep-input-board {
-  display: flex;
-  justify-content: center;
+.rep-resize-handle {
+  width: 6px;
+  background: transparent;
+  cursor: col-resize;
+  position: relative;
   flex-shrink: 0;
+  transition: background 0.15s;
+}
+.rep-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 10%;
+  bottom: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  border-radius: 2px;
+  background: rgba(201, 168, 76, 0.25);
+  transition: background 0.15s;
+}
+.rep-resize-handle:hover::after,
+.rep-resize-handle[data-resize-handle-active]::after {
+  background: rgba(201, 168, 76, 0.7);
+}
+
+/* ── Board panel ── */
+.rep-board-panel {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
 }
 
 /* ── Right column (engine + nav + move input) ── */
 .rep-right-col {
-  flex: 1;
-  min-width: 260px;
-  max-width: 400px;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  overflow-y: auto;
 }
 
 /* ── Engine panel ── */
@@ -374,8 +400,8 @@
 
 /* ── Live opening tree — third column alongside board ── */
 .live-tree-col {
-  width: 280px;
-  flex-shrink: 0;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -408,8 +434,7 @@
 .live-tree-scroll {
   overflow-y: auto;
   flex: 1;
-  max-height: 660px;
-  min-height: 120px;
+  min-height: 0;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.82rem;
   line-height: 1.65;
@@ -808,60 +833,36 @@
 
 .book-wdl-bar {
   display: flex;
-  height: 6px;
-  border-radius: 3px;
+  height: 26px;
+  border-radius: 4px;
   overflow: hidden;
   background: var(--border);
   width: 100%;
 }
 
-.book-wdl-w { background: #22c55e; height: 100%; transition: width 0.3s ease; }
-.book-wdl-d { background: #5c6180; height: 100%; transition: width 0.3s ease; }
-.book-wdl-l { background: #ef4444; height: 100%; transition: width 0.3s ease; }
-
-.book-wdl-tooltip {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: #0f1623;
-  border: 1px solid rgba(201, 168, 76, 0.35);
-  border-radius: 6px;
-  padding: 0.45rem 0.85rem;
+.book-wdl-w,
+.book-wdl-d,
+.book-wdl-l {
+  height: 100%;
   display: flex;
-  gap: 0.85rem;
+  align-items: center;
+  justify-content: center;
+  transition: width 0.3s ease;
+  overflow: hidden;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 0.68rem;
+  font-weight: 700;
   white-space: nowrap;
-  opacity: 0;
+}
+
+.book-wdl-w { background: #22c55e; color: #0a1a0f; }
+.book-wdl-d { background: #5c6180; color: #e8dfca; }
+.book-wdl-l { background: #ef4444; color: #fff; }
+
+.book-wdl-label {
   pointer-events: none;
-  transition: opacity 0.15s ease;
-  z-index: 100;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(201, 168, 76, 0.08);
+  padding: 0 4px;
 }
-
-.book-wdl-tooltip::after {
-  content: '';
-  position: absolute;
-  bottom: -5px;
-  left: 50%;
-  transform: translateX(-50%) rotate(45deg);
-  width: 8px;
-  height: 8px;
-  background: #0f1623;
-  border-right: 1px solid rgba(201, 168, 76, 0.35);
-  border-bottom: 1px solid rgba(201, 168, 76, 0.35);
-}
-
-.book-move-row:hover .book-wdl-tooltip {
-  opacity: 1;
-}
-
-.wdl-tip-w { color: #22c55e; }
-.wdl-tip-d { color: #8b9dc3; }
-.wdl-tip-l { color: #ef4444; }
 
 .book-game-count {
   font-family: 'JetBrains Mono', monospace;

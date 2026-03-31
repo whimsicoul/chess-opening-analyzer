@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { woodenPieces } from '../utils/woodenPieces.jsx';
 import api from '../api';
 import './Repertoire.css';
@@ -133,8 +134,8 @@ function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef,
 
   const isForceCollapsed = collapsedPaths?.has(myKey) ?? false;
 
-  // Auto-expand when active path passes through this node
-  const [collapsed, setCollapsed] = useState(isForceCollapsed || !(isExact || isAncestor));
+  // Start fully expanded; user can collapse branches manually
+  const [collapsed, setCollapsed] = useState(isForceCollapsed);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isExact || isAncestor) setCollapsed(false);
@@ -231,6 +232,19 @@ export default function WhiteRepertoire() {
 
   // Live tree scroll ref — scrolls to the active move when allMoves changes
   const activeNodeRef = useRef(null);
+  const boardPanelRef = useRef(null);
+  const [dynamicBoardWidth, setDynamicBoardWidth] = useState(860);
+
+  useEffect(() => {
+    const el = boardPanelRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0].contentRect.width;
+      if (w > 0) setDynamicBoardWidth(Math.floor(w));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Context menu state for right-clicking tree moves
   const [contextMenu, setContextMenu] = useState(null);
@@ -344,9 +358,6 @@ export default function WhiteRepertoire() {
     setStepIndex(0);
     setInputText('');
     setForm({ moves: '', opening_name: '', eco_code: '' });
-    setEvalData(null);
-    setExplorerMasters(null);
-    setExplorerLichess(null);
     setExplorerTab('masters');
     setSaveStatus(null);
   }, []);
@@ -437,10 +448,6 @@ export default function WhiteRepertoire() {
 
   // Engine: fetch cloud eval whenever position changes (debounced 400ms)
   useEffect(() => {
-    if (stepIndex === 0) {
-      setEvalData(null);
-      return;
-    }
     setEvalLoading(true);
     const timer = setTimeout(async () => {
       try {
@@ -460,7 +467,6 @@ export default function WhiteRepertoire() {
 
   // Explorer: fetch Masters data + eco autofill whenever position changes (debounced 500ms)
   useEffect(() => {
-    if (stepIndex === 0) { setExplorerMasters(null); setExplorerLichess(null); return; }
     setExplorerLoading(true);
     setExplorerLichess(null);
     const timer = setTimeout(async () => {
@@ -486,7 +492,7 @@ export default function WhiteRepertoire() {
 
   // Explorer: fetch Lichess DB data on-demand when that tab is selected
   useEffect(() => {
-    if (explorerTab !== 'lichess' || stepIndex === 0 || explorerLichess !== null) return;
+    if (explorerTab !== 'lichess' || explorerLichess !== null) return;
     let cancelled = false;
     setExplorerLoading(true);
     (async () => {
@@ -850,23 +856,29 @@ export default function WhiteRepertoire() {
           </CoachBanner>
         )}
 
-        <div className="rep-board-engine-row">
-          <div className="rep-input-board">
-            <Chessboard
-              position={boardGame.fen()}
-              onPieceDrop={onPieceDrop}
-              boardWidth={720}
-              boardOrientation="white"
-              customPieces={woodenPieces}
-              customBoardStyle={{ backgroundImage: 'url(/wood4.jpg)', backgroundSize: '100% 100%' }}
-              customDarkSquareStyle={{}}
-              customLightSquareStyle={{}}
-            />
-          </div>
-
-          <div className="rep-right-col">
-            {stepIndex > 0 && (
-              <div className="engine-panel">
+        <PanelGroup direction="horizontal" className="rep-panel-group">
+          <Panel defaultSize={17} minSize={8}>
+            {renderLiveTree()}
+          </Panel>
+          <PanelResizeHandle className="rep-resize-handle" />
+          <Panel defaultSize={42} minSize={25}>
+            <div ref={boardPanelRef} className="rep-board-panel">
+              <Chessboard
+                position={boardGame.fen()}
+                onPieceDrop={onPieceDrop}
+                boardWidth={dynamicBoardWidth}
+                boardOrientation="white"
+                customPieces={woodenPieces}
+                customBoardStyle={{ backgroundImage: 'url(/wood4.jpg)', backgroundSize: '100% 100%' }}
+                customDarkSquareStyle={{}}
+                customLightSquareStyle={{}}
+              />
+            </div>
+          </Panel>
+          <PanelResizeHandle className="rep-resize-handle" />
+          <Panel defaultSize={41} minSize={15}>
+            <div className="rep-right-col">
+            <div className="engine-panel">
                 <div className="engine-header">
                   <span className="engine-title">Cloud Eval</span>
                   {evalLoading && <span className="engine-loading">…</span>}
@@ -899,10 +911,8 @@ export default function WhiteRepertoire() {
                   <p className="engine-empty muted">Position not in cloud database</p>
                 )}
               </div>
-            )}
 
-            {stepIndex > 0 && (
-              <div className="book-panel">
+            <div className="book-panel">
                 <div className="book-header">
                   <span className="book-title">Opening Book</span>
                   {explorerLoading && <span className="engine-loading">…</span>}
@@ -930,23 +940,23 @@ export default function WhiteRepertoire() {
                       {moves.map((m, i) => {
                         const { w, d, l, total } = wdlPercents(m.white, m.draws, m.black);
                         return (
-                          <li key={i} className={`book-move-row${coachHighlight && i < 3 ? ' coach-highlight' : ''}`}>
+                          <li key={i} className={`book-move-row${coachHighlight && i < 3 ? ' coach-highlight' : ''}`}
+                            onClick={() => playEngineMove(m.uci)} style={{ cursor: 'pointer' }}>
                             <span className="book-move-san">{m.san}</span>
                             <div className="book-wdl-wrap">
                               <div className="book-wdl-bar">
-                                <div className="book-wdl-w" style={{ width: `${w}%` }} />
-                                <div className="book-wdl-d" style={{ width: `${d}%` }} />
-                                <div className="book-wdl-l" style={{ width: `${l}%` }} />
-                              </div>
-                              <div className="book-wdl-tooltip">
-                                <span className="wdl-tip-w">W {w.toFixed(0)}%</span>
-                                <span className="wdl-tip-d">D {d.toFixed(0)}%</span>
-                                <span className="wdl-tip-l">L {l.toFixed(0)}%</span>
+                                <div className="book-wdl-w" style={{ width: `${w}%` }}>
+                                  {w >= 9 && <span className="book-wdl-label">{w.toFixed(0)}%</span>}
+                                </div>
+                                <div className="book-wdl-d" style={{ width: `${d}%` }}>
+                                  {d >= 9 && <span className="book-wdl-label">{d.toFixed(0)}%</span>}
+                                </div>
+                                <div className="book-wdl-l" style={{ width: `${l}%` }}>
+                                  {l >= 9 && <span className="book-wdl-label">{l.toFixed(0)}%</span>}
+                                </div>
                               </div>
                             </div>
                             <span className="book-game-count muted">{formatGameCount(total)}</span>
-                            <button type="button" className="btn btn-ghost btn-play"
-                              onClick={() => playEngineMove(m.uci)}>▶ Play</button>
                           </li>
                         );
                       })}
@@ -954,7 +964,6 @@ export default function WhiteRepertoire() {
                   );
                 })()}
               </div>
-            )}
 
             <div className="rep-nav-bar">
               <button
@@ -982,27 +991,9 @@ export default function WhiteRepertoire() {
               </button>
             </div>
 
-            <div className="rep-move-preview">
-              <input
-                className="rep-move-input"
-                type="text"
-                placeholder="Play moves on the board above, or paste a line here…"
-                value={inputText}
-                onChange={handleMoveInput}
-                spellCheck={false}
-                autoComplete="off"
-                aria-label="Opening line moves"
-              />
-              {stepIndex > 0 && (
-                <button type="button" className="btn btn-ghost" onClick={resetBoard}>
-                  Reset
-                </button>
-              )}
-            </div>
-          </div>{/* rep-right-col */}
-
-          {renderLiveTree()}
-        </div>{/* rep-board-engine-row */}
+            </div>{/* rep-right-col */}
+          </Panel>
+        </PanelGroup>
       </div>
 
       {error && <p className="msg-error">{error}</p>}
