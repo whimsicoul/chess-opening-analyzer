@@ -74,6 +74,12 @@ function avgMoveNumber(games) {
   return withMove.reduce((sum, g) => sum + g.move_number, 0) / withMove.length;
 }
 
+function avgOppRating(games) {
+  const rated = games.filter(g => g.opponent_rating != null);
+  if (!rated.length) return null;
+  return rated.reduce((sum, g) => sum + g.opponent_rating, 0) / rated.length;
+}
+
 export default function Stats() {
   const [allGames, setAllGames] = useState([]);
   const [error, setError]       = useState(null);
@@ -115,6 +121,10 @@ export default function Stats() {
   const avgYouDevMove = avgMoveNumber(youDeviated);
   const avgOppDevMove = avgMoveNumber(oppDeviated);
 
+  const avgRatingYouDev = avgOppRating(youDeviated);
+  const avgRatingOppDev = avgOppRating(oppDeviated);
+  const avgRatingNoDev  = avgOppRating(noDeviation);
+
   // ── Bar chart: win rate by deviation move number, split by who deviated ──
   const byMove = useMemo(() => {
     const map = {};
@@ -144,7 +154,7 @@ export default function Stats() {
       map[g.move_uci].push(g);
     }
     return Object.entries(map)
-      .map(([move, gs]) => ({ move, games: gs.length, rate: winRate(gs) }))
+      .map(([move, gs]) => ({ move, games: gs.length, rate: winRate(gs), avgRating: avgOppRating(gs) }))
       .filter(r => r.games >= 1)
       .sort((a, b) => {
         // null rates go to bottom, then sort by win rate ascending (weakest first)
@@ -229,6 +239,21 @@ export default function Stats() {
               value={avgOppDevMove == null ? '—' : avgOppDevMove.toFixed(1)}
               sub={avgOppDevMove == null ? 'no data' : `across ${oppDeviated.length} game${oppDeviated.length !== 1 ? 's' : ''}`}
             />
+            <StatCard
+              label="Avg Opp Rating — You Deviated"
+              value={avgRatingYouDev == null ? '—' : Math.round(avgRatingYouDev)}
+              sub={avgRatingYouDev == null ? 'no rated games' : `${youDeviated.filter(g => g.opponent_rating != null).length} rated`}
+            />
+            <StatCard
+              label="Avg Opp Rating — Opp. Deviated"
+              value={avgRatingOppDev == null ? '—' : Math.round(avgRatingOppDev)}
+              sub={avgRatingOppDev == null ? 'no rated games' : `${oppDeviated.filter(g => g.opponent_rating != null).length} rated`}
+            />
+            <StatCard
+              label="Avg Opp Rating — In Repertoire"
+              value={avgRatingNoDev == null ? '—' : Math.round(avgRatingNoDev)}
+              sub={avgRatingNoDev == null ? 'no rated games' : `${noDeviation.filter(g => g.opponent_rating != null).length} rated`}
+            />
           </div>
 
           {/* ── Bar chart ── */}
@@ -292,6 +317,7 @@ export default function Stats() {
                       <th>Move Played</th>
                       <th>Games</th>
                       <th>Win Rate</th>
+                      <th>Avg Opp Rating</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -306,6 +332,7 @@ export default function Stats() {
                           <td>
                             <span className={`badge ${cls}`}>{fmt(rate)}</span>
                           </td>
+                          <td className="muted">{row.avgRating != null ? Math.round(row.avgRating) : '—'}</td>
                           <td>
                             <div className="wr-bar-track">
                               <div

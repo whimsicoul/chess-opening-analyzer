@@ -13,6 +13,7 @@ import BlackRepertoire from './pages/BlackRepertoire';
 import Games from './pages/Games';
 import Stats from './pages/Stats';
 import Visualization from './pages/Visualization';
+import Settings from './pages/Settings';
 
 function AppInner() {
   const { isAuthenticated } = useContext(AuthContext);
@@ -58,6 +59,7 @@ function AppInner() {
         <Route path="/games"            element={<ProtectedRoute><Games /></ProtectedRoute>} />
         <Route path="/stats"            element={<ProtectedRoute><Stats /></ProtectedRoute>} />
         <Route path="/visualization"    element={<ProtectedRoute><Visualization /></ProtectedRoute>} />
+        <Route path="/settings"         element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 
         {/* Redirects */}
         <Route path="/upload"    element={<Navigate to="/games" replace />} />

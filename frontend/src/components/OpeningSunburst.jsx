@@ -295,10 +295,15 @@ export default function OpeningSunburst({ data, onActivePath, winRates = {} }) {
           {winRates[hovered.data.id] && (() => {
             const s = winRates[hovered.data.id];
             return (
-              <div className="st-wr">
-                <strong>{s.winRate.toFixed(1)}%</strong> win rate
-                <span className="st-record">&nbsp;·&nbsp;{s.wins}W&nbsp;{s.draws}D&nbsp;{s.losses}L</span>
-              </div>
+              <>
+                <div className="st-wr">
+                  <strong>{s.winRate.toFixed(1)}%</strong> win rate
+                  <span className="st-record">&nbsp;·&nbsp;{s.wins}W&nbsp;{s.draws}D&nbsp;{s.losses}L</span>
+                </div>
+                {s.avgOppRating != null && (
+                  <div className="st-rating">Avg opp rating: <strong>{s.avgOppRating}</strong></div>
+                )}
+              </>
             );
           })()}
           {hovered.children?.length > 0 && (

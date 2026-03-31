@@ -36,6 +36,25 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class ChangeUsernameRequest(BaseModel):
+    current_password: str
+    new_username: str
+
+
+class ChangeEmailRequest(BaseModel):
+    current_password: str
+    new_email: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class DeleteAccountRequest(BaseModel):
+    password: str
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -240,3 +259,134 @@ def me(current_user: dict = Depends(get_current_user)):
     if user is None:
         raise HTTPException(404, "User not found")
     return user
+
+
+# ---------------------------------------------------------------------------
+# PATCH /auth/username
+# ---------------------------------------------------------------------------
+
+@router.patch("/username")
+def change_username(
+    body: ChangeUsernameRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    if not _USERNAME_RE.match(body.new_username):
+        raise HTTPException(400, "Username must be 3–20 alphanumeric characters or underscores")
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT hashed_password FROM users WHERE id = %s", (current_user["user_id"],))
+            row = cur.fetchone()
+            if row is None:
+                raise HTTPException(404, "User not found")
+            if not _check_password(body.current_password, row["hashed_password"]):
+                raise HTTPException(400, "Incorrect current password")
+
+            cur.execute(
+                "SELECT id FROM users WHERE username = %s AND id != %s",
+                (body.new_username, current_user["user_id"]),
+            )
+            if cur.fetchone():
+                raise HTTPException(409, "Username already taken")
+
+            cur.execute(
+                "UPDATE users SET username = %s WHERE id = %s",
+                (body.new_username, current_user["user_id"]),
+            )
+        conn.commit()
+
+    return {"username": body.new_username}
+
+
+# ---------------------------------------------------------------------------
+# PATCH /auth/email
+# ---------------------------------------------------------------------------
+
+@router.patch("/email")
+def change_email(
+    body: ChangeEmailRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    if not _EMAIL_RE.match(body.new_email):
+        raise HTTPException(400, "Invalid email address")
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT hashed_password FROM users WHERE id = %s", (current_user["user_id"],))
+            row = cur.fetchone()
+            if row is None:
+                raise HTTPException(404, "User not found")
+            if not _check_password(body.current_password, row["hashed_password"]):
+                raise HTTPException(400, "Incorrect current password")
+
+            cur.execute(
+                "SELECT id FROM users WHERE email = %s AND id != %s",
+                (body.new_email.lower(), current_user["user_id"]),
+            )
+            if cur.fetchone():
+                raise HTTPException(409, "Email already in use")
+
+            cur.execute(
+                "UPDATE users SET email = %s WHERE id = %s",
+                (body.new_email.lower(), current_user["user_id"]),
+            )
+        conn.commit()
+
+    return {"message": "Email updated successfully"}
+
+
+# ---------------------------------------------------------------------------
+# PATCH /auth/password
+# ---------------------------------------------------------------------------
+
+@router.patch("/password")
+def change_password(
+    body: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    if len(body.new_password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT hashed_password FROM users WHERE id = %s", (current_user["user_id"],))
+            row = cur.fetchone()
+            if row is None:
+                raise HTTPException(404, "User not found")
+            if not _check_password(body.current_password, row["hashed_password"]):
+                raise HTTPException(400, "Incorrect current password")
+            if body.current_password == body.new_password:
+                raise HTTPException(400, "New password must differ from current password")
+
+            new_hashed = _hash_password(body.new_password)
+            cur.execute(
+                "UPDATE users SET hashed_password = %s WHERE id = %s",
+                (new_hashed, current_user["user_id"]),
+            )
+        conn.commit()
+
+    return {"message": "Password updated successfully"}
+
+
+# ---------------------------------------------------------------------------
+# DELETE /auth/account
+# ---------------------------------------------------------------------------
+
+@router.delete("/account", status_code=200)
+def delete_account(
+    body: DeleteAccountRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT hashed_password FROM users WHERE id = %s", (current_user["user_id"],))
+            row = cur.fetchone()
+            if row is None:
+                raise HTTPException(404, "User not found")
+            if not _check_password(body.password, row["hashed_password"]):
+                raise HTTPException(400, "Incorrect password")
+
+            cur.execute("DELETE FROM users WHERE id = %s", (current_user["user_id"],))
+        conn.commit()
+
+    return {"message": "Account deleted"}
