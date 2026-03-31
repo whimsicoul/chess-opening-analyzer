@@ -34,6 +34,10 @@ export function AuthProvider({ children }) {
     setUser({ user_id: payload ? parseInt(payload.sub) : null, username });
   }, []);
 
+  const updateUser = useCallback((fields) => {
+    setUser(prev => prev ? { ...prev, ...fields } : prev);
+  }, []);
+
   // On mount: validate stored token
   useEffect(() => {
     const token = localStorage.getItem('chess_token') || sessionStorage.getItem('chess_token');
@@ -61,7 +65,7 @@ export function AuthProvider({ children }) {
   }, [logout]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );
