@@ -47,6 +47,33 @@ function uciToSan(fen, uci) {
   }
 }
 
+// Convert a UCI move sequence to an array of formatted tokens (e.g. "4.O-O", "g6", "5.d4")
+function buildContinuation(fen, uciMoves, maxMoves = 10) {
+  try {
+    const game = new Chess(fen);
+    const tokens = [];
+    let moveNum = parseInt(fen.split(' ')[5]) || 1;
+    let isWhite = fen.split(' ')[1] === 'w';
+    for (let i = 0; i < Math.min(uciMoves.length, maxMoves); i++) {
+      const uci = uciMoves[i];
+      const moveObj = { from: uci.slice(0, 2), to: uci.slice(2, 4) };
+      if (uci.length === 5) moveObj.promotion = uci[4];
+      const move = game.move(moveObj);
+      if (!move) break;
+      if (isWhite) {
+        tokens.push(`${moveNum}.${move.san}`);
+      } else {
+        tokens.push(i === 0 ? `${moveNum}...${move.san}` : move.san);
+        moveNum++;
+      }
+      isWhite = !isWhite;
+    }
+    return tokens;
+  } catch {
+    return [];
+  }
+}
+
 // Build a nested tree from the flat lines array (client-side fallback)
 function buildTreeFromLines(lines) {
   const root = { name: 'start', id: 0, children: [] };
@@ -405,7 +432,8 @@ export default function WhiteRepertoire() {
       return path.length <= tokens.length &&
         path.join(',') === tokens.slice(0, path.length).join(',');
     });
-    setContextMenu({ x: e.clientX, y: e.clientY, path, matchingLines, hasBranches, isCollapsed });
+    const flipUp = e.clientY + 260 > window.innerHeight;
+    setContextMenu({ x: e.clientX, y: e.clientY, flipUp, path, matchingLines, hasBranches, isCollapsed });
   }
 
   // Close context menu on any outside click
@@ -451,10 +479,11 @@ export default function WhiteRepertoire() {
     setEvalLoading(true);
     const timer = setTimeout(async () => {
       try {
+        const fen = boardGame.fen();
         const res = await api.get('/openings/cloud-eval', {
-          params: { fen: boardGame.fen(), multiPv: 3 },
+          params: { fen, multiPv: 5 },
         });
-        setEvalData(res.data ?? null);
+        setEvalData(res.data ? { ...res.data, fen } : null);
       } catch {
         setEvalData(null);
       } finally {
@@ -645,12 +674,16 @@ export default function WhiteRepertoire() {
 
   // ── Derived engine display data ────────────────────────────────────────────
 
-  const engineMoves = evalData?.pvs?.slice(0, 3).map(pv => {
-    const uci  = pv.moves?.split(' ')[0] ?? '';
-    const san  = uci ? uciToSan(boardGame.fen(), uci) : '';
-    const eval_ = formatEval(pv.cp, pv.mate ?? null);
-    return { uci, san, eval: eval_ };
-  }) ?? [];
+  const engineMoves = (evalData?.pvs ?? [])
+    .map(pv => {
+      const uciList = (pv.moves ?? '').split(' ').filter(Boolean);
+      const firstUci = uciList[0] ?? '';
+      const eval_ = formatEval(pv.cp, pv.mate ?? null);
+      const continuation = buildContinuation(evalData.fen ?? boardGame.fen(), uciList, 10);
+      return { uci: firstUci, eval: eval_, continuation };
+    })
+    .filter(m => m.continuation.length > 0)
+    .slice(0, 3);
 
   const topEval = evalData?.pvs?.[0]
     ? formatEval(evalData.pvs[0].cp, evalData.pvs[0].mate ?? null)
@@ -748,13 +781,16 @@ export default function WhiteRepertoire() {
 
   function renderContextMenu() {
     if (!contextMenu) return null;
-    const { x, y, path, matchingLines, hasBranches, isCollapsed } = contextMenu;
+    const { x, y, flipUp, path, matchingLines, hasBranches, isCollapsed } = contextMenu;
     const label = moveLabel(path.length - 1, path[path.length - 1]);
     const isForcedCollapsed = collapsedPaths.has(path.join(','));
+    const posStyle = flipUp
+      ? { bottom: window.innerHeight - y, top: 'auto', left: x }
+      : { top: y, left: x };
     return (
       <div
         className="tree-ctx-menu"
-        style={{ top: y, left: x }}
+        style={posStyle}
         onClick={e => e.stopPropagation()}
       >
         <div className="tree-ctx-header">{label}</div>
@@ -892,16 +928,17 @@ export default function WhiteRepertoire() {
                 {!evalLoading && engineMoves.length > 0 && (
                   <ul className="engine-moves">
                     {engineMoves.map((m, i) => (
-                      <li key={i} className="engine-move-row">
-                        <span className="engine-move-san">{m.san}</span>
-                        <span className="engine-move-eval muted">{m.eval}</span>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-play"
-                          onClick={() => playEngineMove(m.uci)}
-                        >
-                          ▶ Play
-                        </button>
+                      <li key={i} className="engine-move-row" onClick={() => playEngineMove(m.uci)}>
+                        <span className={`engine-line-eval${m.eval?.startsWith('-') ? ' eval-neg' : ' eval-pos'}`}>
+                          {m.eval}
+                        </span>
+                        <span className="engine-continuation">
+                          {m.continuation.map((token, j) => (
+                            <span key={j} className={j === 0 ? 'engine-move-first' : 'engine-move-rest'}>
+                              {token}{j < m.continuation.length - 1 ? ' ' : ''}
+                            </span>
+                          ))}
+                        </span>
                       </li>
                     ))}
                   </ul>
