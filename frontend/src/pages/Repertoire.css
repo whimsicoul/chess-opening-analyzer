@@ -1017,3 +1017,187 @@
   padding-left: calc(0.5rem - 2px);
   border-radius: 0 4px 4px 0;
 }
+
+/* ── Auto-save status indicator ─────────────────────────────────────────── */
+.save-status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  margin-bottom: 0.35rem;
+  flex-shrink: 0;
+}
+
+.save-status-saving {
+  color: rgba(201, 168, 76, 0.7);
+  background: rgba(201, 168, 76, 0.06);
+  border: 1px solid rgba(201, 168, 76, 0.18);
+  animation: repPulse 1.2s ease-in-out infinite;
+}
+
+.save-status-saved {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.06);
+  border: 1px solid rgba(34, 197, 94, 0.18);
+}
+
+.save-status-error {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.07);
+  border: 1px solid rgba(239, 68, 68, 0.20);
+}
+
+@keyframes repPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+/* ── Review mode buttons ─────────────────────────────────────────────────── */
+.btn-review {
+  font-size: 0.65rem;
+  padding: 0.22rem 0.65rem;
+  margin-left: auto;
+  white-space: nowrap;
+  border-color: rgba(201, 168, 76, 0.3);
+  color: rgba(201, 168, 76, 0.75);
+}
+
+.btn-review:hover {
+  border-color: #c9a84c;
+  color: #c9a84c;
+  background: rgba(201, 168, 76, 0.06);
+}
+
+.btn-review-stop {
+  font-size: 0.65rem;
+  padding: 0.22rem 0.65rem;
+  margin-left: auto;
+  white-space: nowrap;
+  border-color: rgba(239, 68, 68, 0.3);
+  color: rgba(239, 68, 68, 0.75);
+}
+
+.btn-review-stop:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+}
+
+/* ── Review complete banner ──────────────────────────────────────────────── */
+.review-complete-banner {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.06);
+  border: 1px solid rgba(34, 197, 94, 0.20);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.04em;
+}
+
+/* ── Review conflict panel ───────────────────────────────────────────────── */
+.review-panel {
+  background: rgba(201, 168, 76, 0.04);
+  border: 1px solid rgba(201, 168, 76, 0.20);
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.review-panel-header {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: rgba(201, 168, 76, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.review-conflicts-count {
+  font-weight: 400;
+  color: rgba(201, 168, 76, 0.45);
+  letter-spacing: 0.06em;
+}
+
+.review-panel-prompt {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.03em;
+}
+
+.review-move-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.review-move-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.85rem;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  color: #e8dfca;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  gap: 0.5rem;
+}
+
+.review-move-btn:hover {
+  border-color: rgba(201, 168, 76, 0.35);
+  background: rgba(201, 168, 76, 0.06);
+  color: #f0e8d5;
+}
+
+.review-move-opening {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}
+
+/* ── Opening info read-only label ────────────────────────────────────────── */
+.rep-opening-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+  min-height: 1.6rem;
+}
+
+.rep-opening-name {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #e8dfca;
+  letter-spacing: -0.01em;
+}
+
+.badge-eco {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  color: rgba(201, 168, 76, 0.7);
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.2);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+}
