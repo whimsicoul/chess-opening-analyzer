@@ -71,23 +71,13 @@ export default function RepertoireWizard({ steps, stepIndex, onAdvance, onDismis
     return () => ro.disconnect();
   }, [stepIndex, steps, readRect]);
 
-  // On mount: scroll the panel group into view, then lock scroll after it settles
+  // On mount: scroll the panel group into view
   useEffect(() => {
     const card = document.querySelector('.add-form');
     if (card) {
       const top = window.scrollY + card.getBoundingClientRect().top - 24;
       window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     }
-
-    const prev = document.body.style.overflow;
-    const lockTimer = setTimeout(() => {
-      document.body.style.overflow = 'hidden';
-    }, 500);
-
-    return () => {
-      clearTimeout(lockTimer);
-      document.body.style.overflow = prev;
-    };
   }, []);
 
   // Lerp animation: smoothly slide displayRect toward spotlightRect
@@ -143,46 +133,30 @@ export default function RepertoireWizard({ steps, stepIndex, onAdvance, onDismis
   return (
     <>
       {/* SVG overlay */}
-      <svg
-        className="rw-overlay-svg"
-        width={vw}
-        height={vh}
-        viewBox={`0 0 ${vw} ${vh}`}
-      >
-        <defs>
-          <clipPath id="rw-clip" clipPathUnits="userSpaceOnUse">
-            <rect x={0} y={0} width={vw} height={vh} />
-            <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={10} />
-          </clipPath>
-        </defs>
-
-        {/* Dark overlay with hole */}
-        <rect
-          x={0} y={0} width={vw} height={vh}
-          fill="rgba(0,0,0,0.82)"
-          clipPath="url(#rw-clip)"
-          fillRule="evenodd"
-          style={{ pointerEvents: 'all' }}
-        />
-
-        {/* Transparent passthrough so user can interact with spotlit element */}
-        <rect
-          x={r.x} y={r.y} width={r.w} height={r.h}
-          fill="transparent"
-          style={{ pointerEvents: 'none' }}
-        />
-
-        {/* Gold ring */}
-        <rect
-          x={r.x} y={r.y} width={r.w} height={r.h}
-          rx={10}
-          fill="none"
-          stroke="#c9a84c"
-          strokeWidth={2}
-          className="rw-spotlight-ring"
-          style={{ pointerEvents: 'none' }}
-        />
-      </svg>
+      {!step.noSpotlight && (
+        <svg
+          className="rw-overlay-svg"
+          width={vw}
+          height={vh}
+          viewBox={`0 0 ${vw} ${vh}`}
+        >
+          <path
+            d={`M0,0 H${vw} V${vh} H0 Z M${r.x},${r.y} H${r.x + r.w} V${r.y + r.h} H${r.x} Z`}
+            fill="rgba(0,0,0,0.82)"
+            fillRule="evenodd"
+            style={{ pointerEvents: 'fill' }}
+          />
+          <rect
+            x={r.x} y={r.y} width={r.w} height={r.h}
+            rx={10}
+            fill="none"
+            stroke="#c9a84c"
+            strokeWidth={2}
+            className="rw-spotlight-ring"
+            style={{ pointerEvents: 'none' }}
+          />
+        </svg>
+      )}
 
       {/* Floating tooltip */}
       <div

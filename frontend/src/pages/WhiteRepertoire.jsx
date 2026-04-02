@@ -266,6 +266,7 @@ export default function WhiteRepertoire() {
   // Live tree scroll ref — scrolls to the active move when allMoves changes
   const activeNodeRef = useRef(null);
   const boardPanelRef = useRef(null);
+  const wizardAutoPlayedStep = useRef(-1);
   const [dynamicBoardWidth, setDynamicBoardWidth] = useState(860);
 
   useEffect(() => {
@@ -306,10 +307,9 @@ export default function WhiteRepertoire() {
     try {
       const move = next.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
       if (!move) return false;
-      const wasFirst = allMoves.length === 0;
       setBoardGame(next);
       _applyMoves([...allMoves.slice(0, stepIndex), move.san]);
-      if (wasFirst) advanceWizard('first-move');
+      if (!wizardDismissed && wizardStep === 0) advanceWizard('first-move');
       else advanceWizard('move-made');
       return true;
     } catch {
@@ -409,6 +409,16 @@ export default function WhiteRepertoire() {
     } catch { /* ignore invalid */ }
   }
 
+  function playMoveInternal(uciMove) {
+    const next = new Chess(boardGame.fen());
+    try {
+      const move = next.move({ from: uciMove.slice(0, 2), to: uciMove.slice(2, 4), promotion: uciMove[4] || 'q' });
+      if (!move) return;
+      setBoardGame(next);
+      _applyMoves([...allMoves.slice(0, stepIndex), move.san]);
+    } catch { /* ignore invalid */ }
+  }
+
   // Arrow-key navigation (skip when an input/textarea is focused)
   const stepBackRef = useRef(stepBack);
   const stepForwardRef = useRef(stepForward);
@@ -433,9 +443,56 @@ export default function WhiteRepertoire() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allMoves.join(',')]);
 
+  // Wizard auto-play: when entering steps 1, 3, or 4, play the most popular
+  // book move. Uses a ref to avoid double-firing if explorerMasters re-fetches.
+  const AUTO_PLAY_STEPS = [1, 3];
+  useEffect(() => {
+    if (wizardDismissed) return;
+    if (!AUTO_PLAY_STEPS.includes(wizardStep)) return;
+    if (wizardAutoPlayedStep.current === wizardStep) return;
+    if (!explorerMasters?.moves?.length) return;
+
+    const uci = explorerMasters.moves[0].uci;
+    const timer = setTimeout(() => {
+      playMoveInternal(uci);
+      wizardAutoPlayedStep.current = wizardStep;
+    }, 600);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wizardStep, explorerMasters, wizardDismissed]);
+
+  // Wizard step 5: programmatically open the context menu for the last played move
+  useEffect(() => {
+    if (wizardStep !== 4 || wizardDismissed) return;
+    if (allMoves.length === 0) return;
+
+    const timer = setTimeout(() => {
+      const activeEl = document.querySelector('.tree-move-active');
+      let x, y;
+      if (activeEl) {
+        const rect = activeEl.getBoundingClientRect();
+        x = rect.right + 8;
+        y = rect.top;
+      } else {
+        x = window.innerWidth * 0.18;
+        y = window.innerHeight * 0.4;
+      }
+      const path = allMoves;
+      const matchingLines = lines.filter(line => {
+        const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
+        return path.length <= tokens.length &&
+          path.map(normSan).join(',') === tokens.slice(0, path.length).map(normSan).join(',');
+      });
+      const flipUp = y + 260 > window.innerHeight;
+      setContextMenu({ x, y, flipUp, path, matchingLines, hasBranches: false, isCollapsed: false });
+    }, 500);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wizardStep, allMoves.join(','), wizardDismissed]);
+
   // Context menu: open on right-click of a tree move
   function openContextMenu(e, path, hasBranches = false, isCollapsed = false) {
-    if (!wizardDismissed && wizardStep < WHITE_WIZARD_STEPS.length) return;
+    if (!wizardDismissed && wizardStep < WHITE_WIZARD_STEPS.length && wizardStep !== 4) return;
     e.preventDefault();
     e.stopPropagation();
     const matchingLines = lines.filter(line => {
@@ -508,6 +565,7 @@ export default function WhiteRepertoire() {
   // Explorer: fetch Masters data + eco autofill whenever position changes (debounced 500ms)
   useEffect(() => {
     setExplorerLoading(true);
+    setExplorerMasters(null);
     setExplorerLichess(null);
     const timer = setTimeout(async () => {
       try {
@@ -897,6 +955,10 @@ export default function WhiteRepertoire() {
               setWizardStep(0);
               setWizardDismissed(false);
               localStorage.removeItem('wizard_white_seen');
+              wizardAutoPlayedStep.current = -1;
+              setBoardGame(new Chess());
+              setAllMoves([]);
+              setStepIndex(0);
             }}
             title="Open wizard"
           >
