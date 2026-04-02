@@ -264,6 +264,25 @@ export default function BlackRepertoire() {
     if (step?.advanceOn === trigger) setWizardStep(s => s + 1);
   }
 
+  // Auto-play 1.e4 or 1.d4 when wizard enters step 0 or 1
+  useEffect(() => {
+    if (wizardDismissed) return;
+    if (wizardStep === 0 || wizardStep === 1) {
+      const san = wizardStep === 0 ? 'e4' : 'd4';
+      const t = setTimeout(() => {
+        const g = new Chess();
+        const move = g.move(san);
+        if (!move) return;
+        setBoardGame(g);
+        setAllMoves([move.san]);
+        setStepIndex(1);
+        setInputText(`1. ${move.san}`);
+        setForm(f => ({ ...f, moves: move.san }));
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [wizardStep, wizardDismissed]);
+
   // Live tree scroll ref — scrolls to the active move when allMoves changes
   const activeNodeRef = useRef(null);
   const boardPanelRef = useRef(null);
@@ -307,10 +326,13 @@ export default function BlackRepertoire() {
     try {
       const move = next.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
       if (!move) return false;
-      const wasFirst = allMoves.length === 0;
+      const movesBefore = allMoves.length;
       setBoardGame(next);
       _applyMoves([...allMoves.slice(0, stepIndex), move.san]);
-      if (wasFirst) advanceWizard('first-move');
+      // Wizard: detect Black's response (2nd move in sequence)
+      if (movesBefore === 1 && wizardStep === 0) advanceWizard('black-response-e4');
+      else if (movesBefore === 1 && wizardStep === 1) advanceWizard('black-response-d4');
+      else if (movesBefore === 0) advanceWizard('first-move');
       else advanceWizard('move-made');
       return true;
     } catch {
