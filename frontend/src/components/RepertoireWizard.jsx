@@ -179,9 +179,11 @@ export default function RepertoireWizard({ steps, stepIndex, onAdvance, onDismis
               />
             ))}
           </div>
-          <button className="rw-btn-next" onClick={isLast ? onDismiss : onAdvance}>
-            {isLast ? 'Done ✓' : 'Next →'}
-          </button>
+          {!step.hideNext && (
+            <button className="rw-btn-next" onClick={isLast ? onDismiss : onAdvance}>
+              {isLast ? 'Done ✓' : 'Next →'}
+            </button>
+          )}
         </div>
       </div>
     </>
