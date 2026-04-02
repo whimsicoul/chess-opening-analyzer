@@ -577,28 +577,28 @@ export default function BlackRepertoire() {
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
-  async function handleDelete(id) {
-    try {
-      await api.delete(`/openings/black/${id}`);
-      await fetchLines();
-      await fetchTree();
-    } catch {
-      setError('Failed to delete opening line.');
-    }
-  }
-
   async function handleDeleteFromMove(path) {
-    const linesToDelete = lines.filter(line => {
+    const matchingLines = lines.filter(line => {
       const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
       return path.length <= tokens.length &&
         path.map(normSan).join(',') === tokens.slice(0, path.length).map(normSan).join(',');
     });
+    const truncatedMoves = path.slice(0, path.length - 1).join(' ');
     try {
-      await Promise.all(linesToDelete.map(line => api.delete(`/openings/black/${line.id}`)));
+      for (const line of matchingLines) {
+        await api.delete(`/openings/black/${line.id}`);
+        if (truncatedMoves.length > 0) {
+          await api.post('/openings/black/', {
+            moves: truncatedMoves,
+            opening_name: line.opening_name || '',
+            eco_code: line.eco_code || '',
+          });
+        }
+      }
       await fetchLines();
       await fetchTree();
     } catch {
-      setError('Failed to delete lines from this move.');
+      setError('Failed to delete from move.');
     }
   }
 
@@ -797,7 +797,7 @@ export default function BlackRepertoire() {
 
   function renderContextMenu() {
     if (!contextMenu) return null;
-    const { x, y, flipUp, path, matchingLines, hasBranches, isCollapsed } = contextMenu;
+    const { x, y, flipUp, path, matchingLines, hasBranches } = contextMenu;
     const label = moveLabel(path.length - 1, path[path.length - 1]);
     const isForcedCollapsed = collapsedPaths.has(path.join(','));
     const posStyle = flipUp
@@ -810,13 +810,6 @@ export default function BlackRepertoire() {
         onClick={e => e.stopPropagation()}
       >
         <div className="tree-ctx-header">{label}</div>
-
-        <button
-          className="tree-ctx-item"
-          onClick={() => { loadPosition(path); setContextMenu(null); }}
-        >
-          Load position
-        </button>
 
         <button
           className="tree-ctx-item"
@@ -843,29 +836,15 @@ export default function BlackRepertoire() {
           )
         )}
 
-        <div className="tree-ctx-divider" />
-
-        {matchingLines.length > 0 && (
-          <button
-            className="tree-ctx-item tree-ctx-warn"
-            onClick={() => { handleDeleteFromMove(path); setContextMenu(null); }}
-          >
-            Delete from move ({matchingLines.length} line{matchingLines.length !== 1 ? 's' : ''})
-          </button>
-        )}
-
         {matchingLines.length > 0 && (
           <>
             <div className="tree-ctx-divider" />
-            {matchingLines.map(line => (
-              <button
-                key={line.id}
-                className="tree-ctx-item tree-ctx-delete"
-                onClick={() => { handleDelete(line.id); setContextMenu(null); }}
-              >
-                Delete — {line.opening_name || <code>{line.moves}</code>}
-              </button>
-            ))}
+            <button
+              className="tree-ctx-item tree-ctx-delete"
+              onClick={() => { handleDeleteFromMove(path); setContextMenu(null); }}
+            >
+              Delete — {label}
+            </button>
           </>
         )}
 
