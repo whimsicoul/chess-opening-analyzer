@@ -858,7 +858,12 @@ export default function WhiteRepertoire() {
 
   function renderContextMenu() {
     if (!contextMenu) return null;
-    const { x, y, flipUp, path, matchingLines, hasBranches, isCollapsed } = contextMenu;
+    const { x, y, flipUp, path, hasBranches, isCollapsed } = contextMenu;
+    const matchingLines = lines.filter(line => {
+      const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
+      return path.length <= tokens.length &&
+        path.map(normSan).join(',') === tokens.slice(0, path.length).map(normSan).join(',');
+    });
     const label = moveLabel(path.length - 1, path[path.length - 1]);
     const isForcedCollapsed = collapsedPaths.has(path.join(','));
     const posStyle = flipUp
