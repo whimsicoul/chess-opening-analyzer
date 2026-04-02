@@ -188,6 +188,12 @@
   animation: repPulse 1s infinite;
 }
 
+.engine-depth {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+}
+
 @keyframes repPulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.3; }
