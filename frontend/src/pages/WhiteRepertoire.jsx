@@ -241,7 +241,10 @@ export default function WhiteRepertoire() {
   const [inputText, setInputText] = useState('');
 
   // Engine state
-  const { evalData, evalLoading, evalSource } = useEngine(boardGame);
+  const [engineMode, setEngineMode] = useState(false);
+  const [engineDepth, setEngineDepth] = useState(18);
+  const [engineLines, setEngineLines] = useState(3);
+  const { evalData, evalLoading, evalSource } = useEngine(boardGame, { engineMode, depth: engineDepth, lines: engineLines });
   const [engineHoverFen, setEngineHoverFen] = useState(null);
   const [engineHoverPos, setEngineHoverPos] = useState(null);
 
@@ -742,7 +745,7 @@ export default function WhiteRepertoire() {
       return { uci: firstUci, eval: eval_, continuation, previewFens };
     })
     .filter(m => m.continuation.length > 0)
-    .slice(0, 3);
+    .slice(0, engineLines);
 
   const topEval = evalData?.pvs?.[0]
     ? formatEval(evalData.pvs[0].cp, evalData.pvs[0].mate ?? null)
@@ -978,6 +981,13 @@ export default function WhiteRepertoire() {
                   <span className="engine-title">
                     {evalSource === 'stockfish' ? 'Stockfish' : 'Cloud Eval'}
                   </span>
+                  <button
+                    className={`engine-mode-btn${engineMode ? ' active' : ''}`}
+                    onClick={() => setEngineMode(v => !v)}
+                    title={engineMode ? 'Switch to Cloud Eval' : 'Switch to Engine'}
+                  >
+                    {engineMode ? 'Engine' : 'Auto'}
+                  </button>
                   {evalLoading && <span className="engine-loading">…</span>}
                   {!evalLoading && topEval && (
                     <span className={`eval-score${evalPositive ? ' eval-pos' : ' eval-neg'}`}>
@@ -985,9 +995,24 @@ export default function WhiteRepertoire() {
                     </span>
                   )}
                   {evalSource === 'stockfish' && !evalLoading && (
-                    <span className="engine-depth muted">depth 18</span>
+                    <span className="engine-depth muted">depth {engineDepth}</span>
                   )}
                 </div>
+
+                {(engineMode || evalSource === 'stockfish') && (
+                  <div className="engine-controls">
+                    <label>Depth
+                      <select value={engineDepth} onChange={e => setEngineDepth(Number(e.target.value))}>
+                        {[8, 12, 15, 18, 20, 24, 30].map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </label>
+                    <label>Lines
+                      <select value={engineLines} onChange={e => setEngineLines(Number(e.target.value))}>
+                        {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                )}
 
                 {!evalLoading && engineMoves.length > 0 && (
                   <ul className="engine-moves">
