@@ -446,12 +446,12 @@ export default function WhiteRepertoire() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allMoves.join(',')]);
 
-  // Wizard auto-play: when entering steps 1, 3, or 4, play the most popular
+  // Wizard auto-play: when entering steps with autoPlay: true, play the most popular
   // book move. Uses a ref to avoid double-firing if explorerMasters re-fetches.
-  const AUTO_PLAY_STEPS = [1, 3];
   useEffect(() => {
     if (wizardDismissed) return;
-    if (!AUTO_PLAY_STEPS.includes(wizardStep)) return;
+    const step = WHITE_WIZARD_STEPS[wizardStep];
+    if (!step?.autoPlay) return;
     if (wizardAutoPlayedStep.current === wizardStep) return;
     if (!explorerMasters?.moves?.length) return;
 
@@ -464,9 +464,26 @@ export default function WhiteRepertoire() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wizardStep, explorerMasters, wizardDismissed]);
 
-  // Wizard step 5: programmatically open the context menu for the last played move
+  // Wizard: trigger 'engine-mode-on' when engine mode is toggled during wizard
   useEffect(() => {
-    if (wizardStep !== 4 || wizardDismissed) return;
+    if (wizardDismissed) return;
+    if (engineMode) advanceWizard('engine-mode-on');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engineMode, wizardDismissed]);
+
+  // Wizard step 6: go back one move when entering book-double step
+  useEffect(() => {
+    if (wizardDismissed) return;
+    const step = WHITE_WIZARD_STEPS[wizardStep];
+    if (!step?.goBack) return;
+
+    stepBack();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wizardStep, wizardDismissed]);
+
+  // Wizard step 8: programmatically open the context menu for the last played move
+  useEffect(() => {
+    if (wizardStep !== 8 || wizardDismissed) return;
     if (allMoves.length === 0) return;
 
     const timer = setTimeout(() => {
@@ -495,7 +512,8 @@ export default function WhiteRepertoire() {
 
   // Context menu: open on right-click of a tree move
   function openContextMenu(e, path, hasBranches = false, isCollapsed = false) {
-    if (!wizardDismissed && wizardStep < WHITE_WIZARD_STEPS.length && wizardStep !== 4) return;
+    const step = WHITE_WIZARD_STEPS[wizardStep];
+    if (!wizardDismissed && wizardStep < WHITE_WIZARD_STEPS.length && step?.id !== 'ctx-menu') return;
     e.preventDefault();
     e.stopPropagation();
     const matchingLines = lines.filter(line => {
@@ -672,8 +690,11 @@ export default function WhiteRepertoire() {
   // ── Review mode ────────────────────────────────────────────────────────────
 
   function enterReviewMode() {
-    if (!tree) return;
-    const found = findConflicts(tree, 0, true);
+    // Build tree from lines (not from backend tree) so conflict paths
+    // are guaranteed to match the flat lines used during deletion.
+    const reviewTree = buildTreeFromLines(lines);
+    if (reviewTree.children.length === 0) return;
+    const found = findConflicts(reviewTree, 0, true);
     if (found.length === 0) {
       setReviewComplete(true);
       return;
@@ -682,6 +703,7 @@ export default function WhiteRepertoire() {
     setConflictIndex(0);
     setReviewMode(true);
     loadPosition(found[0].path);
+    advanceWizard('review-entered');
   }
 
   function exitReviewMode() {
@@ -705,12 +727,15 @@ export default function WhiteRepertoire() {
         });
         toDeleteIds.push(...matching.map(l => l.id));
       }
-      await Promise.all(toDeleteIds.map(id => api.delete(`/openings/${id}`)));
-      const res = await api.get('/openings/tree');
-      const freshTree = res.data;
-      setTree(freshTree);
+      if (toDeleteIds.length > 0) {
+        await Promise.all(toDeleteIds.map(id => api.delete(`/openings/${id}`)));
+      }
       await fetchLines();
-      const remaining = findConflicts(freshTree, 0, true);
+      await fetchTree();
+      // Re-check conflicts using fresh lines
+      const freshLines = (await api.get('/openings/')).data;
+      const freshReviewTree = buildTreeFromLines(freshLines);
+      const remaining = findConflicts(freshReviewTree, 0, true);
       if (remaining.length === 0) {
         setReviewMode(false);
         setReviewComplete(true);
@@ -721,7 +746,8 @@ export default function WhiteRepertoire() {
         setConflictIndex(0);
         loadPosition(remaining[0].path);
       }
-    } catch {
+    } catch (err) {
+      console.error('[review] error resolving conflict:', err);
       setError('Failed to resolve conflict.');
     }
   }
@@ -984,9 +1010,9 @@ export default function WhiteRepertoire() {
                   <button
                     className={`engine-mode-btn${engineMode ? ' active' : ''}`}
                     onClick={() => setEngineMode(v => !v)}
-                    title={engineMode ? 'Switch to Cloud Eval' : 'Switch to Engine'}
+                    title={engineMode ? 'Switch to Cloud Eval' : 'Switch to Stockfish'}
                   >
-                    {engineMode ? 'Engine' : 'Auto'}
+                    Engine
                   </button>
                   {topEval && (
                     <span className={`eval-score${evalPositive ? ' eval-pos' : ' eval-neg'}`}>
