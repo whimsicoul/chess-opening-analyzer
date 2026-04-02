@@ -112,6 +112,9 @@ function isPathActive(activePath, movePath) {
   );
 }
 
+// Strip check/checkmate annotations so tree nodes and stored lines compare equal
+function normSan(san) { return san.replace(/[+#]$/, ''); }
+
 // Find all positions where the player has multiple moves saved.
 // White rep: player moves at even depths (0,2,4…); Black rep: odd depths.
 function findConflicts(node, depth, isWhiteRep, path = []) {
@@ -436,7 +439,7 @@ export default function BlackRepertoire() {
     const matchingLines = lines.filter(line => {
       const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
       return path.length <= tokens.length &&
-        path.join(',') === tokens.slice(0, path.length).join(',');
+        path.map(normSan).join(',') === tokens.slice(0, path.length).map(normSan).join(',');
     });
     const flipUp = e.clientY + 260 > window.innerHeight;
     setContextMenu({ x: e.clientX, y: e.clientY, flipUp, path, matchingLines, hasBranches, isCollapsed });
@@ -588,7 +591,7 @@ export default function BlackRepertoire() {
     const linesToDelete = lines.filter(line => {
       const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
       return path.length <= tokens.length &&
-        path.join(',') === tokens.slice(0, path.length).join(',');
+        path.map(normSan).join(',') === tokens.slice(0, path.length).map(normSan).join(',');
     });
     try {
       await Promise.all(linesToDelete.map(line => api.delete(`/openings/black/${line.id}`)));
@@ -652,7 +655,7 @@ export default function BlackRepertoire() {
         const matching = lines.filter(line => {
           const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
           return deletePath.length <= tokens.length &&
-            deletePath.join(',') === tokens.slice(0, deletePath.length).join(',');
+            deletePath.map(normSan).join(',') === tokens.slice(0, deletePath.length).map(normSan).join(',');
         });
         toDeleteIds.push(...matching.map(l => l.id));
       }
