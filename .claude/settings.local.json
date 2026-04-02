@@ -6,14 +6,7 @@
       "Bash(venv/Scripts/python -c \"from main import app; print\\(''App loaded OK''\\)\")",
       "Bash(PGPASSWORD='Ariell_4422!' psql -h localhost -p 5432 -U postgres -d ChessOpenings -c \"SELECT column_name FROM information_schema.columns WHERE table_name = ''games'' ORDER BY ordinal_position;\")",
       "Bash(PGPASSWORD='Ariell_4422!' psql -h localhost -p 5432 -U postgres -d ChessOpenings -c \"SELECT column_name FROM information_schema.columns WHERE table_name = ''game_deviations'' ORDER BY ordinal_position;\")",
-      "Bash(npm install:*)",
-      "mcp__playwright"
+      "Bash(npm install:*)"
     ]
-  },
-  "mcpServers": {
-    "playwright": {
-      "command": "node",
-      "args": ["tools/mcp-tools/server.js"]
-    }
   }
 }

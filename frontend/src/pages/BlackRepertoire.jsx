@@ -242,7 +242,7 @@ export default function BlackRepertoire() {
   const [engineMode, setEngineMode] = useState(false);
   const [engineDepth, setEngineDepth] = useState(18);
   const [engineLines, setEngineLines] = useState(3);
-  const { evalData, evalLoading, evalSource } = useEngine(boardGame, { engineMode, depth: engineDepth, lines: engineLines });
+  const { evalData, evalLoading, evalSource, evalDepth } = useEngine(boardGame, { engineMode, depth: engineDepth, lines: engineLines });
   const [engineHoverFen, setEngineHoverFen] = useState(null);
   const [engineHoverPos, setEngineHoverPos] = useState(null);
 
@@ -917,14 +917,15 @@ export default function BlackRepertoire() {
                   >
                     {engineMode ? 'Engine' : 'Auto'}
                   </button>
-                  {evalLoading && <span className="engine-loading">…</span>}
-                  {!evalLoading && topEval && (
+                  {topEval && (
                     <span className={`eval-score${evalPositive ? ' eval-pos' : ' eval-neg'}`}>
                       {topEval}
                     </span>
                   )}
-                  {evalSource === 'stockfish' && !evalLoading && (
-                    <span className="engine-depth muted">depth {engineDepth}</span>
+                  {evalSource === 'stockfish' && evalDepth != null && (
+                    <span className="engine-depth muted">
+                      depth {evalDepth}{evalLoading ? `/${engineDepth}` : ''}
+                    </span>
                   )}
                 </div>
 
@@ -943,8 +944,8 @@ export default function BlackRepertoire() {
                   </div>
                 )}
 
-                {!evalLoading && engineMoves.length > 0 && (
-                  <ul className="engine-moves">
+                {engineMoves.length > 0 && (
+                  <ul className="engine-moves engine-moves--live">
                     {engineMoves.map((m, i) => (
                       <li key={i} className="engine-move-row" onClick={() => playEngineMove(m.uci)}
                         onMouseLeave={() => { setEngineHoverFen(null); setEngineHoverPos(null); }}
