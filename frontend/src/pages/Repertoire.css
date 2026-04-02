@@ -271,6 +271,11 @@
   gap: 0.35rem;
 }
 
+.engine-moves--live {
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+
 .engine-move-row {
   display: flex;
   align-items: baseline;
