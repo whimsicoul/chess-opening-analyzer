@@ -6,6 +6,7 @@ import { woodenPieces } from '../utils/woodenPieces.jsx';
 import api from '../api';
 import RepertoireWizard from '../components/RepertoireWizard.jsx';
 import { BLACK_WIZARD_STEPS } from '../components/wizardSteps.js';
+import { useEngine } from '../hooks/useEngine';
 import './Repertoire.css';
 
 // Convert a bare SAN moves array into a numbered PGN string: "1. e4 e5 2. Nf3 …"
@@ -238,8 +239,7 @@ export default function BlackRepertoire() {
   const [inputText, setInputText] = useState('');
 
   // Engine state
-  const [evalData,       setEvalData]       = useState(null);
-  const [evalLoading,    setEvalLoading]    = useState(false);
+  const { evalData, evalLoading, evalSource } = useEngine(boardGame);
   const [engineHoverFen, setEngineHoverFen] = useState(null);
   const [engineHoverPos, setEngineHoverPos] = useState(null);
 
@@ -483,25 +483,6 @@ export default function BlackRepertoire() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Engine: fetch cloud eval whenever position changes (debounced 400ms)
-  useEffect(() => {
-    setEvalLoading(true);
-    const timer = setTimeout(async () => {
-      try {
-        const fen = boardGame.fen();
-        const res = await api.get('/openings/cloud-eval', {
-          params: { fen, multiPv: 5 },
-        });
-        setEvalData(res.data ? { ...res.data, fen } : null);
-      } catch {
-        setEvalData(null);
-      } finally {
-        setEvalLoading(false);
-      }
-    }, 400);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardGame]);
 
   // Explorer: fetch Masters data + eco autofill whenever position changes (debounced 500ms)
   useEffect(() => {
@@ -923,12 +904,17 @@ export default function BlackRepertoire() {
             <div className="rep-right-col">
             <div className="engine-panel">
                 <div className="engine-header">
-                  <span className="engine-title">Cloud Eval</span>
+                  <span className="engine-title">
+                    {evalSource === 'stockfish' ? 'Stockfish' : 'Cloud Eval'}
+                  </span>
                   {evalLoading && <span className="engine-loading">…</span>}
                   {!evalLoading && topEval && (
                     <span className={`eval-score${evalPositive ? ' eval-pos' : ' eval-neg'}`}>
                       {topEval}
                     </span>
+                  )}
+                  {evalSource === 'stockfish' && !evalLoading && (
+                    <span className="engine-depth muted">depth 18</span>
                   )}
                 </div>
 
