@@ -19,7 +19,11 @@ function parseInfoLine(line) {
 // Returns { evalData, evalLoading, evalSource }
 // evalData shape: { pvs: [{ cp?, mate?, moves }], fen }  (same as cloud eval)
 // evalSource: "cloud" | "stockfish" | null
-export function useEngine(boardGame) {
+// Options:
+//   engineMode — when true, skip cloud eval and go straight to Stockfish
+//   depth      — Stockfish search depth (default 18)
+//   lines      — number of PV lines to compute/display (default 3)
+export function useEngine(boardGame, { engineMode = false, depth = 18, lines = 3 } = {}) {
   const [evalData,   setEvalData]   = useState(null);
   const [evalLoading, setEvalLoading] = useState(false);
   const [evalSource, setEvalSource] = useState(null);
@@ -30,6 +34,12 @@ export function useEngine(boardGame) {
   const pvResultsRef       = useRef({});
   const activeAnalysisFenRef = useRef(null);
 
+  // Always-current refs so startAnalysis never uses stale closure values.
+  const depthRef = useRef(depth);
+  const linesRef = useRef(lines);
+  depthRef.current = depth;
+  linesRef.current = lines;
+
   // Send commands to begin UCI analysis for a given FEN.
   // Must only be called when the worker is initialized and ready.
   const startAnalysis = (fen) => {
@@ -38,7 +48,7 @@ export function useEngine(boardGame) {
     pvResultsRef.current = {};
     activeAnalysisFenRef.current = fen;
     worker.postMessage(`position fen ${fen}`);
-    worker.postMessage('go depth 18 multipv 5');
+    worker.postMessage(`go depth ${depthRef.current} multipv ${linesRef.current}`);
   };
 
   // Lazily create the Stockfish worker and wire up UCI message handling.
@@ -75,7 +85,6 @@ export function useEngine(boardGame) {
 
       if (line.startsWith('bestmove')) {
         const fen = activeAnalysisFenRef.current;
-        activeAnalysisFenRef.current = null;
         if (!fen) return;
 
         const pvs = Object.keys(pvResultsRef.current)
@@ -83,6 +92,10 @@ export function useEngine(boardGame) {
           .map(k => pvResultsRef.current[k]);
 
         if (pvs.length > 0) {
+          // Only clear the ref when we have real results. A bestmove fired in
+          // response to a 'stop' command (before analysis starts) produces no
+          // pvs and should not consume the ref — the real bestmove still needs it.
+          activeAnalysisFenRef.current = null;
           setEvalData({ pvs, fen });
           setEvalSource('stockfish');
           setEvalLoading(false);
@@ -128,10 +141,16 @@ export function useEngine(boardGame) {
     let cancelled = false;
 
     const timer = setTimeout(async () => {
+      // If the user has selected engine mode, skip cloud eval entirely.
+      if (engineMode) {
+        if (!cancelled) runStockfish(fen);
+        return;
+      }
+
       // 1. Try Lichess cloud eval.
       try {
         const res = await api.get('/openings/cloud-eval', {
-          params: { fen, multiPv: 5 },
+          params: { fen, multiPv: lines },
         });
         if (cancelled) return;
         if (res.data) {
@@ -158,7 +177,7 @@ export function useEngine(boardGame) {
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardGame]);
+  }, [boardGame, engineMode, depth, lines]);
 
   // Terminate worker when the component unmounts.
   useEffect(() => {
