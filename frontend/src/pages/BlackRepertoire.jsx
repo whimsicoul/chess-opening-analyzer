@@ -632,8 +632,11 @@ export default function BlackRepertoire() {
   // ── Review mode ────────────────────────────────────────────────────────────
 
   function enterReviewMode() {
-    if (!tree) return;
-    const found = findConflicts(tree, 0, false);
+    // Build tree from lines (not from backend tree) so conflict paths
+    // are guaranteed to match the flat lines used during deletion.
+    const reviewTree = buildTreeFromLines(lines);
+    if (reviewTree.children.length === 0) return;
+    const found = findConflicts(reviewTree, 0, false);
     if (found.length === 0) {
       setReviewComplete(true);
       return;
@@ -665,12 +668,15 @@ export default function BlackRepertoire() {
         });
         toDeleteIds.push(...matching.map(l => l.id));
       }
-      await Promise.all(toDeleteIds.map(id => api.delete(`/openings/black/${id}`)));
-      const res = await api.get('/openings/black/tree');
-      const freshTree = res.data;
-      setTree(freshTree);
+      if (toDeleteIds.length > 0) {
+        await Promise.all(toDeleteIds.map(id => api.delete(`/openings/black/${id}`)));
+      }
       await fetchLines();
-      const remaining = findConflicts(freshTree, 0, false);
+      await fetchTree();
+      // Re-check conflicts using fresh lines
+      const freshLines = (await api.get('/openings/black/')).data;
+      const freshReviewTree = buildTreeFromLines(freshLines);
+      const remaining = findConflicts(freshReviewTree, 0, false);
       if (remaining.length === 0) {
         setReviewMode(false);
         setReviewComplete(true);
@@ -681,7 +687,8 @@ export default function BlackRepertoire() {
         setConflictIndex(0);
         loadPosition(remaining[0].path);
       }
-    } catch {
+    } catch (err) {
+      console.error('[review] error resolving conflict:', err);
       setError('Failed to resolve conflict.');
     }
   }
