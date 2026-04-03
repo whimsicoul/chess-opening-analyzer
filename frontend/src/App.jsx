@@ -1,6 +1,7 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
+import { OnboardingProvider, useOnboarding } from './context/OnboardingContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import GuidanceModal from './components/GuidanceModal';
@@ -16,8 +17,7 @@ import Visualization from './pages/Visualization';
 import Settings from './pages/Settings';
 
 function AppInner() {
-  const { isAuthenticated } = useContext(AuthContext);
-  const [showGuidance, setShowGuidance] = useState(false);
+  const { tourActive, skipTour, startTour } = useOnboarding();
 
   useEffect(() => {
     const onMove = (e) => {
@@ -30,21 +30,10 @@ function AppInner() {
     return () => window.removeEventListener('mousemove', onMove);
   }, []);
 
-  useEffect(() => {
-    if (isAuthenticated && !localStorage.getItem('guidance_seen')) {
-      setShowGuidance(true);
-    }
-  }, [isAuthenticated]);
-
-  function handleCloseGuidance() {
-    localStorage.setItem('guidance_seen', '1');
-    setShowGuidance(false);
-  }
-
   return (
     <BrowserRouter>
-      <Navbar onOpenGuidance={() => setShowGuidance(true)} />
-      <GuidanceModal open={showGuidance} onClose={handleCloseGuidance} />
+      <Navbar onOpenGuidance={startTour} />
+      <GuidanceModal open={tourActive} onClose={skipTour} />
       <Routes>
         {/* Public */}
         <Route path="/"             element={<Home />} />
@@ -72,7 +61,9 @@ function AppInner() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppInner />
+      <OnboardingProvider>
+        <AppInner />
+      </OnboardingProvider>
     </AuthProvider>
   );
 }

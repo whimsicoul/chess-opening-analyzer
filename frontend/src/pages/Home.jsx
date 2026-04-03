@@ -1,4 +1,7 @@
+import { useContext } from 'react';
 import { Link } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
+import { useOnboarding } from '../context/OnboardingContext';
 import './Home.css';
 
 const FEATURES = [
@@ -35,9 +38,37 @@ const NOTATION_MOVES = [
 ];
 
 
+function NewUserWelcomeBanner({ onStartTour, onSkip }) {
+  return (
+    <section className="welcome-banner">
+      <div className="welcome-banner-content">
+        <div className="welcome-banner-text">
+          <h2>Welcome to OpeningAnalyzer</h2>
+          <p>Let's get you set up in about 5 minutes with a guided tour of the app.</p>
+        </div>
+        <div className="welcome-banner-actions">
+          <button className="btn btn-large" onClick={onStartTour}>
+            Start the Tour
+          </button>
+          <button className="btn-link" onClick={onSkip}>
+            Skip, I'll explore myself
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Home() {
+  const { isAuthenticated } = useContext(AuthContext);
+  const { startTour, skipTour, onboardingComplete, tourActive } = useOnboarding();
+  const showWelcomeBanner = isAuthenticated && !onboardingComplete && !tourActive;
+
   return (
     <main className="home">
+      {showWelcomeBanner && (
+        <NewUserWelcomeBanner onStartTour={startTour} onSkip={skipTour} />
+      )}
       <section className="hero">
         <div className="hero-content">
           <div className="hero-text">

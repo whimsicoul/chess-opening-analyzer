@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useOnboarding } from '../context/OnboardingContext';
 import './GuidanceModal.css';
 
 const STEPS = [
@@ -14,58 +15,69 @@ const STEPS = [
   },
   {
     icon: '♔',
-    title: 'The Repertoire Board',
+    title: 'Build Your White Repertoire',
     description:
       'This is the heart of the app. Drag pieces to play moves, or type them into the input below the board. Use the ← → buttons to navigate through your line, and Reset to start fresh.',
     tip: 'Try playing 1.e4 or 1.d4 as White to start exploring your first opening.',
     route: '/white-repertoire',
     selector: '.rep-input-board',
+    requiresWizard: 'white',
   },
   {
-    icon: '🔍',
-    title: 'Engine & Opening Book',
+    icon: '♚',
+    title: 'Build Your Black Repertoire',
     description:
-      'The right-hand panels update with every move. The Engine shows the top 3 computer evaluations. The Opening Book has two tabs — Masters (elite games) and Lichess (millions of online games). Click Play on any suggested move to try it.',
-    tip: 'Switch to the Lichess tab to see what\'s most popular at your rating level.',
-    route: '/white-repertoire',
-    selector: '.book-panel',
-  },
-  {
-    icon: '💾',
-    title: 'Saving a Line',
-    description:
-      'Once you\'ve explored a line you want to keep, fill in the Opening Name and ECO Code fields here (they often auto-fill from the database). Then click Save Line to add it to your repertoire.',
-    tip: 'You can save multiple variations from the same starting move — useful for covering different responses.',
-    route: '/white-repertoire',
-    selector: '.rep-meta-grid',
-  },
-  {
-    icon: '🌳',
-    title: 'Your Repertoire Tree',
-    description:
-      'The "Manage saved lines" section shows your full repertoire as a move tree. Click any move to instantly load that position on the board. Lines with a single child are shown inline; use the +/− buttons to expand branches.',
-    tip: 'Click the − button next to any line to remove it from your repertoire.',
-    route: '/white-repertoire',
-    selector: 'details.tree-manage-lines',
-    openDetails: true,
+      'Set up your opening lines for Black. Just like White, you can explore lines in response to 1.e4, 1.d4, and other first moves.',
+    tip: 'Common Black responses include the Sicilian (1...c5) vs 1.e4 and the Nimzo-Indian (1...Nf6) vs 1.d4.',
+    route: '/black-repertoire',
+    selector: '.rep-input-board',
+    requiresWizard: 'black',
   },
   {
     icon: '📂',
-    title: 'Games & Deviation Analysis',
+    title: 'Fetch Your Games',
     description:
       'Here you can fetch games directly from Lichess or Chess.com, or upload a PGN file. After importing, the analyzer checks each game against your saved repertoire and marks exactly where you went off-book.',
-    tip: 'Click any game card to open an interactive board viewer and step through the moves.',
+    tip: 'You\'ll need to enter your username and choose your source platform.',
     route: '/games',
     selector: '.filter-card',
+    requiresWizard: 'games',
   },
   {
     icon: '📊',
-    title: 'Analytics & Visualization',
+    title: 'Analytics',
     description:
-      'The Analytics page shows your win rates broken down by opening line — green bars are your strong lines, amber and red show areas to study. Head to Visualization for an interactive sunburst chart of your full repertoire.',
-    tip: 'Use the color toggle on the Visualization page to switch between your White and Black repertoires.',
+      'The Analytics page shows your win rates broken down by opening line — green bars are your strong lines, amber and red show areas to study.',
+    tip: 'Revisit this page once you\'ve uploaded some games to see your opening performance.',
     route: '/stats',
     selector: '.stats-grid',
+  },
+  {
+    icon: '◑',
+    title: 'Visualization',
+    description:
+      'Head here for an interactive sunburst chart of your full repertoire. Each segment represents one of your saved lines.',
+    tip: 'Use the color toggle to switch between your White and Black repertoires.',
+    route: '/visualization',
+    selector: 'svg',
+  },
+  {
+    icon: '⚙',
+    title: 'Settings',
+    description:
+      'Manage your account settings, change your password, or sign out here.',
+    tip: 'Come back to settings anytime you need to update your profile.',
+    route: '/settings',
+    selector: '.settings-container',
+  },
+  {
+    icon: '✓',
+    title: 'You\'re all set!',
+    description:
+      'You\'ve learned the essentials. The ? button in the top right will always bring you back to this guide.',
+    tip: 'Start by building your White repertoire, then add your games to begin tracking your opening performance.',
+    route: '/',
+    selector: '.navbar-help',
   },
 ];
 
@@ -75,18 +87,28 @@ function clearHighlight() {
 
 export default function GuidanceModal({ open, onClose }) {
   const navigate = useNavigate();
-  const [step, setStep] = useState(0);
+  const { tourStep, advanceTour, backTour, wizardWhiteDone, wizardBlackDone, wizardGamesDone, completeTour } = useOnboarding();
 
-  // Reset to step 0 when opened
+  // Listen for wizard completion events
   useEffect(() => {
-    if (open) setStep(0);
-  }, [open]);
+    const handleWizardComplete = (e) => {
+      const current = STEPS[tourStep];
+      if (current.requiresWizard === e.detail) {
+        advanceTour();
+      }
+    };
+
+    if (open) {
+      window.addEventListener('wizard-complete', handleWizardComplete);
+      return () => window.removeEventListener('wizard-complete', handleWizardComplete);
+    }
+  }, [open, tourStep, advanceTour]);
 
   // Navigate and highlight on step change
   useEffect(() => {
     if (!open) return;
 
-    const current = STEPS[step];
+    const current = STEPS[tourStep];
 
     if (current.route) {
       navigate(current.route);
@@ -110,7 +132,7 @@ export default function GuidanceModal({ open, onClose }) {
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [step, open, navigate]);
+  }, [tourStep, open, navigate]);
 
   // Clean up highlight when closed
   useEffect(() => {
@@ -119,9 +141,19 @@ export default function GuidanceModal({ open, onClose }) {
 
   if (!open) return null;
 
-  const current = STEPS[step];
-  const isLast = step === STEPS.length - 1;
-  const isFirst = step === 0;
+  const current = STEPS[tourStep];
+  const isLast = tourStep === STEPS.length - 1;
+  const isFirst = tourStep === 0;
+
+  // Determine if a wizard is required and whether it's complete
+  let wizardPending = false;
+  if (current.requiresWizard === 'white') {
+    wizardPending = !wizardWhiteDone;
+  } else if (current.requiresWizard === 'black') {
+    wizardPending = !wizardBlackDone;
+  } else if (current.requiresWizard === 'games') {
+    wizardPending = !wizardGamesDone;
+  }
 
   return (
     <div className="guidance-panel" role="dialog" aria-modal="true" aria-label={current.title}>
@@ -132,15 +164,23 @@ export default function GuidanceModal({ open, onClose }) {
           <button className="guidance-close" onClick={onClose} aria-label="Close guide">✕</button>
         </div>
         <div className="guidance-step-track">
-          {STEPS.map((_, i) => (
-            <button
-              key={i}
-              className={`guidance-dot${i === step ? ' guidance-dot--active' : i < step ? ' guidance-dot--past' : ''}`}
-              onClick={() => setStep(i)}
-              aria-label={`Go to step ${i + 1}`}
-            />
-          ))}
-          <span className="guidance-step-count">{step + 1} / {STEPS.length}</span>
+          {STEPS.map((s, i) => {
+            // Determine if this dot should be locked
+            let isLocked = false;
+            if (s.requiresWizard === 'white') isLocked = !wizardWhiteDone;
+            else if (s.requiresWizard === 'black') isLocked = !wizardBlackDone;
+            else if (s.requiresWizard === 'games') isLocked = !wizardGamesDone;
+
+            return (
+              <button
+                key={i}
+                className={`guidance-dot${i === tourStep ? ' guidance-dot--active' : i < tourStep ? ' guidance-dot--past' : ''}${isLocked ? ' guidance-dot--locked' : ''}`}
+                disabled={isLocked || i > tourStep}
+                aria-label={`Go to step ${i + 1}`}
+              />
+            );
+          })}
+          <span className="guidance-step-count">{tourStep + 1} / {STEPS.length}</span>
         </div>
       </div>
 
@@ -162,16 +202,22 @@ export default function GuidanceModal({ open, onClose }) {
         )}
         <div className="guidance-nav-buttons">
           {!isFirst && (
-            <button className="btn btn-ghost guidance-back-btn" onClick={() => setStep(s => s - 1)}>
+            <button className="btn btn-ghost guidance-back-btn" onClick={() => backTour && backTour()}>
               ← Back
             </button>
           )}
           {isLast ? (
-            <button className="btn guidance-next-btn" onClick={() => { navigate('/white-repertoire'); onClose(); }}>
-              Get Started ✓
+            <button className="btn guidance-next-btn" onClick={() => { completeTour(); navigate('/'); }}>
+              Done — Start Exploring ✓
             </button>
+          ) : wizardPending ? (
+            <div className="guidance-wizard-pending">
+              <button className="btn guidance-next-btn" disabled>
+                Complete the wizard above ↑
+              </button>
+            </div>
           ) : (
-            <button className="btn guidance-next-btn" onClick={() => setStep(s => s + 1)}>
+            <button className="btn guidance-next-btn" onClick={() => advanceTour && advanceTour()}>
               Next →
             </button>
           )}

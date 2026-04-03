@@ -119,3 +119,43 @@ export const BLACK_WIZARD_STEPS = [
     padding: 4,
   },
 ];
+
+export const GAMES_WIZARD_STEPS = [
+  {
+    id: 'games-source',
+    selector: '#f-source',
+    title: 'Choose your source',
+    body: 'Select Lichess or Chess.com — wherever you play most.',
+    advanceOn: 'manual',
+    tooltipPreferRight: false,
+    padding: 8,
+  },
+  {
+    id: 'games-username',
+    selector: '#f-username',
+    title: 'Enter your username',
+    body: 'Type your username on the selected platform, then click Fetch Games.',
+    advanceOn: 'fetch-submitted',
+    hideNext: true,
+    tooltipPreferRight: false,
+    padding: 8,
+  },
+  {
+    id: 'games-results',
+    selector: '.import-bar',
+    title: 'Games fetched!',
+    body: 'Your recent games are listed below. Click "Save to backend" to import them for deviation analysis.',
+    advanceOn: 'manual',
+    tooltipPreferRight: false,
+    padding: 8,
+  },
+  {
+    id: 'games-done',
+    selector: '.games-list',
+    title: 'Games imported',
+    body: 'Each card shows a game. Click "View" on any card to see the board and where you deviated from your repertoire.',
+    advanceOn: 'manual',
+    tooltipPreferRight: false,
+    padding: 8,
+  },
+];

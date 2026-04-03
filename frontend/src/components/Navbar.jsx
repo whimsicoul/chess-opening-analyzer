@@ -1,10 +1,12 @@
 import { useContext } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useOnboarding } from '../context/OnboardingContext';
 import './Navbar.css';
 
 export default function Navbar({ onOpenGuidance }) {
   const { isAuthenticated, user, logout } = useContext(AuthContext);
+  const { tourActive, tourStep } = useOnboarding();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -27,7 +29,11 @@ export default function Navbar({ onOpenGuidance }) {
 <NavLink to="/games">Games</NavLink>
             <NavLink to="/stats">Analytics</NavLink>
             <NavLink to="/visualization">Visualization</NavLink>
-            <button className="navbar-help" onClick={onOpenGuidance} title="How to use OpeningAnalyzer">?</button>
+            <button
+              className={`navbar-help${tourActive && tourStep === 9 ? ' navbar-help--pulse' : ''}`}
+              onClick={onOpenGuidance}
+              title="How to use OpeningAnalyzer"
+            >?</button>
             <NavLink to="/settings" title="Account Settings">⚙</NavLink>
             <div className="navbar-user">
               <span className="navbar-username">{user?.username}</span>
