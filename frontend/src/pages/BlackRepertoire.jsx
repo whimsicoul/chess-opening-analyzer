@@ -6,6 +6,7 @@ import { woodenPieces } from '../utils/woodenPieces.jsx';
 import api from '../api';
 import RepertoireWizard from '../components/RepertoireWizard.jsx';
 import { BLACK_WIZARD_STEPS } from '../components/wizardSteps.js';
+import { useOnboarding } from '../context/OnboardingContext';
 import { useEngine } from '../hooks/useEngine';
 import './Repertoire.css';
 
@@ -253,10 +254,20 @@ export default function BlackRepertoire() {
   const [explorerLoading, setExplorerLoading] = useState(false);
 
   // Wizard state
+  const { tourActive, tourStep } = useOnboarding();
   const [wizardStep, setWizardStep] = useState(0);
   const [wizardDismissed, setWizardDismissed] = useState(
     () => localStorage.getItem('wizard_black_seen') === '1'
   );
+
+  // When the tour brings us to the black repertoire step, reset the wizard
+  useEffect(() => {
+    if (tourActive && tourStep === 2) {
+      setWizardDismissed(false);
+      setWizardStep(0);
+      localStorage.removeItem('wizard_black_seen');
+    }
+  }, [tourActive, tourStep]);
 
   function advanceWizard(trigger) {
     if (wizardDismissed) return;
@@ -908,6 +919,7 @@ export default function BlackRepertoire() {
             onDismiss={() => {
               setWizardDismissed(true);
               localStorage.setItem('wizard_black_seen', '1');
+              window.dispatchEvent(new CustomEvent('wizard-complete', { detail: 'black' }));
             }}
           />
         )}

@@ -208,3 +208,25 @@
 .guidance-next-btn:active {
   transform: translateY(0);
 }
+
+.guidance-next-btn:disabled {
+  background: #3a4456;
+  cursor: not-allowed;
+  color: #888;
+}
+
+.guidance-next-btn:disabled:hover {
+  background: #3a4456;
+  transform: none;
+}
+
+.guidance-wizard-pending {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.guidance-dot--locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
