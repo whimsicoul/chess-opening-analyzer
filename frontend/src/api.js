@@ -1,7 +1,15 @@
 import axios from 'axios';
 
+const apiUrl = import.meta.env.VITE_API_URL;
+if (!apiUrl) {
+  console.error(
+    '[api.js] VITE_API_URL is not defined. ' +
+    'Create frontend/.env with VITE_API_URL=<backend URL> and rebuild.'
+  );
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: apiUrl,
 });
 
 // Attach JWT to every request

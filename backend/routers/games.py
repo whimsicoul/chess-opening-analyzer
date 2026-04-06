@@ -69,6 +69,9 @@ def _detect_deviation(cur, moves: list[str], user_id: int, color: str | None = N
     else:
         return None
 
+    if table not in {"white_opening_tree", "black_opening_tree"}:
+        return None
+
     parent_id = 0
 
     for ply_index, san in enumerate(moves):
