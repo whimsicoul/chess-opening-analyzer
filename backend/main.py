@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import uvicorn
 from routers import openings, black_openings, games
 from routers import auth
 from db import get_connection
@@ -61,19 +62,9 @@ def _migrate_black():
 
 def _migrate():
     """Create/alter tables to keep the schema up to date."""
-    try:
-      _migrate_black()
-    except Exception as e:
-        print(f"[migrate] black migration failed: {e}")
     with get_connection() as conn:
         with conn.cursor() as cur:
-            # Original columns
-            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS player_color TEXT;")
-            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS white_player TEXT;")
-            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS black_player TEXT;")
-            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS opponent_rating INTEGER;")
-
-            # Users table
+            # Users table first, since other tables reference it
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     id              SERIAL PRIMARY KEY,
@@ -96,6 +87,45 @@ def _migrate():
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
             """)
+
+            # Games table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS games (
+                    id         SERIAL PRIMARY KEY,
+                    pgn        TEXT,
+                    result     TEXT,
+                    white_elo  INTEGER,
+                    black_elo  INTEGER,
+                    date       DATE,
+                    event      TEXT,
+                    site       TEXT,
+                    round      TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+
+            # White opening table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS white_opening (
+                    id           SERIAL PRIMARY KEY,
+                    opening_name TEXT,
+                    eco_code     TEXT,
+                    moves        TEXT,
+                    color        TEXT NOT NULL DEFAULT 'white'
+                )
+            """)
+
+    try:
+      _migrate_black()
+    except Exception as e:
+        print(f"[migrate] black migration failed: {e}")
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            # Original columns
+            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS player_color TEXT;")
+            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS white_player TEXT;")
+            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS black_player TEXT;")
+            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS opponent_rating INTEGER;")
 
             # Game deviation tracking
             cur.execute("""
@@ -207,3 +237,13 @@ app.include_router(games.router)
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=False
+    )
