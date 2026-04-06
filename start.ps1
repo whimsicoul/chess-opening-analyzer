@@ -1,3 +1,4 @@
+# DEV ONLY — not for production use. Use Docker + Dockerfile for production deployment.
 # Chess Opening Analyzer — start both servers cleanly
 # Usage: right-click -> "Run with PowerShell", or: powershell -ExecutionPolicy Bypass -File start.ps1
 
