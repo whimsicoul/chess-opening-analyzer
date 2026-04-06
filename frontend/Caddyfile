@@ -1,7 +1,5 @@
-web: caddy run --config /dev/stdin --listen :3000 <<EOF
 :3000 {
   root * /app/dist
   try_files {path} /index.html
   file_server
 }
-EOF
