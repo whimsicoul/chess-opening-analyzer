@@ -2,7 +2,7 @@
 # Chess Opening Analyzer — start both servers cleanly
 # Usage: right-click -> "Run with PowerShell", or: powershell -ExecutionPolicy Bypass -File start.ps1
 
-$BACKEND_PORT = 8001
+$BACKEND_PORT = 8080
 $FRONTEND_PORT = 5173
 
 function Clear-Port($port) {
