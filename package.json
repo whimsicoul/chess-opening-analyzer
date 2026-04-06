@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "setup": "npm install --prefix frontend && npm install --prefix tools && pip install -r backend/requirements.txt",
-    "dev:daemon": "(cd backend && uvicorn main:app --port 8001 --log-level info) >> logs.txt 2>&1 & (cd frontend && npx vite --port 5173 --host) >> logs.txt 2>&1 & sleep 5"
+    "dev:daemon": "(cd backend && uvicorn main:app --port 8001 --log-level info) >> logs.txt 2>&1 & (cd frontend && npx vite --port 5173 --host) >> logs.txt 2>&1 & sleep 5",
+    "start": "cd backend && uvicorn main:app --host 0.0.0.0 --port 8000"
   }
 }
