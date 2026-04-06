@@ -182,6 +182,9 @@ def get_opening_winrates(color: str, current_user: dict = Depends(get_current_us
 
     tree_table = "white_opening_tree" if color == "white" else "black_opening_tree"
 
+    if tree_table not in {"white_opening_tree", "black_opening_tree"}:
+        raise HTTPException(status_code=400, detail="Invalid color")
+
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(

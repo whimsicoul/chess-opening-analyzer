@@ -1,5 +1,6 @@
 import os
 import traceback
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -8,8 +9,6 @@ from routers import auth
 from db import get_connection
 
 load_dotenv()
-
-app = FastAPI(title="Chess Opening Analyzer API")
 
 
 def _migrate_black():
@@ -60,7 +59,6 @@ def _migrate_black():
         print(f"[migrate_black] ERROR: {e}\n{traceback.format_exc()}")
 
 
-@app.on_event("startup")
 def _migrate():
     """Create/alter tables to keep the schema up to date."""
     try:
@@ -98,6 +96,20 @@ def _migrate():
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
             """)
+
+            # Game deviation tracking
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS game_deviations (
+                    id                    SERIAL PRIMARY KEY,
+                    game_id               INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+                    move_number           INTEGER,
+                    move_uci              TEXT,
+                    opponent_deviation    BOOLEAN,
+                    deviation_depth       INTEGER,
+                    completion_percentage FLOAT
+                )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_game_deviations_game_id ON game_deviations(game_id);")
 
             # Add user_id to existing tables
             cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;")
@@ -168,13 +180,22 @@ def _migrate():
 
         conn.commit()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _migrate()
+    yield
+
+
+app = FastAPI(title="Chess Opening Analyzer API", lifespan=lifespan)
+
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[frontend_url],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 app.include_router(auth.router)

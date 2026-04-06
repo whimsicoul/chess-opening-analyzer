@@ -4,7 +4,13 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 
-SECRET_KEY = os.getenv("JWT_SECRET", "change-me-in-production")
+SECRET_KEY = os.getenv("JWT_SECRET")
+if not SECRET_KEY or SECRET_KEY == "change-me-in-production":
+    raise RuntimeError(
+        "JWT_SECRET environment variable is not set or is using the insecure default. "
+        "Set a strong random secret before starting the server."
+    )
+
 ALGORITHM = "HS256"
 EXPIRE_DAYS = int(os.getenv("JWT_EXPIRE_DAYS", 7))
 
