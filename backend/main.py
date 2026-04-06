@@ -219,7 +219,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Chess Opening Analyzer API", lifespan=lifespan)
 
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+frontend_url = os.getenv("FRONTEND_URL", "https://chess-opening-analyzer.up.railway.app")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[frontend_url],
