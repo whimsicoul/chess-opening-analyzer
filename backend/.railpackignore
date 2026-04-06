@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+*.sqlite3
+.git
+.gitignore
+test_db.py
+seed_whimsicouls.py
+migrate.py
