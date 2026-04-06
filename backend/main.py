@@ -234,13 +234,18 @@ app.include_router(black_openings.router)
 app.include_router(games.router)
 
 
+@app.get("/")
+def root():
+    return {"message": "Chess Opening Analyzer API"}
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.getenv("PORT", 8080))
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
