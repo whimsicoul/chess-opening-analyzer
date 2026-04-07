@@ -87,7 +87,7 @@ function clearHighlight() {
 
 export default function GuidanceModal({ open, onClose }) {
   const navigate = useNavigate();
-  const { tourStep, advanceTour, backTour, wizardWhiteDone, wizardBlackDone, wizardGamesDone, completeTour } = useOnboarding();
+  const { tourStep, advanceTour, backTour, wizardWhiteDone, wizardBlackDone, wizardGamesDone, completeTour, skipTour } = useOnboarding();
 
   // Listen for wizard completion events
   useEffect(() => {
@@ -196,7 +196,7 @@ export default function GuidanceModal({ open, onClose }) {
 
       <div className="guidance-panel-footer">
         {!isLast && (
-          <button className="guidance-skip-btn" onClick={onClose}>
+          <button className="guidance-skip-btn" onClick={() => { skipTour(); onClose(); }}>
             Skip tour
           </button>
         )}
