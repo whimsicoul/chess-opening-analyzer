@@ -25,7 +25,7 @@ export function OnboardingProvider({ children }) {
     if (isAuthenticated && !localStorage.getItem('guidance_seen') && !tourActive) {
       startTour();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, tourActive]);
 
   // Listen for wizard completion events from pages
   useEffect(() => {
