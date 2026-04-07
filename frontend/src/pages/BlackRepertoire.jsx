@@ -888,41 +888,21 @@ export default function BlackRepertoire() {
         <p>Play moves on the board — your lines are saved automatically as you build</p>
       </div>
 
-      <div className="card add-form">
-        <div className="card-label">
-          Black ♚ Repertoire Builder
-          <button
-            className="rw-summon-btn"
-            onClick={() => {
-              setWizardStep(0);
-              setWizardDismissed(false);
-              localStorage.removeItem('wizard_black_seen');
-            }}
-            title="Open wizard"
-          >
-            ✦ Wizard
-          </button>
-        </div>
-
-        {form.opening_name && (
-          <div className="rep-opening-info">
-            <span className="rep-opening-name">{form.opening_name}</span>
-            {form.eco_code && <span className="badge-eco">{form.eco_code}</span>}
-          </div>
-        )}
-
-        {!wizardDismissed && wizardStep < BLACK_WIZARD_STEPS.length && (
-          <RepertoireWizard
-            steps={BLACK_WIZARD_STEPS}
-            stepIndex={wizardStep}
-            onAdvance={() => setWizardStep(s => s + 1)}
-            onDismiss={() => {
-              setWizardDismissed(true);
-              localStorage.setItem('wizard_black_seen', '1');
+      {!wizardDismissed && wizardStep < BLACK_WIZARD_STEPS.length && (
+        <RepertoireWizard
+          steps={BLACK_WIZARD_STEPS}
+          stepIndex={wizardStep}
+          onAdvance={() => setWizardStep(s => s + 1)}
+          onDismiss={({ skipped }) => {
+            setWizardDismissed(true);
+            localStorage.setItem('wizard_black_seen', '1');
+            // Only fire wizard-complete if the wizard was actually completed, not skipped
+            if (!skipped) {
               window.dispatchEvent(new CustomEvent('wizard-complete', { detail: 'black' }));
-            }}
-          />
-        )}
+            }
+          }}
+        />
+      )}
 
         <PanelGroup direction="horizontal" className="rep-panel-group">
           <Panel defaultSize={17} minSize={8}>
@@ -1103,7 +1083,6 @@ export default function BlackRepertoire() {
             </div>{/* rep-right-col */}
           </Panel>
         </PanelGroup>
-      </div>
 
       {error && <p className="msg-error">{error}</p>}
       {renderContextMenu()}
