@@ -34,11 +34,15 @@ export default function Register() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (form.password !== form.confirm) {
+    const username = e.target.elements.username.value;
+    const email = e.target.elements.email.value;
+    const password = e.target.elements.password.value;
+    const confirm = e.target.elements.confirm.value;
+    if (password !== confirm) {
       setError('Passwords do not match.');
       return;
     }
-    if (form.password.length < 8) {
+    if (password.length < 8) {
       setError('Password must be at least 8 characters.');
       return;
     }
@@ -46,11 +50,11 @@ export default function Register() {
     setError('');
     try {
       await api.post('/auth/register', {
-        username: form.username,
-        email: form.email,
-        password: form.password,
+        username,
+        email,
+        password,
       });
-      navigate('/verify-email', { state: { email: form.email } });
+      navigate('/verify-email', { state: { email } });
     } catch (err) {
       const detail = err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Registration failed. Please try again.');
@@ -80,6 +84,7 @@ export default function Register() {
               autoFocus
               minLength={3}
               maxLength={20}
+              autoComplete="username"
             />
           </div>
           <div className="auth-field">
@@ -91,6 +96,7 @@ export default function Register() {
               value={form.email}
               onChange={handleChange}
               required
+              autoComplete="email"
             />
           </div>
           <div className="auth-field">
@@ -103,6 +109,7 @@ export default function Register() {
                 value={form.password}
                 onChange={handleChange}
                 required
+                autoComplete="new-password"
               />
               <button
                 type="button"
@@ -124,6 +131,7 @@ export default function Register() {
                 value={form.confirm}
                 onChange={handleChange}
                 required
+                autoComplete="new-password"
               />
               <button
                 type="button"

@@ -39,10 +39,12 @@ export default function Login() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const email = e.target.elements.email.value;
+    const password = e.target.elements.password.value;
     setLoading(true);
     setError('');
     try {
-      const res = await api.post('/auth/login', form);
+      const res = await api.post('/auth/login', { email, password });
       login(res.data.access_token, res.data.username, remember);
       navigate(from, { replace: true });
     } catch (err) {
@@ -78,6 +80,7 @@ export default function Login() {
               onChange={handleChange}
               required
               autoFocus
+              autoComplete="email"
             />
           </div>
           <div className="auth-field">
@@ -90,6 +93,7 @@ export default function Login() {
                 value={form.password}
                 onChange={handleChange}
                 required
+                autoComplete="current-password"
               />
               <button
                 type="button"
