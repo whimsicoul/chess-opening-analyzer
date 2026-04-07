@@ -111,6 +111,7 @@ export default function GuidanceModal({ open, onClose }) {
     const handleWizardSkip = () => {
       const current = STEPS[tourStep];
       // When wizard is skipped during tour, advance to next step
+      // White wizard skip (step 1) should go to Black (step 2), not Games (step 3)
       if (current.requiresWizard) {
         advanceTour();
       }
