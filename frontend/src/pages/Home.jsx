@@ -69,7 +69,7 @@ export default function Home() {
     setBannerExiting(true);
     setTimeout(() => {
       skipTour();
-    }, 400);
+    }, 600);
   };
 
   return (

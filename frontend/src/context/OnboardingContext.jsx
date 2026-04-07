@@ -71,6 +71,11 @@ export function OnboardingProvider({ children }) {
     setTourActive(false);
   }
 
+  function skipWizardDuringTour() {
+    // When user skips wizard during tour, advance to next step
+    advanceTour();
+  }
+
   const value = {
     tourActive,
     tourStep,
@@ -83,6 +88,7 @@ export function OnboardingProvider({ children }) {
     backTour,
     skipTour,
     completeTour,
+    skipWizardDuringTour,
   };
 
   return (
