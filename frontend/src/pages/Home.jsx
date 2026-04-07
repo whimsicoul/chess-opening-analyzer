@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useContext, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useOnboarding } from '../context/OnboardingContext';
@@ -38,13 +38,13 @@ const NOTATION_MOVES = [
 ];
 
 
-function NewUserWelcomeBanner({ onStartTour, onSkip }) {
+function NewUserWelcomeBanner({ onStartTour, onSkip, isExiting }) {
   return (
-    <section className="welcome-banner">
+    <section className={`welcome-banner ${isExiting ? 'welcome-banner--exit' : ''}`}>
       <div className="welcome-banner-content">
         <div className="welcome-banner-text">
           <h2>Welcome to OpeningAnalyzer</h2>
-          <p>Let's get you set up in about 5 minutes with a guided tour of the app.</p>
+          <p>Let's get you set up in about 5 minutes with a guided tour!</p>
         </div>
         <div className="welcome-banner-actions">
           <button className="btn btn-large" onClick={onStartTour}>
@@ -62,12 +62,20 @@ function NewUserWelcomeBanner({ onStartTour, onSkip }) {
 export default function Home() {
   const { isAuthenticated } = useContext(AuthContext);
   const { startTour, skipTour, onboardingComplete, tourActive } = useOnboarding();
-  const showWelcomeBanner = isAuthenticated && !onboardingComplete && !tourActive;
+  const [bannerExiting, setBannerExiting] = useState(false);
+  const showWelcomeBanner = isAuthenticated && !onboardingComplete && !tourActive && !bannerExiting;
+
+  const handleSkipTour = () => {
+    setBannerExiting(true);
+    setTimeout(() => {
+      skipTour();
+    }, 400);
+  };
 
   return (
     <main className="home">
       {showWelcomeBanner && (
-        <NewUserWelcomeBanner onStartTour={startTour} onSkip={skipTour} />
+        <NewUserWelcomeBanner onStartTour={startTour} onSkip={handleSkipTour} isExiting={bannerExiting} />
       )}
       <section className="hero">
         <div className="hero-content">
