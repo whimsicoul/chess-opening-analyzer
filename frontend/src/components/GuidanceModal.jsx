@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOnboarding } from '../context/OnboardingContext';
 import './GuidanceModal.css';
@@ -87,9 +87,19 @@ function clearHighlight() {
 
 export default function GuidanceModal({ open, onClose }) {
   const navigate = useNavigate();
+  const panelRef = useRef(null);
+  const [isExiting, setIsExiting] = useState(false);
   const { tourStep, advanceTour, backTour, wizardWhiteDone, wizardBlackDone, wizardGamesDone, completeTour, skipTour } = useOnboarding();
 
-  // Listen for wizard completion events
+  const handleClose = () => {
+    setIsExiting(true);
+    setTimeout(() => {
+      onClose();
+      setIsExiting(false);
+    }, 300);
+  };
+
+  // Listen for wizard completion and skip events
   useEffect(() => {
     const handleWizardComplete = (e) => {
       const current = STEPS[tourStep];
@@ -98,9 +108,21 @@ export default function GuidanceModal({ open, onClose }) {
       }
     };
 
+    const handleWizardSkip = () => {
+      const current = STEPS[tourStep];
+      // When wizard is skipped during tour, advance to next step
+      if (current.requiresWizard) {
+        advanceTour();
+      }
+    };
+
     if (open) {
       window.addEventListener('wizard-complete', handleWizardComplete);
-      return () => window.removeEventListener('wizard-complete', handleWizardComplete);
+      window.addEventListener('wizard-skip-during-tour', handleWizardSkip);
+      return () => {
+        window.removeEventListener('wizard-complete', handleWizardComplete);
+        window.removeEventListener('wizard-skip-during-tour', handleWizardSkip);
+      };
     }
   }, [open, tourStep, advanceTour]);
 
@@ -139,7 +161,44 @@ export default function GuidanceModal({ open, onClose }) {
     if (!open) clearHighlight();
   }, [open]);
 
+  // Adjust panel position if target element would be blocked
+  useEffect(() => {
+    if (!open || !panelRef.current) return;
+
+    const timer = setTimeout(() => {
+      const panel = panelRef.current;
+      const panelRect = panel.getBoundingClientRect();
+      const viewport = window.innerHeight;
+
+      // If panel overlaps with target, move it up
+      const target = document.querySelector('.tour-target');
+      if (target) {
+        const targetRect = target.getBoundingClientRect();
+        const overlap = panelRect.top < targetRect.bottom && panelRect.bottom > targetRect.top;
+
+        if (overlap && targetRect.top > 0) {
+          // Enough space above, move panel up
+          const moveUp = targetRect.bottom - panelRect.top + 20;
+          panel.style.transform = `translateX(-50%) translateY(-${moveUp}px)`;
+        } else if (panelRect.bottom > viewport) {
+          // Too close to bottom, move up
+          const moveUp = panelRect.bottom - viewport + 20;
+          panel.style.transform = `translateX(-50%) translateY(-${moveUp}px)`;
+        } else {
+          // Reset position
+          panel.style.transform = 'translateX(-50%) translateY(0)';
+        }
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [open, tourStep]);
+
   if (!open) return null;
+
+  // Steps 1 and 2 are guided entirely by RepertoireWizard — hide this panel
+  const hidePanelForStep = tourStep === 1 || tourStep === 2;
+  if (hidePanelForStep) return null;
 
   const current = STEPS[tourStep];
   const isLast = tourStep === STEPS.length - 1;
@@ -156,12 +215,12 @@ export default function GuidanceModal({ open, onClose }) {
   }
 
   return (
-    <div className="guidance-panel" role="dialog" aria-modal="true" aria-label={current.title}>
+    <div className={`guidance-panel ${isExiting ? 'exiting' : ''}`} ref={panelRef} role="dialog" aria-modal="true" aria-label={current.title}>
       <div className="guidance-panel-header">
         <div className="guidance-panel-title-row">
           <span className="guidance-panel-icon">{current.icon}</span>
           <h2 className="guidance-panel-title">{current.title}</h2>
-          <button className="guidance-close" onClick={onClose} aria-label="Close guide">✕</button>
+          <button className="guidance-close" onClick={handleClose} aria-label="Close guide">✕</button>
         </div>
         <div className="guidance-step-track">
           {STEPS.map((s, i) => {
@@ -196,7 +255,7 @@ export default function GuidanceModal({ open, onClose }) {
 
       <div className="guidance-panel-footer">
         {!isLast && (
-          <button className="guidance-skip-btn" onClick={() => { skipTour(); onClose(); }}>
+          <button className="guidance-skip-btn" onClick={() => { skipTour(); handleClose(); }}>
             Skip tour
           </button>
         )}
@@ -207,7 +266,7 @@ export default function GuidanceModal({ open, onClose }) {
             </button>
           )}
           {isLast ? (
-            <button className="btn guidance-next-btn" onClick={() => { completeTour(); navigate('/'); }}>
+            <button className="btn guidance-next-btn" onClick={() => { completeTour(); navigate('/'); handleClose(); }}>
               Done — Start Exploring ✓
             </button>
           ) : wizardPending ? (
