@@ -59,6 +59,8 @@ export function OnboardingProvider({ children }) {
 
   function skipTour() {
     localStorage.setItem('guidance_seen', '1');
+    localStorage.setItem('onboarding_complete', '1');
+    setOnboardingComplete(true);
     setTourActive(false);
   }
 
