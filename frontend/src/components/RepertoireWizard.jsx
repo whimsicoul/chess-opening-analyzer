@@ -132,32 +132,6 @@ export default function RepertoireWizard({ steps, stepIndex, onAdvance, onDismis
 
   return (
     <>
-      {/* SVG overlay */}
-      {!step.noSpotlight && (
-        <svg
-          className="rw-overlay-svg"
-          width={vw}
-          height={vh}
-          viewBox={`0 0 ${vw} ${vh}`}
-        >
-          <path
-            d={`M0,0 H${vw} V${vh} H0 Z M${r.x},${r.y} H${r.x + r.w} V${r.y + r.h} H${r.x} Z`}
-            fill="rgba(0,0,0,0.82)"
-            fillRule="evenodd"
-            style={{ pointerEvents: 'fill' }}
-          />
-          <rect
-            x={r.x} y={r.y} width={r.w} height={r.h}
-            rx={10}
-            fill="none"
-            stroke="#c9a84c"
-            strokeWidth={2}
-            className="rw-spotlight-ring"
-            style={{ pointerEvents: 'none' }}
-          />
-        </svg>
-      )}
-
       {/* Floating tooltip */}
       <div
         key={stepIndex}
@@ -168,7 +142,10 @@ export default function RepertoireWizard({ steps, stepIndex, onAdvance, onDismis
         <div className="rw-title">{step.title}</div>
         <p className="rw-body">{step.body}</p>
         <div className="rw-footer">
-          <button className="rw-btn-skip" onClick={onDismiss}>
+          <button className="rw-btn-skip" onClick={() => {
+            window.dispatchEvent(new CustomEvent('wizard-skip-during-tour'));
+            onDismiss({ skipped: true });
+          }}>
             Skip wizard
           </button>
           <div className="rw-dots">
@@ -180,7 +157,7 @@ export default function RepertoireWizard({ steps, stepIndex, onAdvance, onDismis
             ))}
           </div>
           {!step.hideNext && (
-            <button className="rw-btn-next" onClick={isLast ? onDismiss : onAdvance}>
+            <button className="rw-btn-next" onClick={isLast ? () => onDismiss({ skipped: false }) : onAdvance}>
               {isLast ? 'Done ✓' : 'Next →'}
             </button>
           )}
