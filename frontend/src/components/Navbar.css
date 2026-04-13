@@ -21,16 +21,20 @@
 }
 
 .navbar-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, #c9a84c 0%, #8a6e2a 100%);
-  border-radius: 8px;
-  font-size: 1rem;
-  line-height: 1;
-  box-shadow: 0 0 12px rgba(201, 168, 76, 0.3);
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  filter:
+    drop-shadow(0 0 6px rgba(201, 168, 76, 0.55))
+    drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.navbar-brand:hover .navbar-logo {
+  filter:
+    drop-shadow(0 0 10px rgba(201, 168, 76, 0.9))
+    drop-shadow(0 2px 12px rgba(0, 0, 0, 0.5));
+  transform: scale(1.08);
 }
 
 .navbar-name {
