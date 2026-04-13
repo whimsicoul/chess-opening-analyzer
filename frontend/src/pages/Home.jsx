@@ -97,10 +97,11 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="hero-visual" aria-hidden="true">
-            <div className="logo-glow-ring logo-glow-ring--outer" />
-            <div className="logo-glow-ring" />
-            <img src="/new-logo.png" alt="" className="hero-logo" />
+          <div className="hero-visual-reveal" aria-hidden="true">
+            <div className="hero-visual">
+              <div className="hero-logo-plate" />
+              <img src="/final-logo.png" alt="" className="hero-logo" />
+            </div>
           </div>
         </div>
 
