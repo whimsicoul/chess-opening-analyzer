@@ -275,6 +275,16 @@ export default function BlackRepertoire() {
     if (step?.advanceOn === trigger) setWizardStep(s => s + 1);
   }
 
+  // Fire wizard-complete when all black wizard steps have been answered
+  useEffect(() => {
+    if (wizardDismissed) return;
+    if (wizardStep >= BLACK_WIZARD_STEPS.length) {
+      setWizardDismissed(true);
+      localStorage.setItem('wizard_black_seen', '1');
+      window.dispatchEvent(new CustomEvent('wizard-complete', { detail: 'black' }));
+    }
+  }, [wizardStep, wizardDismissed]);
+
   // Auto-play 1.e4 or 1.d4 when wizard enters step 0 or 1
   useEffect(() => {
     if (wizardDismissed) return;

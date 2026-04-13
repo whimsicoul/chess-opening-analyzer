@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useOnboarding } from '../context/OnboardingContext';
 import './GuidanceModal.css';
 
@@ -87,6 +87,7 @@ function clearHighlight() {
 
 export default function GuidanceModal({ open, onClose }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const panelRef = useRef(null);
   const [isExiting, setIsExiting] = useState(false);
   const { tourStep, advanceTour, backTour, wizardWhiteDone, wizardBlackDone, wizardGamesDone, completeTour, skipTour } = useOnboarding();
@@ -98,6 +99,16 @@ export default function GuidanceModal({ open, onClose }) {
       setIsExiting(false);
     }, 300);
   };
+
+  // End tour if user navigates away from a wizard step on their own
+  useEffect(() => {
+    if (!open) return;
+    const hidePanelForThisStep = tourStep === 1 || tourStep === 2;
+    const current = STEPS[tourStep];
+    if (hidePanelForThisStep && current.route && location.pathname !== current.route) {
+      onClose();
+    }
+  }, [location.pathname, open, tourStep, onClose]);
 
   // Listen for wizard completion and skip events
   useEffect(() => {
