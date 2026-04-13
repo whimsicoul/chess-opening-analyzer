@@ -57,6 +57,10 @@ class PooledConnection:
 
     def __exit__(self, *args):
         if self.conn:
+            try:
+                self.conn.rollback()  # always reset to idle state before returning to pool
+            except Exception:
+                pass
             _get_pool().putconn(self.conn)
 
 
