@@ -21,14 +21,12 @@ function EyeIcon({ open }) {
 
 export default function Register() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ username: '', email: '', password: '', confirm: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  function handleChange(e) {
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  function handleChange() {
     setError('');
   }
 
@@ -78,7 +76,7 @@ export default function Register() {
               name="username"
               type="text"
               placeholder="e.g. chesswiz99"
-              value={form.username}
+              defaultValue=""
               onChange={handleChange}
               required
               autoFocus
@@ -93,7 +91,7 @@ export default function Register() {
               name="email"
               type="email"
               placeholder="you@example.com"
-              value={form.email}
+              defaultValue=""
               onChange={handleChange}
               required
               autoComplete="email"
@@ -106,7 +104,7 @@ export default function Register() {
                 name="password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="At least 8 characters"
-                value={form.password}
+                defaultValue=""
                 onChange={handleChange}
                 required
                 autoComplete="new-password"
@@ -128,7 +126,7 @@ export default function Register() {
                 name="confirm"
                 type={showConfirm ? 'text' : 'password'}
                 placeholder="••••••••"
-                value={form.confirm}
+                defaultValue=""
                 onChange={handleChange}
                 required
                 autoComplete="new-password"

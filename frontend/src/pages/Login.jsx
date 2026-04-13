@@ -26,14 +26,12 @@ export default function Login() {
   const location = useLocation();
   const from = location.state?.from?.pathname || '/';
 
-  const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
 
-  function handleChange(e) {
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  function handleChange() {
     setError('');
   }
 
@@ -76,7 +74,7 @@ export default function Login() {
               name="email"
               type="email"
               placeholder="you@example.com"
-              value={form.email}
+              defaultValue=""
               onChange={handleChange}
               required
               autoFocus
@@ -90,7 +88,7 @@ export default function Login() {
                 name="password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                value={form.password}
+                defaultValue=""
                 onChange={handleChange}
                 required
                 autoComplete="current-password"
