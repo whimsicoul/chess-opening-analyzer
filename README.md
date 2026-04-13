@@ -1,94 +1,75 @@
-# Chess Opening Analyzer Web
+# Chess Opening Analyzer
 
-A personal chess improvement tool that connects to your game history, tracks how well you follow your opening repertoire, and surfaces patterns in your results.
+A personal chess improvement tool for tracking opening repertoire adherence and analyzing game history.
 
----
+**Live site:** https://chess-opening-analyzer.up.railway.app
 
-## What It Does
+## Features
 
-### Games
-Import your chess games from Lichess or by uploading PGN files. All games are stored in your account and displayed in a table with your result, opening name, ECO code, and both players' names. Click any game to view the full board with move-by-move playback.
+- **Games** — Import from Lichess or upload a PGN; view results by opening/ECO with move-by-move board playback
+- **Upload** — Drag-and-drop a single PGN to instantly analyze it against your repertoire; shows exactly where (and who) deviated
+- **Repertoire** — Build opening lines for White and Black via interactive board; live Lichess Cloud Eval shows top 3 engine moves
+- **Analytics** — Win/loss/draw rates, deviation tracker, and a zoomable sunburst chart of your opening tree
+- **Onboarding wizard** — Guided setup walks new users through building their first White and Black repertoire
+- **Settings** — Change username, email, or password; delete account
 
-### Repertoire
-Build a personal opening repertoire for both White and Black. Use the color tabs to select which side you're adding a line for, then play moves directly on an interactive board or paste a PGN line into the text input. As you build a line, a **Lichess Cloud Eval** panel appears beside the board showing the top 3 engine moves with evaluation scores — click any suggestion to play it instantly. Save lines with a name and ECO code; they appear as cards organized into two clearly labeled sections — **White Repertoire ♔** and **Black Repertoire ♚** — always visible at the same time so you can manage both colors without switching tabs.
+## Stack
 
-### Analytics — Stats
-See your win/draw/loss rates broken down by result and filtered by the color you played. The deviation tracker shows which games went out of book: when a game departs from your saved repertoire, it records the move number, which side deviated, and whether it was you or your opponent. This makes it easy to see where your preparation ends in practice.
+| Layer | Tech |
+|-------|------|
+| Frontend | React 19 + Vite, chess.js, react-chessboard, recharts, d3 |
+| Backend | FastAPI + uvicorn, python-chess |
+| Database | PostgreSQL — Neon (production) or local |
+| Auth | JWT (python-jose + bcrypt) |
+| Hosting | Railway (backend + frontend, separate services) |
 
-### Analytics — Visualization
-An interactive sunburst chart of your opening tree, built from your saved repertoire lines. Each ring represents a move deeper into the opening. Click any segment to zoom in and explore that branch. Hover for opening names and ECO codes.
+## Local Setup
 
----
+**Prerequisites:** Node.js 18+, Python 3.10+, PostgreSQL
 
-## Tech Stack
-
-**Frontend** — React 19 + Vite, chess.js, react-chessboard, recharts, d3, axios
-
-**Backend** — FastAPI + uvicorn, python-chess, PostgreSQL (psycopg2-binary), python-jose + bcrypt
-
----
-
-## Prerequisites
-
-- **Node.js** v18+
-- **Python** 3.10+
-- **PostgreSQL** running locally
-
----
-
-## Setup
-
-### 1. Clone the repo
-
-```bash
-git clone <repo-url>
-cd chess-analyzer-web
-```
-
-### 2. Backend
+### Backend
 
 ```bash
 cd backend
-
-# Create and activate virtual environment
-python -m venv venv
-
-# Windows
-venv\Scripts\activate
-# macOS/Linux
-source venv/bin/activate
-
+python -m venv venv && venv\Scripts\activate   # macOS/Linux: source venv/bin/activate
 pip install -r requirements.txt
 ```
 
 Create `backend/.env`:
 
 ```env
+# Option A — individual fields (local Postgres)
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=your_db_name
 DB_USER=postgres
 DB_PASSWORD=your_password
 
-JWT_SECRET=your_secret_key_here
+# Option B — connection string (Neon or other hosted Postgres)
+# DATABASE_URL=postgresql://user:pass@host/dbname?sslmode=require
+
+JWT_SECRET=<run: python -c "import secrets; print(secrets.token_hex(32))">
 JWT_EXPIRE_DAYS=7
 
+FRONTEND_URL=http://localhost:5173
+
+# Optional — email verification (Gmail: use App Password, not account password)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=your_email@gmail.com
+SMTP_USER=your@gmail.com
 SMTP_PASSWORD=your_app_password
-SMTP_FROM=your_email@gmail.com
+SMTP_FROM=your@gmail.com
 
-FRONTEND_URL=http://localhost:5173
+# Optional — Lichess token (for import)
+LICHESS_TOKEN=
 ```
 
-> The database schema is created automatically on first startup. Just make sure the database itself exists: `createdb your_db_name`
+> Create the database first (`createdb your_db_name`). Schema tables are created automatically on startup.
 
-### 3. Frontend
+### Frontend
 
 ```bash
-cd frontend
-npm install
+cd frontend && npm install
 ```
 
 Create `frontend/.env`:
@@ -97,94 +78,72 @@ Create `frontend/.env`:
 VITE_API_URL=http://localhost:8001
 ```
 
----
+## Running
 
-## Running the App
-
-### Recommended: start script (Windows)
-
-From the project root:
-
+**Windows (recommended):**
 ```powershell
 powershell -ExecutionPolicy Bypass -File start.ps1
 ```
+Clears ports 8001 and 5173, then starts both servers.
 
-Or right-click `start.ps1` → **Run with PowerShell**.
-
-This kills any existing processes on ports 8001 and 5173, then opens both servers in new terminal windows. Use this every time to avoid port conflicts (see Troubleshooting below).
-
-### Manual start
-
-**Terminal 1 — Backend**
+**Manual:**
 ```bash
-cd backend
-venv\Scripts\activate
-uvicorn main:app --reload --port 8001
+# Terminal 1 — Backend
+cd backend && uvicorn main:app --reload --port 8001
+
+# Terminal 2 — Frontend
+cd frontend && npm run dev
 ```
 
-**Terminal 2 — Frontend**
-```bash
-cd frontend
-npm run dev
-```
-
-Open [http://localhost:5173](http://localhost:5173) in your browser.
-
----
+Open [http://localhost:5173](http://localhost:5173)
 
 ## Project Structure
 
 ```
 chess-analyzer-web/
-├── start.ps1                   # One-click start script (Windows)
+├── start.ps1
 ├── backend/
-│   ├── main.py                 # FastAPI app, CORS, startup DB migration
-│   ├── db.py                   # PostgreSQL connection helper
-│   ├── auth_utils.py           # JWT creation and validation
-│   ├── email_utils.py          # Email verification sender
-│   ├── seed_whimsicouls.py     # One-time seed: restores Whimsicoul's white repertoire (already applied)
-│   ├── requirements.txt
+│   ├── main.py             # App entrypoint, CORS, DB migration
+│   ├── db.py               # PostgreSQL helpers (supports DATABASE_URL or individual vars)
+│   ├── auth_utils.py       # JWT + password hashing
+│   ├── migrate.py          # Schema migration runner
 │   └── routers/
-│       ├── auth.py             # Register, login, email verify
-│       ├── openings.py         # Repertoire CRUD, tree builder, cloud-eval proxy
-│       └── games.py            # Game upload/import, deviation detection
-└── frontend/
-    └── src/
-        ├── App.jsx             # Routes and layout
-        ├── api.js              # Axios instance with JWT interceptors
-        ├── context/
-        │   └── AuthContext.jsx
-        ├── components/
-        │   ├── ProtectedRoute.jsx
-        │   ├── ChessBoardViewer.jsx
-        │   └── Navbar.jsx
-        └── pages/
-            ├── Home.jsx
-            ├── Login.jsx
-            ├── Register.jsx
-            ├── VerifyEmail.jsx
-            ├── Games.jsx
-            ├── Repertoire.jsx
-            ├── Analytics.jsx   # Tabs: Stats + Visualization
-            ├── Stats.jsx
-            └── Visualization.jsx
+│       ├── auth.py         # Register, login, email verify, account settings
+│       ├── openings.py     # White repertoire CRUD, tree builder, cloud-eval proxy
+│       ├── black_openings.py  # Black repertoire CRUD + tree builder
+│       └── games.py        # PGN upload/import, deviation detection
+└── frontend/src/
+    ├── App.jsx
+    ├── api.js              # Axios + JWT interceptors
+    ├── hooks/
+    │   └── useEngine.js    # Lichess Cloud Eval hook
+    ├── components/
+    │   ├── ChessBoardViewer.jsx
+    │   ├── GuidanceModal.jsx
+    │   ├── Navbar.jsx
+    │   ├── OpeningSunburst.jsx
+    │   ├── ProtectedRoute.jsx
+    │   ├── RepertoireWizard.jsx
+    │   └── wizardSteps.js
+    └── pages/
+        ├── Home.jsx
+        ├── Login.jsx / Register.jsx / VerifyEmail.jsx
+        ├── Games.jsx
+        ├── Upload.jsx          # Single-game PGN analyzer
+        ├── WhiteRepertoire.jsx
+        ├── BlackRepertoire.jsx
+        ├── Analytics.jsx       # Tabs: Stats + Visualization
+        ├── Stats.jsx
+        ├── Visualization.jsx
+        └── Settings.jsx
 ```
-
----
 
 ## Troubleshooting
 
-**`ModuleNotFoundError` on backend start**
-Activate the virtual environment first: `venv\Scripts\activate`
-
-**PostgreSQL connection error**
-Confirm PostgreSQL is running, check `backend/.env` credentials, and make sure the database exists.
-
-**Frontend can't reach the backend**
-Check that `VITE_API_URL` in `frontend/.env` matches the port uvicorn is running on. Restart the frontend after any `.env` change.
-
-**Port already in use / all requests hang**
-uvicorn `--reload` spawns two processes. Starting it a second time without stopping the first puts four processes competing for the port — connections are accepted but never answered. Always use `start.ps1`, which clears the ports before starting, to avoid this.
-
-**Email verification not arriving**
-If using Gmail, generate an App Password (Google Account → Security → 2-Step Verification → App Passwords) and use that as `SMTP_PASSWORD`, not your regular Gmail password.
+| Problem | Fix |
+|---------|-----|
+| `ModuleNotFoundError` | Activate venv: `venv\Scripts\activate` |
+| PostgreSQL connection error | Check `.env` credentials and that the DB exists |
+| Frontend can't reach backend | Verify `VITE_API_URL` port matches uvicorn; restart frontend after `.env` changes |
+| Port in use / requests hang | Use `start.ps1` — `uvicorn --reload` spawns two processes; restarting without clearing ports causes conflicts |
+| Email not arriving | Use a Gmail App Password, not your account password |
