@@ -254,6 +254,7 @@ export default function WhiteRepertoire() {
   const [explorerMasters, setExplorerMasters] = useState(null);
   const [explorerLichess, setExplorerLichess] = useState(null);
   const [explorerLoading, setExplorerLoading] = useState(false);
+  const [explorerError,   setExplorerError]   = useState(null);
 
   // Wizard state
   const { tourActive, tourStep } = useOnboarding();
@@ -458,22 +459,29 @@ export default function WhiteRepertoire() {
   }, [allMoves.join(',')]);
 
   // Wizard auto-play: when entering steps with autoPlay: true, play the most popular
-  // book move. Uses a ref to avoid double-firing if explorerMasters re-fetches.
+  // book move. Falls back to the top engine move if the opening book is unavailable.
+  // Uses a ref to avoid double-firing if explorerMasters or evalData re-fetches.
   useEffect(() => {
     if (wizardDismissed) return;
     const step = WHITE_WIZARD_STEPS[wizardStep];
     if (!step?.autoPlay) return;
     if (wizardAutoPlayedStep.current === wizardStep) return;
-    if (!explorerMasters?.moves?.length) return;
 
-    const uci = explorerMasters.moves[0].uci;
+    // Prefer opening book move; fall back to top engine move
+    let uci = explorerMasters?.moves?.[0]?.uci ?? null;
+    if (!uci) {
+      const topPv = evalData?.pvs?.[0];
+      uci = topPv?.moves?.split(' ')?.[0] ?? null;
+    }
+    if (!uci) return; // nothing available yet — wait for data
+
     const timer = setTimeout(() => {
       playMoveInternal(uci);
       wizardAutoPlayedStep.current = wizardStep;
     }, 600);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wizardStep, explorerMasters, wizardDismissed]);
+  }, [wizardStep, explorerMasters, evalData, wizardDismissed]);
 
   // Wizard: trigger 'engine-mode-on' when engine mode is toggled during wizard
   useEffect(() => {
@@ -554,7 +562,8 @@ export default function WhiteRepertoire() {
     try {
       const res = await api.get('/openings/');
       setLines(res.data);
-    } catch {
+    } catch (err) {
+      console.error('[fetchLines] failed:', err?.response?.status, err?.message);
       setError('Failed to load openings.');
     }
   }
@@ -563,7 +572,8 @@ export default function WhiteRepertoire() {
     try {
       const res = await api.get('/openings/tree');
       setTree(res.data);
-    } catch {
+    } catch (err) {
+      console.error('[fetchTree] failed:', err?.response?.status, err?.message);
       setTree(null);
     }
   }
@@ -580,6 +590,7 @@ export default function WhiteRepertoire() {
     setExplorerLoading(true);
     setExplorerMasters(null);
     setExplorerLichess(null);
+    setExplorerError(null);
     const timer = setTimeout(async () => {
       try {
         const res = await api.get('/openings/explorer', {
@@ -594,7 +605,11 @@ export default function WhiteRepertoire() {
             opening_name: f.opening_name || data.opening.name || '',
           }));
         }
-      } catch { setExplorerMasters(null); }
+      } catch (e) {
+        setExplorerMasters(null);
+        setExplorerError(e?.message ?? 'Opening book unavailable');
+        console.warn('[explorer] masters fetch failed:', e);
+      }
       finally  { setExplorerLoading(false); }
     }, 500);
     return () => clearTimeout(timer);
@@ -965,6 +980,11 @@ export default function WhiteRepertoire() {
               window.dispatchEvent(new CustomEvent('wizard-complete', { detail: 'white' }));
             }
           }}
+          bodyOverride={
+            WHITE_WIZARD_STEPS[wizardStep]?.id === 'book-choose' && !explorerMasters?.moves?.length
+              ? 'The opening book isn\'t available right now — you can also pick a move from the engine panel on the right!'
+              : null
+          }
         />
       )}
 

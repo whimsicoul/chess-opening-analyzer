@@ -31,7 +31,7 @@ function computeTooltipPos(rect, preferRight) {
   };
 }
 
-export default function RepertoireWizard({ steps, stepIndex, onAdvance, onDismiss }) {
+export default function RepertoireWizard({ steps, stepIndex, onAdvance, onDismiss, bodyOverride }) {
   const [spotlightRect, setSpotlightRect] = useState(null);
   const [displayRect, setDisplayRect]     = useState(null);
   const rafRef     = useRef(null);
@@ -140,7 +140,7 @@ export default function RepertoireWizard({ steps, stepIndex, onAdvance, onDismis
       >
         <div className="rw-step-label">Step {stepIndex + 1} / {steps.length}</div>
         <div className="rw-title">{step.title}</div>
-        <p className="rw-body">{step.body}</p>
+        <p className="rw-body">{bodyOverride ?? step.body}</p>
         <div className="rw-footer">
           <button className="rw-btn-skip" onClick={() => {
             window.dispatchEvent(new CustomEvent('wizard-skip-during-tour'));
