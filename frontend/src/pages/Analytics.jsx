@@ -403,7 +403,7 @@ function VizSection() {
     setLoading(true);
     setError(null);
     Promise.all([
-      api.get('/openings/tree', { params: { color } }),
+      api.get(color === 'black' ? '/openings/black/tree' : '/openings/tree'),
       api.get('/games/'),
     ])
       .then(([treeRes, gamesRes]) => {

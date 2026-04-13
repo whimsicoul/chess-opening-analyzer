@@ -100,7 +100,7 @@ export default function Home() {
           <div className="hero-visual" aria-hidden="true">
             <div className="logo-glow-ring logo-glow-ring--outer" />
             <div className="logo-glow-ring" />
-            <img src="/logo.svg" alt="" className="hero-logo" />
+            <img src="/new-logo.png" alt="" className="hero-logo" />
           </div>
         </div>
 
