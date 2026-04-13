@@ -17,7 +17,7 @@ export default function Navbar({ onOpenGuidance }) {
   return (
     <nav className="navbar">
       <NavLink to="/" className="navbar-brand">
-        <img src="/final-logo.png" alt="OpeningAnalyzer" className="navbar-logo" />
+        <img src="/small-logo.png" alt="OpeningAnalyzer" className="navbar-logo" />
         <span className="navbar-name">Opening<span>Analyzer</span></span>
       </NavLink>
 
