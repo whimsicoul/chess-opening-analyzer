@@ -99,6 +99,12 @@
   color: rgba(201,168,76,0.2);
 }
 
+.auth-hint {
+  font-size: 0.75rem;
+  color: #4a5070;
+  margin-top: 0.35rem;
+}
+
 .auth-error {
   background: rgba(220, 60, 60, 0.1);
   border: 1px solid rgba(220, 60, 60, 0.3);

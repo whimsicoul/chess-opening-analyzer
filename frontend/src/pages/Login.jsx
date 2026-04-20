@@ -1,24 +1,9 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api';
+import EyeIcon from '../components/EyeIcon';
 import './auth.css';
-
-function EyeIcon({ open }) {
-  if (open) return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-      <circle cx="12" cy="12" r="3"/>
-    </svg>
-  );
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-      <line x1="1" y1="1" x2="23" y2="23"/>
-    </svg>
-  );
-}
 
 export default function Login() {
   const { login } = useContext(AuthContext);
@@ -26,23 +11,38 @@ export default function Login() {
   const location = useLocation();
   const from = location.state?.from?.pathname || '/';
 
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
 
-  function handleChange() {
-    setError('');
-  }
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const email = e.target.elements.email.value;
-    const password = e.target.elements.password.value;
+
+    // Read DOM values directly to capture autofill that didn't fire onChange
+    const resolvedEmail = email || emailRef.current?.value || '';
+    const resolvedPassword = password || passwordRef.current?.value || '';
+
+    if (!resolvedEmail) {
+      setError('Please type your email address — autofill may not have been detected.');
+      emailRef.current?.focus();
+      return;
+    }
+    if (!resolvedPassword) {
+      setError('Please type your password — autofill may not have been detected.');
+      passwordRef.current?.focus();
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
-      const res = await api.post('/auth/login', { email, password });
+      const res = await api.post('/auth/login', { email: resolvedEmail, password: resolvedPassword });
       login(res.data.access_token, res.data.username, remember);
       navigate(from, { replace: true });
     } catch (err) {
@@ -71,11 +71,12 @@ export default function Login() {
           <div className="auth-field">
             <label>Email</label>
             <input
+              ref={emailRef}
               name="email"
               type="email"
               placeholder="you@example.com"
-              defaultValue=""
-              onChange={handleChange}
+              value={email}
+              onChange={e => { setEmail(e.target.value); setError(''); }}
               required
               autoFocus
               autoComplete="email"
@@ -85,11 +86,12 @@ export default function Login() {
             <label>Password</label>
             <div className="password-wrapper">
               <input
+                ref={passwordRef}
                 name="password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                defaultValue=""
-                onChange={handleChange}
+                value={password}
+                onChange={e => { setPassword(e.target.value); setError(''); }}
                 required
                 autoComplete="current-password"
               />
