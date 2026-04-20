@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import os
 from db import get_connection
 
 def test_connection():
