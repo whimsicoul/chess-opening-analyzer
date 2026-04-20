@@ -41,16 +41,6 @@ function wdlPercents(white, draws, black) {
 }
 
 // Convert a UCI move string to SAN given a Chess position
-function uciToSan(fen, uci) {
-  try {
-    const game = new Chess(fen);
-    const move = game.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] || 'q' });
-    return move ? move.san : uci;
-  } catch {
-    return uci;
-  }
-}
-
 // Convert a UCI move sequence to an array of formatted tokens (e.g. "4.O-O", "g6", "5.d4")
 function buildContinuation(fen, uciMoves, maxMoves = 10) {
   try {

@@ -124,8 +124,13 @@ def register(body: RegisterRequest):
     try:
         send_verification_email(body.email, code)
     except Exception as e:
-        # Don't fail registration if email sending fails — user can resend
         print(f"[email] Failed to send verification to {body.email}: {e}")
+        # Roll back the newly created account so the user can retry cleanly
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            conn.commit()
+        raise HTTPException(500, "We couldn't send a verification email. Please try again in a moment.")
 
     return {"message": "Account created. Check your email for a verification code."}
 
