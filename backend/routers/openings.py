@@ -17,12 +17,15 @@ class OpeningCreate(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Internal helper — rebuild white_opening_tree for a user from a list of lines
+# Internal helper — sync white_opening_tree for a user from their manual lines
 # ---------------------------------------------------------------------------
 
 def _sync_tree(cur, user_id: int, lines: list):
-    """Delete and rebuild the white opening tree for a user from the given lines."""
-    cur.execute("DELETE FROM white_opening_tree WHERE user_id = %s", (user_id,))
+    """Insert/update tree nodes for the given manual lines, then prune any
+    manual-source node no longer covered by any of them. Games-derived nodes
+    (source='games') are never touched here — manual and games-derived trees
+    coexist by union."""
+    kept_ids: set[int] = set()
 
     for line in lines:
         board = chess.Board()
@@ -43,12 +46,29 @@ def _sync_tree(cur, user_id: int, lines: list):
             else:
                 cur.execute(
                     """
-                    INSERT INTO white_opening_tree (parent_id, move_san, opening_name, eco_code, user_id)
-                    VALUES (%s, %s, %s, %s, %s) RETURNING id
+                    INSERT INTO white_opening_tree (parent_id, move_san, opening_name, eco_code, user_id, source)
+                    VALUES (%s, %s, %s, %s, %s, 'manual') RETURNING id
                     """,
                     (parent_id, san, line["opening_name"], line["eco_code"], user_id),
                 )
                 parent_id = cur.fetchone()["id"]
+            kept_ids.add(parent_id)
+
+    # Prune manual-source nodes no longer on any current manual line. A single
+    # pass suffices: orphans are identified against the full manual node set
+    # up front, so a parent and its now-unreachable children are all deleted
+    # together regardless of ON DELETE CASCADE ordering.
+    cur.execute(
+        "SELECT id FROM white_opening_tree WHERE user_id = %s AND source = 'manual'",
+        (user_id,),
+    )
+    manual_ids = [r["id"] for r in cur.fetchall()]
+    orphans = [nid for nid in manual_ids if nid not in kept_ids]
+    if orphans:
+        cur.execute(
+            "DELETE FROM white_opening_tree WHERE id = ANY(%s) AND user_id = %s",
+            (orphans, user_id),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +84,23 @@ def get_openings(current_user: dict = Depends(get_current_user)):
                 (current_user["user_id"],),
             )
             return cur.fetchall()
+
+
+# ---------------------------------------------------------------------------
+# GET /openings/status
+# ---------------------------------------------------------------------------
+
+@router.get("/status")
+def get_status(current_user: dict = Depends(get_current_user)):
+    """Return games-based repertoire build metadata for the white tree, if any."""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT built_at, games_count FROM repertoire_builds WHERE user_id = %s AND color = 'white'",
+                (current_user["user_id"],),
+            )
+            row = cur.fetchone()
+    return row or {"built_at": None, "games_count": None}
 
 
 # ---------------------------------------------------------------------------
@@ -167,43 +204,35 @@ def get_opening_tree(current_user: dict = Depends(get_current_user)):
 
 
 # ---------------------------------------------------------------------------
-# GET /openings/winrates
+# GET /openings/winrates & GET /openings/weaknesses — shared computation
 # ---------------------------------------------------------------------------
 
-@router.get("/winrates")
-def get_opening_winrates(color: str, current_user: dict = Depends(get_current_user)):
-    """Return win/draw/loss stats per opening tree node for the given color."""
+def _compute_winrates(cur, uid: int, color: str) -> tuple[dict[int, dict], dict[int, dict]]:
+    """Return (stats_by_node_id, node_by_id) — win/draw/loss stats and tree
+    node metadata (id, parent_id, move_san) for the given user/color."""
     import io
     import chess.pgn as cpgn
 
-    uid = current_user["user_id"]
-    if color not in ("white", "black"):
-        raise HTTPException(status_code=400, detail="color must be 'white' or 'black'")
-
     tree_table = "white_opening_tree" if color == "white" else "black_opening_tree"
 
-    if tree_table not in {"white_opening_tree", "black_opening_tree"}:
-        raise HTTPException(status_code=400, detail="Invalid color")
+    cur.execute(
+        f"SELECT id, parent_id, move_san FROM {tree_table} WHERE user_id = %s",
+        (uid,),
+    )
+    rows = cur.fetchall()
+    node_by_id = {r["id"]: r for r in rows}
 
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                f"SELECT id, parent_id, move_san FROM {tree_table} WHERE user_id = %s",
-                (uid,),
-            )
-            rows = cur.fetchall()
+    # parent_id -> [(node_id, move_san)]
+    children_map: dict[int, list] = {}
+    for row in rows:
+        pid = row["parent_id"]
+        children_map.setdefault(pid, []).append((row["id"], row["move_san"]))
 
-            # parent_id -> [(node_id, move_san)]
-            children_map: dict[int, list] = {}
-            for row in rows:
-                pid = row["parent_id"]
-                children_map.setdefault(pid, []).append((row["id"], row["move_san"]))
-
-            cur.execute(
-                "SELECT pgn, result, opponent_rating FROM games WHERE user_id = %s AND player_color = %s",
-                (uid, color),
-            )
-            games = cur.fetchall()
+    cur.execute(
+        "SELECT pgn, result, opponent_rating FROM games WHERE user_id = %s AND player_color = %s",
+        (uid, color),
+    )
+    games = cur.fetchall()
 
     stats: dict[int, dict] = {}
 
@@ -256,7 +285,84 @@ def get_opening_winrates(color: str, current_user: dict = Depends(get_current_us
             "avgOppRating": round(avg_opp_rating) if avg_opp_rating is not None else None,
         }
 
+    return result_map, node_by_id
+
+
+def _reconstruct_path(node_by_id: dict, node_id: int) -> list[str]:
+    """Walk parent_id links back to the root, returning SAN moves in play order."""
+    path = []
+    current = node_by_id.get(node_id)
+    while current is not None:
+        path.append(current["move_san"])
+        current = node_by_id.get(current["parent_id"])
+    path.reverse()
+    return path
+
+
+@router.get("/winrates")
+def get_opening_winrates(color: str, current_user: dict = Depends(get_current_user)):
+    """Return win/draw/loss stats per opening tree node for the given color."""
+    uid = current_user["user_id"]
+    if color not in ("white", "black"):
+        raise HTTPException(status_code=400, detail="color must be 'white' or 'black'")
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            result_map, _ = _compute_winrates(cur, uid, color)
+
     return result_map
+
+
+# ---------------------------------------------------------------------------
+# GET /openings/weaknesses
+# ---------------------------------------------------------------------------
+
+@router.get("/weaknesses")
+def get_weaknesses(
+    color: str,
+    min_games: int = 5,
+    max_win_rate: float = 45.0,
+    current_user: dict = Depends(get_current_user),
+):
+    """Return opening tree nodes with a low win rate, above a minimum sample size."""
+    uid = current_user["user_id"]
+    if color not in ("white", "black"):
+        raise HTTPException(status_code=400, detail="color must be 'white' or 'black'")
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            stats, node_by_id = _compute_winrates(cur, uid, color)
+
+    weak = [
+        {
+            **s,
+            "node_id": node_id,
+            "move_san": node_by_id[node_id]["move_san"],
+            "path": _reconstruct_path(node_by_id, node_id),
+        }
+        for node_id, s in stats.items()
+        if s["total"] >= min_games and s["winRate"] < max_win_rate
+    ]
+    weak.sort(key=lambda w: w["winRate"])
+    return weak
+
+
+# ---------------------------------------------------------------------------
+# POST /openings/rebuild
+# ---------------------------------------------------------------------------
+
+@router.post("/rebuild")
+def rebuild_from_games(current_user: dict = Depends(get_current_user)):
+    """Force a games-based rebuild of the white opening tree. Additive — never
+    deletes manually-added lines."""
+    from routers.repertoire_builder import build_tree_from_games
+
+    uid = current_user["user_id"]
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            result = build_tree_from_games(cur, uid, "white")
+        conn.commit()
+    return result
 
 
 # ---------------------------------------------------------------------------

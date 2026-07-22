@@ -20,8 +20,11 @@ class OpeningCreate(BaseModel):
 # ---------------------------------------------------------------------------
 
 def _sync_tree(cur, user_id: int, lines: list):
-    """Delete and rebuild the black opening tree for a user from the given lines."""
-    cur.execute("DELETE FROM black_opening_tree WHERE user_id = %s", (user_id,))
+    """Insert/update tree nodes for the given manual lines, then prune any
+    manual-source node no longer covered by any of them. Games-derived nodes
+    (source='games') are never touched here — manual and games-derived trees
+    coexist by union."""
+    kept_ids: set[int] = set()
 
     for line in lines:
         board = chess.Board()
@@ -42,12 +45,25 @@ def _sync_tree(cur, user_id: int, lines: list):
             else:
                 cur.execute(
                     """
-                    INSERT INTO black_opening_tree (parent_id, move_san, opening_name, eco_code, user_id)
-                    VALUES (%s, %s, %s, %s, %s) RETURNING id
+                    INSERT INTO black_opening_tree (parent_id, move_san, opening_name, eco_code, user_id, source)
+                    VALUES (%s, %s, %s, %s, %s, 'manual') RETURNING id
                     """,
                     (parent_id, san, line["opening_name"], line["eco_code"], user_id),
                 )
                 parent_id = cur.fetchone()["id"]
+            kept_ids.add(parent_id)
+
+    cur.execute(
+        "SELECT id FROM black_opening_tree WHERE user_id = %s AND source = 'manual'",
+        (user_id,),
+    )
+    manual_ids = [r["id"] for r in cur.fetchall()]
+    orphans = [nid for nid in manual_ids if nid not in kept_ids]
+    if orphans:
+        cur.execute(
+            "DELETE FROM black_opening_tree WHERE id = ANY(%s) AND user_id = %s",
+            (orphans, user_id),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -63,6 +79,23 @@ def get_openings(current_user: dict = Depends(get_current_user)):
                 (current_user["user_id"],),
             )
             return cur.fetchall()
+
+
+# ---------------------------------------------------------------------------
+# GET /openings/black/status
+# ---------------------------------------------------------------------------
+
+@router.get("/status")
+def get_status(current_user: dict = Depends(get_current_user)):
+    """Return games-based repertoire build metadata for the black tree, if any."""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT built_at, games_count FROM repertoire_builds WHERE user_id = %s AND color = 'black'",
+                (current_user["user_id"],),
+            )
+            row = cur.fetchone()
+    return row or {"built_at": None, "games_count": None}
 
 
 # ---------------------------------------------------------------------------
@@ -167,6 +200,24 @@ def get_opening_tree(current_user: dict = Depends(get_current_user)):
             nodes[pid]["children"].append(node)
 
     return root
+
+
+# ---------------------------------------------------------------------------
+# POST /openings/black/rebuild
+# ---------------------------------------------------------------------------
+
+@router.post("/rebuild")
+def rebuild_from_games(current_user: dict = Depends(get_current_user)):
+    """Force a games-based rebuild of the black opening tree. Additive — never
+    deletes manually-added lines."""
+    from routers.repertoire_builder import build_tree_from_games
+
+    uid = current_user["user_id"]
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            result = build_tree_from_games(cur, uid, "black")
+        conn.commit()
+    return result
 
 
 # ---------------------------------------------------------------------------

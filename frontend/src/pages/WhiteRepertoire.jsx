@@ -217,6 +217,8 @@ export default function WhiteRepertoire() {
   const [tree,  setTree]    = useState(null);
   const [error, setError]   = useState(null);
   const [form, setForm] = useState({ moves: '', opening_name: '', eco_code: '' });
+  const [repertoireStatus, setRepertoireStatus] = useState(null);
+  const [rebuilding, setRebuilding] = useState(false);
 
   // Auto-save & review state
   const [saveStatus,     setSaveStatus]     = useState(null); // null | 'saving' | 'saved' | 'error'
@@ -568,9 +570,31 @@ export default function WhiteRepertoire() {
     }
   }
 
+  async function fetchRepertoireStatus() {
+    try {
+      const res = await api.get('/openings/status');
+      setRepertoireStatus(res.data);
+    } catch (err) {
+      console.error('[fetchRepertoireStatus] failed:', err?.response?.status, err?.message);
+    }
+  }
+
+  async function handleRebuild() {
+    setRebuilding(true);
+    try {
+      await api.post('/openings/rebuild');
+      await Promise.all([fetchLines(), fetchTree(), fetchRepertoireStatus()]);
+    } catch (err) {
+      console.error('[handleRebuild] failed:', err?.response?.status, err?.message);
+    } finally {
+      setRebuilding(false);
+    }
+  }
+
   useEffect(() => {
     fetchLines();
     fetchTree();
+    fetchRepertoireStatus();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -956,6 +980,20 @@ export default function WhiteRepertoire() {
         <h1>White Repertoire ♔</h1>
         <p>Play moves on the board — your lines are saved automatically as you build</p>
       </div>
+
+      {repertoireStatus?.built_at && (
+        <div className="rep-status-banner">
+          <span>
+            Auto-built from {repertoireStatus.games_count ?? 0} game
+            {repertoireStatus.games_count === 1 ? '' : 's'}
+            {' '}(last updated {new Date(repertoireStatus.built_at).toLocaleString()}).
+            Manually-added lines are kept alongside auto-built ones.
+          </span>
+          <button className="rep-rebuild-btn" onClick={handleRebuild} disabled={rebuilding}>
+            {rebuilding ? 'Rebuilding…' : 'Rebuild from Games'}
+          </button>
+        </div>
+      )}
 
       {!wizardDismissed && wizardStep < WHITE_WIZARD_STEPS.length && (
         <RepertoireWizard

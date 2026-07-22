@@ -55,6 +55,11 @@ class DeleteAccountRequest(BaseModel):
     password: str
 
 
+class ChangePlatformUsernamesRequest(BaseModel):
+    lichess_username: str | None = None
+    chesscom_username: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -257,7 +262,8 @@ def me(current_user: dict = Depends(get_current_user)):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, username, email, created_at FROM users WHERE id = %s",
+                "SELECT id, username, email, created_at, lichess_username, chesscom_username "
+                "FROM users WHERE id = %s",
                 (current_user["user_id"],),
             )
             user = cur.fetchone()
@@ -371,6 +377,28 @@ def change_password(
         conn.commit()
 
     return {"message": "Password updated successfully"}
+
+
+# ---------------------------------------------------------------------------
+# PATCH /auth/platform-usernames
+# ---------------------------------------------------------------------------
+
+@router.patch("/platform-usernames")
+def change_platform_usernames(
+    body: ChangePlatformUsernamesRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Store the user's Lichess/Chess.com usernames, used to auto-detect which
+    side they played in imported games. Not credentials, so no password check."""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET lichess_username = %s, chesscom_username = %s WHERE id = %s",
+                (body.lichess_username or None, body.chesscom_username or None, current_user["user_id"]),
+            )
+        conn.commit()
+
+    return {"lichess_username": body.lichess_username, "chesscom_username": body.chesscom_username}
 
 
 # ---------------------------------------------------------------------------

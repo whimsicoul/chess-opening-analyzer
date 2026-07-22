@@ -54,6 +54,25 @@ def _detect_player_color(white: str, black: str, username: str | None) -> str | 
     return None
 
 
+def _resolve_player_color(cur, white: str, black: str, username: str | None, user_id: int) -> str | None:
+    """Try the explicit per-request username override first, then fall back to
+    the account's stored platform usernames."""
+    color = _detect_player_color(white, black, username)
+    if color:
+        return color
+
+    cur.execute(
+        "SELECT lichess_username, chesscom_username FROM users WHERE id = %s",
+        (user_id,),
+    )
+    row = cur.fetchone() or {}
+    for candidate in (row.get("lichess_username"), row.get("chesscom_username")):
+        color = _detect_player_color(white, black, candidate)
+        if color:
+            return color
+    return None
+
+
 def _detect_deviation(cur, moves: list[str], user_id: int, color: str | None = None) -> dict | None:
     """
     Walk the opening tree following the game's moves (scoped to user_id and color).
@@ -116,7 +135,7 @@ def _process_pgn(cur, pgn_text: str, username: str | None, user_id: int) -> dict
     white        = _pgn_tag(pgn_text, "White") or ""
     black        = _pgn_tag(pgn_text, "Black") or ""
 
-    player_color = _detect_player_color(white, black, username)
+    player_color = _resolve_player_color(cur, white, black, username, user_id)
 
     white_elo = _parse_elo(_pgn_tag(pgn_text, "WhiteElo"))
     black_elo = _parse_elo(_pgn_tag(pgn_text, "BlackElo"))
@@ -161,6 +180,7 @@ def _process_pgn(cur, pgn_text: str, username: str | None, user_id: int) -> dict
 
     return {
         "game_id": game_id,
+        "player_color": player_color,
         "deviation_move_number": deviation["deviation_move_number"] if deviation else None,
         "deviated_by": deviation["deviated_by"] if deviation else None,
         "game_move": deviation["game_move"] if deviation else None,
@@ -179,10 +199,16 @@ async def upload_game(
     username: str = Form(None),
     current_user: dict = Depends(get_current_user),
 ):
+    from routers.repertoire_builder import build_tree_from_games
+
     pgn_text = (await file.read()).decode("utf-8", errors="replace")
+    user_id = current_user["user_id"]
     with get_connection() as conn:
         with conn.cursor() as cur:
-            result = _process_pgn(cur, pgn_text, username, current_user["user_id"])
+            result = _process_pgn(cur, pgn_text, username, user_id)
+            player_color = result.get("player_color")
+            if player_color:
+                build_tree_from_games(cur, user_id, player_color)
         conn.commit()
     return result
 
@@ -193,23 +219,33 @@ async def upload_game(
 
 class ImportRequest(BaseModel):
     pgns: list[str]
-    username: str
+    username: str | None = None
 
 
 @router.post("/import", status_code=201)
 def import_games(payload: ImportRequest, current_user: dict = Depends(get_current_user)):
+    from routers.repertoire_builder import build_tree_from_games
+
+    user_id = current_user["user_id"]
     imported = 0
     errors = []
+    colors_seen: set[str] = set()
     with get_connection() as conn:
         with conn.cursor() as cur:
             for i, pgn_text in enumerate(payload.pgns):
                 try:
-                    _process_pgn(cur, pgn_text, payload.username, current_user["user_id"])
+                    result = _process_pgn(cur, pgn_text, payload.username, user_id)
                     imported += 1
+                    if result.get("player_color"):
+                        colors_seen.add(result["player_color"])
                 except Exception as e:
                     errors.append({"index": i, "message": str(e)})
+
+            repertoire_rebuilt = {}
+            for color in colors_seen:
+                repertoire_rebuilt[color] = build_tree_from_games(cur, user_id, color)
         conn.commit()
-    return {"imported": imported, "errors": errors}
+    return {"imported": imported, "errors": errors, "repertoire_rebuilt": repertoire_rebuilt}
 
 
 # ---------------------------------------------------------------------------
