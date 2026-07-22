@@ -9,19 +9,26 @@ A personal chess improvement tool that connects to users’ game history, tracks
 
 ## Features
 ### Games
-- Import games from Lichess or via PGN uploads  
-- Display in table: result, opening name, ECO code, both players’ names  
+- Import games from Lichess/Chess.com or via PGN uploads (inline drag-and-drop on the Games page)
+- Display in table: result, opening name, ECO code, both players' names  
 - Full move-by-move board playback on game click  
+- Uploading/importing games automatically builds/updates the user's opening repertoire tree (see Repertoire)
 
 ### Repertoire
-- Build personal opening repertoire for White and Black  
-- Add lines via interactive board or paste PGN  
-- Lichess Cloud Eval panel shows top 3 engine moves with evaluation scores  
+- Build personal opening repertoire for White and Black — separate pages/routes for each  
+- Auto-built from uploaded game history (most-played continuations), and merged with manually-added lines — manual lines are never overwritten  
+- Add lines manually via interactive board or paste PGN  
+- Lichess Cloud Eval panel shows top 3 engine moves with evaluation scores (falls back to local Stockfish WASM if unavailable)  
 - Save lines with name and ECO code; visible in **White Repertoire ♔** and **Black Repertoire ♚**  
+- Each repertoire page shows an auto-build status banner (last built, games count) with a manual "Rebuild from Games" action
 
-### Analytics
-- **Stats:** Win/draw/loss rates, deviation tracking from repertoire  
+### Stats & Visualization
+- **Stats:** Win/draw/loss rates, plus a server-computed "Weakest Lines" table (win rate, avg. opponent rating, sample size per repertoire line)  
 - **Visualization:** Interactive sunburst chart of saved repertoire, segments zoomable, hover shows opening names and ECO codes  
+
+### Settings
+- Connect Lichess/Chess.com usernames (auto-detects which side the user played on import)  
+- Change username, email, password; delete account  
 
 ## Project Structure Reference
 chess-analyzer-web/
@@ -42,54 +49,62 @@ chess-analyzer-web/
 │ email_utils.py
 │ # Email verification sending
 │
-│ seed_whimsicouls.py
-│ # One-time seed: restores Whimsicoul's white repertoire
-│
 │ routers/
 │ auth.py
-│ # Register, login, email verification routes
+│ # Register, login, email verification, account settings, platform usernames
 │ openings.py
-│ # Repertoire CRUD, tree builder, cloud-eval proxy
+│ # White repertoire CRUD, tree builder, status/rebuild, weaknesses, cloud-eval proxy
+│ black_openings.py
+│ # Black repertoire CRUD, tree builder, status/rebuild
 │ games.py
-│ # Game upload/import, deviation detection
+│ # Game upload/import, deviation detection, triggers repertoire auto-build
+│ repertoire_builder.py
+│ # Shared helper (no APIRouter): builds/merges opening trees from a user's stored games
 │
 ├── frontend/
 │ # React frontend code, displays games, repertoire, analytics
 │
 │ src/
 │ App.jsx
-│ # Routes and main layout
+│ # Routes and main layout (/upload, /analytics kept as redirects for old links)
 │ api.js
 │ # Axios instance with JWT interceptors
 │ context/
 │ AuthContext.jsx
 │ # Auth provider, context for frontend components
+│ OnboardingContext.jsx
+│ # Guided-tour state for new users
+│ hooks/
+│ useEngine.js
+│ # Lichess Cloud Eval hook, falls back to local Stockfish WASM
 │ components/
 │ ProtectedRoute.jsx
 │ # Route guard component for logged-in users
 │ ChessBoardViewer.jsx
 │ # Move-by-move chess board component
+│ EyeIcon.jsx
+│ # Shared show/hide password icon
 │ Navbar.jsx
 │ # Navigation bar
+│ GuidanceModal.jsx / RepertoireWizard.jsx / wizardSteps.js
+│ # Onboarding tour
+│ OpeningSunburst.jsx
+│ # Sunburst chart component
 │ pages/
 │ Home.jsx
 │ # Homepage
-│ Login.jsx
-│ # Login page
-│ Register.jsx
-│ # Register page
-│ VerifyEmail.jsx
-│ # Email verification page
+│ Login.jsx / Register.jsx / VerifyEmail.jsx
+│ # Auth pages
 │ Games.jsx
-│ # Game table view and playback
-│ Repertoire.jsx
-│ # Add/manage repertoire for White & Black
-│ Analytics.jsx
-│ # Tabs for Stats + Visualization
+│ # Game table view, playback, and inline PGN upload/drag-drop
+│ WhiteRepertoire.jsx / BlackRepertoire.jsx
+│ # Add/manage repertoire per color; auto-build status banner + rebuild control
 │ Stats.jsx
-│ # Win/loss/draw stats, deviation tracker
+│ # Win/loss/draw stats, weakest-lines breakdown
 │ Visualization.jsx
 │ # Sunburst chart visualization of opening tree
+│ Settings.jsx
+│ # Account info, connected accounts, security, delete account
 
 
 ## Setup & Environment
@@ -116,9 +131,9 @@ chess-analyzer-web/
 - **UI/UX improvements:** prioritize minimal and chess-focused design; keep both White and Black repertoire visible  
 
 ## Cross-reference Hints
-- Upload PGN in frontend `Games.jsx` → triggers backend route `routers/games.py`  
-- Adding repertoire line in `Repertoire.jsx` → updates backend via `routers/openings.py`  
-- Analytics stats are computed in backend, displayed in `Stats.jsx`  
+- Upload/import PGN in frontend `Games.jsx` → triggers backend route `routers/games.py`, which also calls `repertoire_builder.py` to auto-update the tree  
+- Adding a repertoire line in `WhiteRepertoire.jsx`/`BlackRepertoire.jsx` → updates backend via `routers/openings.py` / `routers/black_openings.py`  
+- Stats (win/loss/draw, weakest lines) are computed in backend, displayed in `Stats.jsx`  
 - Sunburst visualization data comes from backend repertoire → `Visualization.jsx` renders  
 
 ## Notes

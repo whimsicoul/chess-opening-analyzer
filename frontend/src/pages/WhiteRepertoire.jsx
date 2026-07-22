@@ -4,9 +4,6 @@ import { Chessboard } from 'react-chessboard';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { woodenPieces } from '../utils/woodenPieces.jsx';
 import api from '../api';
-import RepertoireWizard from '../components/RepertoireWizard.jsx';
-import { WHITE_WIZARD_STEPS } from '../components/wizardSteps.js';
-import { useOnboarding } from '../context/OnboardingContext';
 import { useEngine } from '../hooks/useEngine';
 import './Repertoire.css';
 
@@ -107,23 +104,6 @@ function isPathActive(activePath, movePath) {
 // Strip check/checkmate annotations so tree nodes and stored lines compare equal
 function normSan(san) { return san.replace(/[+#]$/, ''); }
 
-// Find all positions where the player has multiple moves saved.
-// White rep: player moves at even depths (0,2,4…); Black rep: odd depths.
-function findConflicts(node, depth, isWhiteRep, path = []) {
-  const conflicts = [];
-  const isPlayerTurn = isWhiteRep ? (depth % 2 === 0) : (depth % 2 === 1);
-  if (isPlayerTurn && node.children && node.children.length > 1) {
-    conflicts.push({ path, node, children: node.children });
-  }
-  if (node.children) {
-    for (const child of node.children) {
-      conflicts.push(...findConflicts(child, depth + 1, isWhiteRep, [...path, child.name]));
-    }
-  }
-  return conflicts;
-}
-
-
 // Recursive compact tree node — ChessTempo pairing style:
 // Each row shows this move + its single child inline; branches nest below.
 function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef, onMoveMenu, collapsedPaths }) {
@@ -219,13 +199,10 @@ export default function WhiteRepertoire() {
   const [form, setForm] = useState({ moves: '', opening_name: '', eco_code: '' });
   const [repertoireStatus, setRepertoireStatus] = useState(null);
   const [rebuilding, setRebuilding] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
-  // Auto-save & review state
-  const [saveStatus,     setSaveStatus]     = useState(null); // null | 'saving' | 'saved' | 'error'
-  const [reviewMode,     setReviewMode]     = useState(false);
-  const [conflicts,      setConflicts]      = useState([]);
-  const [conflictIndex,  setConflictIndex]  = useState(0);
-  const [reviewComplete, setReviewComplete] = useState(false);
+  // Auto-save state
+  const [saveStatus, setSaveStatus] = useState(null); // null | 'saving' | 'saved' | 'error'
 
   // Interactive input board state
   const [boardGame, setBoardGame] = useState(() => new Chess());
@@ -248,32 +225,9 @@ export default function WhiteRepertoire() {
   const [explorerLoading, setExplorerLoading] = useState(false);
   const [explorerError,   setExplorerError]   = useState(null);
 
-  // Wizard state
-  const { tourActive, tourStep } = useOnboarding();
-  const [wizardStep, setWizardStep] = useState(0);
-  const [wizardDismissed, setWizardDismissed] = useState(
-    () => localStorage.getItem('wizard_white_seen') === '1'
-  );
-
-  // When the tour brings us to the white repertoire step, reset the wizard
-  useEffect(() => {
-    if (tourActive && tourStep === 1) {
-      setWizardDismissed(false);
-      setWizardStep(0);
-      localStorage.removeItem('wizard_white_seen');
-    }
-  }, [tourActive, tourStep]);
-
-  function advanceWizard(trigger) {
-    if (wizardDismissed) return;
-    const step = WHITE_WIZARD_STEPS[wizardStep];
-    if (step?.advanceOn === trigger) setWizardStep(s => s + 1);
-  }
-
   // Live tree scroll ref — scrolls to the active move when allMoves changes
   const activeNodeRef = useRef(null);
   const boardPanelRef = useRef(null);
-  const wizardAutoPlayedStep = useRef(-1);
   const [dynamicBoardWidth, setDynamicBoardWidth] = useState(860);
 
   useEffect(() => {
@@ -316,8 +270,6 @@ export default function WhiteRepertoire() {
       if (!move) return false;
       setBoardGame(next);
       _applyMoves([...allMoves.slice(0, stepIndex), move.san]);
-      if (!wizardDismissed && wizardStep === 0) advanceWizard('first-move');
-      else advanceWizard('move-made');
       return true;
     } catch {
       return false;
@@ -406,7 +358,6 @@ export default function WhiteRepertoire() {
   }, []);
 
   function playEngineMove(uciMove) {
-    advanceWizard('book-click');
     const next = new Chess(boardGame.fen());
     try {
       const move = next.move({ from: uciMove.slice(0, 2), to: uciMove.slice(2, 4), promotion: uciMove[4] || 'q' });
@@ -450,81 +401,8 @@ export default function WhiteRepertoire() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allMoves.join(',')]);
 
-  // Wizard auto-play: when entering steps with autoPlay: true, play the most popular
-  // book move. Falls back to the top engine move if the opening book is unavailable.
-  // Uses a ref to avoid double-firing if explorerMasters or evalData re-fetches.
-  useEffect(() => {
-    if (wizardDismissed) return;
-    const step = WHITE_WIZARD_STEPS[wizardStep];
-    if (!step?.autoPlay) return;
-    if (wizardAutoPlayedStep.current === wizardStep) return;
-
-    // Prefer opening book move; fall back to top engine move
-    let uci = explorerMasters?.moves?.[0]?.uci ?? null;
-    if (!uci) {
-      const topPv = evalData?.pvs?.[0];
-      uci = topPv?.moves?.split(' ')?.[0] ?? null;
-    }
-    if (!uci) return; // nothing available yet — wait for data
-
-    const timer = setTimeout(() => {
-      playMoveInternal(uci);
-      wizardAutoPlayedStep.current = wizardStep;
-    }, 600);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wizardStep, explorerMasters, evalData, wizardDismissed]);
-
-  // Wizard: trigger 'engine-mode-on' when engine mode is toggled during wizard
-  useEffect(() => {
-    if (wizardDismissed) return;
-    if (engineMode) advanceWizard('engine-mode-on');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engineMode, wizardDismissed]);
-
-  // Wizard step 6: go back one move when entering book-double step
-  useEffect(() => {
-    if (wizardDismissed) return;
-    const step = WHITE_WIZARD_STEPS[wizardStep];
-    if (!step?.goBack) return;
-
-    stepBack();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wizardStep, wizardDismissed]);
-
-  // Wizard step 8: programmatically open the context menu for the last played move
-  useEffect(() => {
-    if (wizardStep !== 8 || wizardDismissed) return;
-    if (allMoves.length === 0) return;
-
-    const timer = setTimeout(() => {
-      const activeEl = document.querySelector('.tree-move-active');
-      let x, y;
-      if (activeEl) {
-        const rect = activeEl.getBoundingClientRect();
-        x = rect.right + 8;
-        y = rect.top;
-      } else {
-        x = window.innerWidth * 0.18;
-        y = window.innerHeight * 0.4;
-      }
-      const path = allMoves;
-      const matchingLines = lines.filter(line => {
-        const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
-        return path.length <= tokens.length &&
-          path.map(normSan).join(',') === tokens.slice(0, path.length).map(normSan).join(',');
-      });
-      const flipUp = y + 260 > window.innerHeight;
-      setContextMenu({ x, y, flipUp, path, matchingLines, hasBranches: false, isCollapsed: false });
-    }, 500);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wizardStep, allMoves.join(','), wizardDismissed]);
-
   // Context menu: open on right-click of a tree move
   function openContextMenu(e, path, hasBranches = false, isCollapsed = false) {
-    const step = WHITE_WIZARD_STEPS[wizardStep];
-    if (!wizardDismissed && wizardStep < WHITE_WIZARD_STEPS.length && step?.id !== 'ctx-menu') return;
     e.preventDefault();
     e.stopPropagation();
     const matchingLines = lines.filter(line => {
@@ -648,9 +526,9 @@ export default function WhiteRepertoire() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [explorerTab, boardGame]);
 
-  // Auto-save: debounced 1.5s after any move; skipped in review mode
+  // Auto-save: debounced 1.5s after any move
   useEffect(() => {
-    if (allMoves.length === 0 || reviewMode) return;
+    if (allMoves.length === 0) return;
     setSaveStatus('saving');
     const timer = setTimeout(async () => {
       try {
@@ -669,7 +547,7 @@ export default function WhiteRepertoire() {
     }, 1500);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allMoves.join(','), reviewMode]);
+  }, [allMoves.join(',')]);
 
   // Clear 'saved' indicator after 3s
   useEffect(() => {
@@ -727,68 +605,20 @@ export default function WhiteRepertoire() {
     });
   }
 
-  // ── Review mode ────────────────────────────────────────────────────────────
+  // ── Clear repertoire ───────────────────────────────────────────────────────
 
-  function enterReviewMode() {
-    // Build tree from lines (not from backend tree) so conflict paths
-    // are guaranteed to match the flat lines used during deletion.
-    const reviewTree = buildTreeFromLines(lines);
-    if (reviewTree.children.length === 0) return;
-    const found = findConflicts(reviewTree, 0, true);
-    if (found.length === 0) {
-      setReviewComplete(true);
-      return;
-    }
-    setConflicts(found);
-    setConflictIndex(0);
-    setReviewMode(true);
-    loadPosition(found[0].path);
-    advanceWizard('review-entered');
-  }
-
-  function exitReviewMode() {
-    setReviewMode(false);
-    setConflicts([]);
-    setConflictIndex(0);
-    setReviewComplete(false);
-  }
-
-  async function handleConflictResolve(keepMove) {
-    const conflict = conflicts[conflictIndex];
-    const movesToDelete = conflict.children.filter(c => c.name !== keepMove.name);
+  async function handleClearRepertoire() {
+    if (!window.confirm('Clear your entire White repertoire? This cannot be undone.')) return;
+    setClearing(true);
     try {
-      const toDeleteIds = [];
-      for (const moveNode of movesToDelete) {
-        const deletePath = [...conflict.path, moveNode.name];
-        const matching = lines.filter(line => {
-          const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
-          return deletePath.length <= tokens.length &&
-            deletePath.map(normSan).join(',') === tokens.slice(0, deletePath.length).map(normSan).join(',');
-        });
-        toDeleteIds.push(...matching.map(l => l.id));
-      }
-      if (toDeleteIds.length > 0) {
-        await Promise.all(toDeleteIds.map(id => api.delete(`/openings/${id}`)));
-      }
-      await fetchLines();
-      await fetchTree();
-      // Re-check conflicts using fresh lines
-      const freshLines = (await api.get('/openings/')).data;
-      const freshReviewTree = buildTreeFromLines(freshLines);
-      const remaining = findConflicts(freshReviewTree, 0, true);
-      if (remaining.length === 0) {
-        setReviewMode(false);
-        setReviewComplete(true);
-        setConflicts([]);
-        setConflictIndex(0);
-      } else {
-        setConflicts(remaining);
-        setConflictIndex(0);
-        loadPosition(remaining[0].path);
-      }
+      await api.delete('/openings/');
+      await Promise.all([fetchLines(), fetchTree(), fetchRepertoireStatus()]);
+      resetBoard();
     } catch (err) {
-      console.error('[review] error resolving conflict:', err);
-      setError('Failed to resolve conflict.');
+      console.error('[handleClearRepertoire] failed:', err?.response?.status, err?.message);
+      setError('Failed to clear repertoire.');
+    } finally {
+      setClearing(false);
     }
   }
 
@@ -828,7 +658,6 @@ export default function WhiteRepertoire() {
   function renderLiveTree() {
     const displayTree = (tree && tree.children.length > 0) ? tree : buildTreeFromLines(lines);
     const isEmpty = displayTree.children.length === 0;
-    const currentConflict = reviewMode ? conflicts[conflictIndex] : null;
 
     return (
       <div className="live-tree-col">
@@ -837,14 +666,9 @@ export default function WhiteRepertoire() {
           <span className="rep-section-count muted">
             {lines.length} line{lines.length !== 1 ? 's' : ''}
           </span>
-          {!isEmpty && !reviewMode && (
-            <button type="button" className="btn btn-ghost btn-review" onClick={enterReviewMode}>
-              Review Repertoire
-            </button>
-          )}
-          {reviewMode && (
-            <button type="button" className="btn btn-ghost btn-review-stop" onClick={exitReviewMode}>
-              Stop Review
+          {!isEmpty && (
+            <button type="button" className="btn btn-ghost btn-clear-rep" onClick={handleClearRepertoire} disabled={clearing}>
+              {clearing ? 'Clearing\u2026' : 'Clear Repertoire'}
             </button>
           )}
         </div>
@@ -854,33 +678,6 @@ export default function WhiteRepertoire() {
             {saveStatus === 'saving' && 'Saving\u2026'}
             {saveStatus === 'saved'  && 'Saved \u2713'}
             {saveStatus === 'error'  && 'Save error'}
-          </div>
-        )}
-
-        {reviewComplete && !reviewMode && (
-          <div className="review-complete-banner">Repertoire looks good! No conflicts found.</div>
-        )}
-
-        {reviewMode && currentConflict && (
-          <div className="review-panel">
-            <div className="review-panel-header">
-              Review your repertoire
-              <span className="review-conflicts-count">
-                {conflicts.length - conflictIndex} conflict{conflicts.length - conflictIndex !== 1 ? 's' : ''} remaining
-              </span>
-            </div>
-            <p className="review-panel-prompt">You have multiple moves from this position. Keep one:</p>
-            <div className="review-move-choices">
-              {currentConflict.children.map(child => (
-                <button key={child.name} type="button" className="btn review-move-btn"
-                  onClick={() => handleConflictResolve(child)}>
-                  {moveLabel(currentConflict.path.length, child.name)}
-                  {child.opening_name && (
-                    <span className="review-move-opening">{child.opening_name}</span>
-                  )}
-                </button>
-              ))}
-            </div>
           </div>
         )}
 
@@ -993,27 +790,6 @@ export default function WhiteRepertoire() {
             {rebuilding ? 'Rebuilding…' : 'Rebuild from Games'}
           </button>
         </div>
-      )}
-
-      {!wizardDismissed && wizardStep < WHITE_WIZARD_STEPS.length && (
-        <RepertoireWizard
-          steps={WHITE_WIZARD_STEPS}
-          stepIndex={wizardStep}
-          onAdvance={() => setWizardStep(s => s + 1)}
-          onDismiss={({ skipped }) => {
-            setWizardDismissed(true);
-            localStorage.setItem('wizard_white_seen', '1');
-            // Only fire wizard-complete if the wizard was actually completed, not skipped
-            if (!skipped) {
-              window.dispatchEvent(new CustomEvent('wizard-complete', { detail: 'white' }));
-            }
-          }}
-          bodyOverride={
-            WHITE_WIZARD_STEPS[wizardStep]?.id === 'book-choose' && !explorerMasters?.moves?.length
-              ? 'The opening book isn\'t available right now — you can also pick a move from the engine panel on the right!'
-              : null
-          }
-        />
       )}
 
         <PanelGroup direction="horizontal" className="rep-panel-group">

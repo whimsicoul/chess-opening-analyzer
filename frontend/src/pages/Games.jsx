@@ -1,9 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import api from '../api';
 import ChessBoardViewer from '../components/ChessBoardViewer';
-import RepertoireWizard from '../components/RepertoireWizard';
-import { GAMES_WIZARD_STEPS } from '../components/wizardSteps';
-import { useOnboarding } from '../context/OnboardingContext';
 import './Games.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -477,22 +474,6 @@ export default function Games() {
   const [expandedId, setExpandedId]     = useState(null);
   const [loadingDetailId, setLoadingDetailId] = useState(null);
 
-  // Wizard state
-  const { tourActive, tourStep } = useOnboarding();
-  const [wizardStep, setWizardStep] = useState(0);
-  const [wizardDismissed, setWizardDismissed] = useState(
-    () => localStorage.getItem('wizard_games_seen') === '1'
-  );
-
-  // When the tour brings us to the games step, reset the wizard
-  useEffect(() => {
-    if (tourActive && tourStep === 5) {
-      setWizardDismissed(false);
-      setWizardStep(0);
-      localStorage.removeItem('wizard_games_seen');
-    }
-  }, [tourActive, tourStep]);
-
   // Load uploaded games on mount
   const loadUploadedGames = useCallback(() => {
     api.get('/games/')
@@ -590,10 +571,6 @@ export default function Games() {
       const combined = results.flat().sort((a, b) => (b.date > a.date ? 1 : -1));
       if (combined.length === 0) setFetchError('No games found. Check the username or try a wider time range.');
       setFetchedGames(combined);
-      // Trigger wizard advancement when games are fetched
-      if (combined.length > 0) {
-        setWizardStep(s => s + 1);
-      }
     } catch (err) {
       setFetchError(err.message || 'Failed to fetch games.');
     } finally {
@@ -610,19 +587,6 @@ export default function Games() {
         <h1>Games</h1>
         <p>Fetch, upload, and analyze your chess games</p>
       </div>
-
-      {!wizardDismissed && wizardStep < GAMES_WIZARD_STEPS.length && (
-        <RepertoireWizard
-          steps={GAMES_WIZARD_STEPS}
-          stepIndex={wizardStep}
-          onAdvance={() => setWizardStep(s => s + 1)}
-          onDismiss={() => {
-            setWizardDismissed(true);
-            localStorage.setItem('wizard_games_seen', '1');
-            window.dispatchEvent(new CustomEvent('wizard-complete', { detail: 'games' }));
-          }}
-        />
-      )}
 
       <FilterSection onFetch={handleFetch} loading={fetchLoading} />
 

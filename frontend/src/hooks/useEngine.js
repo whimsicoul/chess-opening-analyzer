@@ -57,7 +57,6 @@ export function useEngine(boardGame, { engineMode = false, depth = 18, lines = 3
   const startAnalysis = (fen) => {
     const worker = workerRef.current;
     if (!worker) return;
-    console.log('[useEngine] startAnalysis called with fen:', fen.substring(0, 30));
     pvResultsRef.current = {
       currentDepth: null,
       currentBatch: {},
@@ -66,10 +65,8 @@ export function useEngine(boardGame, { engineMode = false, depth = 18, lines = 3
     activeAnalysisFenRef.current = fen;
     const posCmd = `position fen ${fen}`;
     const goCmd = `go depth ${depthRef.current} multipv ${linesRef.current}`;
-    console.log('[useEngine] posting commands:', { posCmd: posCmd.substring(0, 50), goCmd });
     worker.postMessage(posCmd);
     worker.postMessage(goCmd);
-    console.log('[useEngine] posted position and go commands, depth:', depthRef.current, 'lines:', linesRef.current);
   };
 
   // Lazily create the Stockfish worker and wire up UCI message handling.
@@ -83,7 +80,6 @@ export function useEngine(boardGame, { engineMode = false, depth = 18, lines = 3
 
       if (line === 'uciok') {
         // UCI initialization complete. Set options before analyzing.
-        console.log('[useEngine] uciok received, setting MultiPV option');
         worker.postMessage('setoption name MultiPV value 8');
         worker.postMessage('isready');
         return;
@@ -116,7 +112,6 @@ export function useEngine(boardGame, { engineMode = false, depth = 18, lines = 3
 
           // Accumulate this multipv result for the current depth
           state.currentBatch[pv.multipv] = pv;
-          console.log('[useEngine] got info line, depth:', pv.depth, 'multipv:', pv.multipv, 'cp:', pv.cp, 'mate:', pv.mate, 'batch size:', Object.keys(state.currentBatch).length);
 
           // Check if this depth level is complete (all multipv lines arrived)
           const batchSize = Object.keys(state.currentBatch).length;
@@ -130,7 +125,6 @@ export function useEngine(boardGame, { engineMode = false, depth = 18, lines = 3
                 .sort((a, b) => Number(a) - Number(b))
                 .map(k => state.committed[k]);
 
-              console.log('[useEngine] depth', pv.depth, 'complete, emitting', pvs.length, 'pvs');
               setEvalData({ pvs, fen: activeFen });
               setEvalSource('stockfish');
               setEvalLoading(false);
@@ -142,37 +136,27 @@ export function useEngine(boardGame, { engineMode = false, depth = 18, lines = 3
       }
 
       if (line.startsWith('bestmove')) {
-        const committedCount = Object.keys(pvResultsRef.current.committed).length;
-        console.log('[useEngine] bestmove received', { stoppingRef: stoppingRef.current, pendingFen: !!pendingFenRef.current, activeFen: !!activeAnalysisFenRef.current, workerReady: workerReadyRef.current, committedPvsCount: committedCount });
         if (stoppingRef.current) {
           // This bestmove is the response to our 'stop' command.
           // Dequeue the next analysis if one is pending.
-          console.log('[useEngine] consuming stop-bestmove, pendingFen:', pendingFenRef.current);
           stoppingRef.current = false;
           const fen = pendingFenRef.current;
           pendingFenRef.current = null;
           if (fen && workerReadyRef.current) {
-            console.log('[useEngine] starting analysis for pending fen');
             startAnalysis(fen);
-          } else {
-            console.log('[useEngine] cannot start analysis yet', { fen: !!fen, workerReady: workerReadyRef.current });
           }
           return;
         }
 
         // Real bestmove — emit final results from committed state.
         const fen = activeAnalysisFenRef.current;
-        if (!fen) {
-          console.log('[useEngine] bestmove has no active fen, ignoring');
-          return;
-        }
+        if (!fen) return;
 
         const { committed } = pvResultsRef.current;
         const pvs = Object.keys(committed)
           .sort((a, b) => Number(a) - Number(b))
           .map(k => committed[k]);
 
-        console.log('[useEngine] emitting final evalData with', pvs.length, 'pvs');
         if (pvs.length > 0) {
           activeAnalysisFenRef.current = null;
           setEvalData({ pvs, fen });
@@ -189,7 +173,6 @@ export function useEngine(boardGame, { engineMode = false, depth = 18, lines = 3
 
   // Stop any ongoing analysis and kick off Stockfish for a new FEN.
   const runStockfish = (fen) => {
-    console.log('[useEngine] runStockfish called with fen:', fen.substring(0, 30), 'worker exists:', !!workerRef.current);
     if (workerRef.current) {
       pvResultsRef.current = {
         currentDepth: null,
@@ -199,28 +182,23 @@ export function useEngine(boardGame, { engineMode = false, depth = 18, lines = 3
 
       if (stoppingRef.current) {
         // Already waiting for a stop-bestmove — just update the pending FEN.
-        console.log('[useEngine] already stopping, updating pending fen');
         pendingFenRef.current = fen;
         activeAnalysisFenRef.current = null;
       } else if (activeAnalysisFenRef.current) {
         // Engine is actively analyzing — stop it and queue the new position.
-        console.log('[useEngine] stopping active analysis');
         pendingFenRef.current = fen;
         activeAnalysisFenRef.current = null;
         stoppingRef.current = true;
         workerRef.current.postMessage('stop');
       } else if (workerReadyRef.current) {
         // Engine is idle and ready — start analysis directly.
-        console.log('[useEngine] engine idle, starting analysis directly');
         startAnalysis(fen);
       } else {
         // Worker exists but not ready yet — queue it.
-        console.log('[useEngine] worker not ready, queuing fen');
         pendingFenRef.current = fen;
       }
     } else {
       // No worker yet — init and queue via pendingFenRef (handled in readyok).
-      console.log('[useEngine] initializing new worker');
       stoppingRef.current = false;
       initWorker();
       pendingFenRef.current = fen;
@@ -270,7 +248,6 @@ export function useEngine(boardGame, { engineMode = false, depth = 18, lines = 3
       // Eagerly stop worker if analysis is running, to prevent stale info lines
       // from the previous position from being emitted into the new position.
       if (workerRef.current && activeAnalysisFenRef.current && !stoppingRef.current) {
-        console.log('[useEngine] cleanup: stopping active analysis');
         stoppingRef.current = true;
         pendingFenRef.current = null;
         activeAnalysisFenRef.current = null;
