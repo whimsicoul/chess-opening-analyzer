@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 import chess.pgn
 from db import get_connection
-from auth_utils import get_current_user
+from auth_utils import get_current_user, get_current_user_optional
 
 
 def _pgn_tag(pgn_text: str, tag: str) -> str | None:
@@ -271,7 +271,9 @@ def clear_games(current_user: dict = Depends(get_current_user)):
 # ---------------------------------------------------------------------------
 
 @router.get("/")
-def get_games(current_user: dict = Depends(get_current_user)):
+def get_games(current_user: dict | None = Depends(get_current_user_optional)):
+    if current_user is None:
+        return []
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -351,7 +353,9 @@ def reprocess_deviations(current_user: dict = Depends(get_current_user)):
 # ---------------------------------------------------------------------------
 
 @router.get("/{game_id}")
-def get_game(game_id: int, current_user: dict = Depends(get_current_user)):
+def get_game(game_id: int, current_user: dict | None = Depends(get_current_user_optional)):
+    if current_user is None:
+        raise HTTPException(status_code=404, detail="Game not found")
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(

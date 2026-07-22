@@ -4,7 +4,7 @@ import traceback
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from db import get_connection
-from auth_utils import get_current_user
+from auth_utils import get_current_user, get_current_user_optional
 
 router = APIRouter(prefix="/openings/black", tags=["black-openings"])
 
@@ -71,7 +71,9 @@ def _sync_tree(cur, user_id: int, lines: list):
 # ---------------------------------------------------------------------------
 
 @router.get("/")
-def get_openings(current_user: dict = Depends(get_current_user)):
+def get_openings(current_user: dict | None = Depends(get_current_user_optional)):
+    if current_user is None:
+        return []
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -86,8 +88,10 @@ def get_openings(current_user: dict = Depends(get_current_user)):
 # ---------------------------------------------------------------------------
 
 @router.get("/status")
-def get_status(current_user: dict = Depends(get_current_user)):
+def get_status(current_user: dict | None = Depends(get_current_user_optional)):
     """Return games-based repertoire build metadata for the black tree, if any."""
+    if current_user is None:
+        return {"built_at": None, "games_count": None}
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -146,8 +150,10 @@ def create_opening(opening: OpeningCreate, current_user: dict = Depends(get_curr
 # ---------------------------------------------------------------------------
 
 @router.get("/tree")
-def get_opening_tree(current_user: dict = Depends(get_current_user)):
+def get_opening_tree(current_user: dict | None = Depends(get_current_user_optional)):
     """Return the user's black opening tree as a nested JSON structure."""
+    if current_user is None:
+        return {"name": "start", "id": 0, "children": []}
     uid = current_user["user_id"]
 
     with get_connection() as conn:

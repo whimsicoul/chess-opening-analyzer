@@ -5,7 +5,7 @@ import requests as http
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from db import get_connection
-from auth_utils import get_current_user
+from auth_utils import get_current_user, get_current_user_optional
 
 router = APIRouter(prefix="/openings", tags=["openings"])
 
@@ -76,7 +76,9 @@ def _sync_tree(cur, user_id: int, lines: list):
 # ---------------------------------------------------------------------------
 
 @router.get("/")
-def get_openings(current_user: dict = Depends(get_current_user)):
+def get_openings(current_user: dict | None = Depends(get_current_user_optional)):
+    if current_user is None:
+        return []
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -91,8 +93,10 @@ def get_openings(current_user: dict = Depends(get_current_user)):
 # ---------------------------------------------------------------------------
 
 @router.get("/status")
-def get_status(current_user: dict = Depends(get_current_user)):
+def get_status(current_user: dict | None = Depends(get_current_user_optional)):
     """Return games-based repertoire build metadata for the white tree, if any."""
+    if current_user is None:
+        return {"built_at": None, "games_count": None}
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -147,8 +151,10 @@ def create_opening(opening: OpeningCreate, current_user: dict = Depends(get_curr
 # ---------------------------------------------------------------------------
 
 @router.get("/tree")
-def get_opening_tree(current_user: dict = Depends(get_current_user)):
+def get_opening_tree(current_user: dict | None = Depends(get_current_user_optional)):
     """Return the user's white opening tree as a nested JSON structure."""
+    if current_user is None:
+        return {"name": "start", "id": 0, "children": []}
     uid = current_user["user_id"]
 
     with get_connection() as conn:
@@ -300,11 +306,13 @@ def _reconstruct_path(node_by_id: dict, node_id: int) -> list[str]:
 
 
 @router.get("/winrates")
-def get_opening_winrates(color: str, current_user: dict = Depends(get_current_user)):
+def get_opening_winrates(color: str, current_user: dict | None = Depends(get_current_user_optional)):
     """Return win/draw/loss stats per opening tree node for the given color."""
-    uid = current_user["user_id"]
     if color not in ("white", "black"):
         raise HTTPException(status_code=400, detail="color must be 'white' or 'black'")
+    if current_user is None:
+        return {}
+    uid = current_user["user_id"]
 
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -322,12 +330,14 @@ def get_weaknesses(
     color: str,
     min_games: int = 5,
     max_win_rate: float = 45.0,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict | None = Depends(get_current_user_optional),
 ):
     """Return opening tree nodes with a low win rate, above a minimum sample size."""
-    uid = current_user["user_id"]
     if color not in ("white", "black"):
         raise HTTPException(status_code=400, detail="color must be 'white' or 'black'")
+    if current_user is None:
+        return []
+    uid = current_user["user_id"]
 
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -370,7 +380,7 @@ def rebuild_from_games(current_user: dict = Depends(get_current_user)):
 # ---------------------------------------------------------------------------
 
 @router.get("/eco-lookup")
-def get_eco_lookup(fen: str, current_user: dict = Depends(get_current_user)):
+def get_eco_lookup(fen: str):
     """Look up ECO code and opening name for a position via Lichess Opening Explorer."""
     try:
         r = http.get(
@@ -411,7 +421,6 @@ def get_explorer(
     source: str = "masters",
     ratings: str = "1600,1800,2000,2200,2500",
     speeds: str = "rapid,classical,blitz",
-    current_user: dict = Depends(get_current_user),
 ):
     """Proxy Lichess Opening Explorer. source='masters' or 'lichess'."""
     if source == "masters":
@@ -456,7 +465,7 @@ def get_explorer(
 
 
 @router.get("/cloud-eval")
-def get_cloud_eval(fen: str, multiPv: int = 1, current_user: dict = Depends(get_current_user)):
+def get_cloud_eval(fen: str, multiPv: int = 1):
     """Proxy Lichess Cloud Eval. multiPv up to 8 returns multiple top moves."""
     try:
         r = http.get(

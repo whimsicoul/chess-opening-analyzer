@@ -34,10 +34,12 @@ function AppInner() {
         <Route path="/register"     element={<Register />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
 
-        {/* Protected */}
-        <Route path="/repertoire"       element={<ProtectedRoute><Repertoire /></ProtectedRoute>} />
-        <Route path="/games"            element={<ProtectedRoute><Games /></ProtectedRoute>} />
-        <Route path="/analytics"        element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+        {/* Browsable without an account */}
+        <Route path="/repertoire"       element={<Repertoire />} />
+        <Route path="/games"            element={<Games />} />
+        <Route path="/analytics"        element={<Analytics />} />
+
+        {/* Protected — account-only */}
         <Route path="/settings"         element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 
         {/* Redirects */}

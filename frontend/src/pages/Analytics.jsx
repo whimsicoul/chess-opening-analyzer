@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 import OpeningSunburst from '../components/OpeningSunburst';
 import ChessBoardViewer from '../components/ChessBoardViewer';
 import './Analytics.css';
@@ -35,6 +37,7 @@ function MoveSequence({ moves }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Analytics() {
+  const { isAuthenticated } = useAuth();
   const [color,       setColor      ] = useState('white');
   const [treeData,    setTreeData   ] = useState(null);
   const [winRates,    setWinRates   ] = useState({});
@@ -125,10 +128,17 @@ export default function Analytics() {
       {!loading && isEmpty && (
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
           <div style={{ fontSize: '2.5rem', opacity: 0.18, marginBottom: '0.75rem' }}>♟</div>
-          <p className="muted">
-            No {color} opening lines in your repertoire yet.{' '}
-            <a href="/repertoire">Add some lines →</a>
-          </p>
+          {isAuthenticated ? (
+            <p className="muted">
+              No {color} opening lines in your repertoire yet.{' '}
+              <Link to="/repertoire">Add some lines →</Link>
+            </p>
+          ) : (
+            <p className="muted">
+              Build a {color} repertoire on the <Link to="/repertoire">Repertoire page</Link> to see it visualized here
+              — sign in to save your lines and track win rates.
+            </p>
+          )}
         </div>
       )}
 
