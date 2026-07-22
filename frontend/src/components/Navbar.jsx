@@ -22,9 +22,9 @@ export default function Navbar() {
       <div className="navbar-links">
         {isAuthenticated ? (
           <>
+            <NavLink to="/games">Games</NavLink>
             <NavLink to="/white-repertoire">♔ White</NavLink>
             <NavLink to="/black-repertoire">♚ Black</NavLink>
-<NavLink to="/games">Games</NavLink>
             <NavLink to="/stats">Analytics</NavLink>
             <NavLink to="/visualization">Visualization</NavLink>
             <NavLink to="/settings" title="Account Settings">⚙</NavLink>
