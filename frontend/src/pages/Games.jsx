@@ -367,6 +367,106 @@ function UploadSection({ onGameAnalyzed }) {
   );
 }
 
+// ── My Games (saved/uploaded) section ─────────────────────────────────────────
+
+const GAMES_PAGE_SIZE = 25;
+
+function MyGamesSection({ games, expandedId, onToggle, loadingDetailId, uploadedDetails }) {
+  const [open,   setOpen]   = useState(false);
+  const [query,  setQuery]  = useState('');
+  const [result, setResult] = useState('all');
+  const [visibleCount, setVisibleCount] = useState(GAMES_PAGE_SIZE);
+
+  const filtered = games.filter(g => {
+    if (result !== 'all' && g.result !== result) return false;
+    if (query.trim()) {
+      const q = query.trim().toLowerCase();
+      const haystack = `${g.white} ${g.black} ${g.openingName ?? ''} ${g.ecoCode ?? ''}`.toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const visible = filtered.slice(0, visibleCount);
+  const hasMore = visibleCount < filtered.length;
+
+  return (
+    <section className="my-games-section" aria-labelledby="my-games-heading">
+      <button
+        className="card my-games-toggle"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-controls="my-games-body"
+        id="my-games-heading"
+      >
+        <span>♟ My Games</span>
+        <span className="my-games-toggle-right">
+          <span className="my-games-count">{games.length} saved</span>
+          <span className="my-games-toggle-arrow">{open ? '↑' : '↓'}</span>
+        </span>
+      </button>
+
+      {open && (
+        <div id="my-games-body" className="my-games-body">
+          <div className="my-games-filters">
+            <input
+              type="text"
+              className="my-games-search"
+              placeholder="Search by player, opening, or ECO…"
+              value={query}
+              onChange={e => { setQuery(e.target.value); setVisibleCount(GAMES_PAGE_SIZE); }}
+              aria-label="Search saved games"
+            />
+            <select
+              className="my-games-result-filter"
+              value={result}
+              onChange={e => { setResult(e.target.value); setVisibleCount(GAMES_PAGE_SIZE); }}
+              aria-label="Filter by result"
+            >
+              <option value="all">All results</option>
+              <option value="1-0">White wins</option>
+              <option value="0-1">Black wins</option>
+              <option value="1/2-1/2">Draws</option>
+            </select>
+          </div>
+
+          {filtered.length === 0 ? (
+            <p className="muted" style={{ padding: '1rem 0' }}>No games match your search.</p>
+          ) : (
+            <>
+              <div className="games-list" role="list">
+                {visible.map(game => (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    expanded={expandedId === game.id}
+                    onToggle={() => onToggle(game)}
+                    loadingDetail={loadingDetailId === game.id}
+                    detail={uploadedDetails[game.id]}
+                  />
+                ))}
+              </div>
+              <div className="my-games-footer">
+                <span className="muted" style={{ fontSize: '0.8rem' }}>
+                  Showing {visible.length} of {filtered.length}
+                </span>
+                {hasMore && (
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => setVisibleCount(c => c + GAMES_PAGE_SIZE)}
+                  >
+                    Load more
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ── Individual game card ──────────────────────────────────────────────────────
 
 function GameCard({ game, expanded, onToggle, loadingDetail, detail }) {
@@ -578,9 +678,6 @@ export default function Games() {
     }
   }
 
-  // Combine all games: fetched first (newest), then uploaded
-  const allGames = [...fetchedGames, ...uploadedGames];
-
   return (
     <main className="page">
       <div className="page-header">
@@ -617,44 +714,13 @@ export default function Games() {
         <div className="msg-error" role="alert">⚠ {importResult.error}</div>
       )}
 
-      <UploadSection onGameAnalyzed={loadUploadedGames} />
-
-      {uploadedError && <div className="msg-error" role="alert">⚠ {uploadedError}</div>}
-
-      <section aria-label="Games list" className="games-list-section">
-        <div className="games-list-header">
-          <h2>
-            {allGames.length === 0
-              ? 'No games'
-              : `${allGames.length} game${allGames.length !== 1 ? 's' : ''}`}
-          </h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {fetchedGames.length > 0 && (
-              <span className="muted" style={{ fontSize: '0.82rem' }}>
-                {fetchedGames.length} fetched · {uploadedGames.length} saved
-              </span>
-            )}
-            {uploadedGames.length > 0 && (
-              <button
-                className="btn btn-ghost btn-danger"
-                onClick={handleClear}
-                disabled={clearLoading}
-                style={{ fontSize: '0.82rem', padding: '0.3rem 0.75rem' }}
-              >
-                {clearLoading ? 'Clearing…' : 'Clear saved games'}
-              </button>
-            )}
+      {fetchedGames.length > 0 && (
+        <section aria-label="Fetched games" className="games-list-section">
+          <div className="games-list-header">
+            <h2>{fetchedGames.length} fetched game{fetchedGames.length !== 1 ? 's' : ''}</h2>
           </div>
-        </div>
-
-        {allGames.length === 0 ? (
-          <div className="card empty-state" style={{ padding: '3rem', textAlign: 'center' }}>
-            <div style={{ fontSize: '2.5rem', opacity: 0.25, marginBottom: '0.75rem' }}>◑</div>
-            <p className="muted">Fetch games from Lichess or Chess.com, or upload a PGN above.</p>
-          </div>
-        ) : (
           <div className="games-list" role="list">
-            {allGames.map(game => (
+            {fetchedGames.map(game => (
               <GameCard
                 key={game.id}
                 game={game}
@@ -665,8 +731,41 @@ export default function Games() {
               />
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
+
+      <UploadSection onGameAnalyzed={loadUploadedGames} />
+
+      {uploadedError && <div className="msg-error" role="alert">⚠ {uploadedError}</div>}
+
+      {uploadedGames.length === 0 ? (
+        fetchedGames.length === 0 && (
+          <div className="card empty-state" style={{ padding: '3rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '2.5rem', opacity: 0.25, marginBottom: '0.75rem' }}>◑</div>
+            <p className="muted">Fetch games from Lichess or Chess.com, or upload a PGN above.</p>
+          </div>
+        )
+      ) : (
+        <>
+          <div className="games-section-actions">
+            <button
+              className="btn btn-ghost btn-danger"
+              onClick={handleClear}
+              disabled={clearLoading}
+              style={{ fontSize: '0.82rem', padding: '0.3rem 0.75rem' }}
+            >
+              {clearLoading ? 'Clearing…' : 'Clear saved games'}
+            </button>
+          </div>
+          <MyGamesSection
+            games={uploadedGames}
+            expandedId={expandedId}
+            onToggle={handleToggle}
+            loadingDetailId={loadingDetailId}
+            uploadedDetails={uploadedDetails}
+          />
+        </>
+      )}
     </main>
   );
 }
