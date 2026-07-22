@@ -9,6 +9,7 @@ export default function ChessBoardViewer({
   highlightIndex = null,
   deviationColor = "red",
   deviationLabel = null,
+  showControls = true,
 }) {
   const [positions, setPositions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -222,40 +223,42 @@ export default function ChessBoardViewer({
           </div>
         </div>
 
-        <div className="board-controls">
-          <button onClick={() => setCurrentIndex(0)} disabled={isStart}>
-            ⟪ Start
-          </button>
+        {showControls && (
+          <div className="board-controls">
+            <button onClick={() => setCurrentIndex(0)} disabled={isStart}>
+              ⟪ Start
+            </button>
 
-          <button
-            onClick={() =>
-              setCurrentIndex((i) => Math.max(0, i - 1))
-            }
-            disabled={isStart}
-          >
-            ← Prev
-          </button>
+            <button
+              onClick={() =>
+                setCurrentIndex((i) => Math.max(0, i - 1))
+              }
+              disabled={isStart}
+            >
+              ← Prev
+            </button>
 
-          <button
-            onClick={() =>
-              setCurrentIndex((i) =>
-                Math.min(positions.length - 1, i + 1)
-              )
-            }
-            disabled={isEnd}
-          >
-            Next →
-          </button>
+            <button
+              onClick={() =>
+                setCurrentIndex((i) =>
+                  Math.min(positions.length - 1, i + 1)
+                )
+              }
+              disabled={isEnd}
+            >
+              Next →
+            </button>
 
-          <button
-            onClick={() =>
-              setCurrentIndex(positions.length - 1)
-            }
-            disabled={isEnd}
-          >
-            End ⟫
-          </button>
-        </div>
+            <button
+              onClick={() =>
+                setCurrentIndex(positions.length - 1)
+              }
+              disabled={isEnd}
+            >
+              End ⟫
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="board-move-list" ref={moveListRef}>
