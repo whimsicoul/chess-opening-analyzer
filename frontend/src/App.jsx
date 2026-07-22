@@ -7,11 +7,9 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
-import WhiteRepertoire from './pages/WhiteRepertoire';
-import BlackRepertoire from './pages/BlackRepertoire';
+import Repertoire from './pages/Repertoire';
 import Games from './pages/Games';
-import Stats from './pages/Stats';
-import Visualization from './pages/Visualization';
+import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 
 function AppInner() {
@@ -37,17 +35,17 @@ function AppInner() {
         <Route path="/verify-email" element={<VerifyEmail />} />
 
         {/* Protected */}
-        <Route path="/white-repertoire" element={<ProtectedRoute><WhiteRepertoire /></ProtectedRoute>} />
-        <Route path="/black-repertoire" element={<ProtectedRoute><BlackRepertoire /></ProtectedRoute>} />
-        <Route path="/repertoire"       element={<Navigate to="/white-repertoire" replace />} />
+        <Route path="/repertoire"       element={<ProtectedRoute><Repertoire /></ProtectedRoute>} />
         <Route path="/games"            element={<ProtectedRoute><Games /></ProtectedRoute>} />
-        <Route path="/stats"            element={<ProtectedRoute><Stats /></ProtectedRoute>} />
-        <Route path="/visualization"    element={<ProtectedRoute><Visualization /></ProtectedRoute>} />
+        <Route path="/analytics"        element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
         <Route path="/settings"         element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 
         {/* Redirects */}
-        <Route path="/upload"    element={<Navigate to="/games" replace />} />
-        <Route path="/analytics" element={<Navigate to="/stats" replace />} />
+        <Route path="/upload"             element={<Navigate to="/games" replace />} />
+        <Route path="/white-repertoire"   element={<Navigate to="/repertoire" replace />} />
+        <Route path="/black-repertoire"   element={<Navigate to="/repertoire" replace />} />
+        <Route path="/stats"              element={<Navigate to="/analytics" replace />} />
+        <Route path="/visualization"      element={<Navigate to="/analytics" replace />} />
       </Routes>
     </BrowserRouter>
   );

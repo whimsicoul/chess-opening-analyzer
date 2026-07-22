@@ -23,10 +23,8 @@ export default function Navbar() {
         {isAuthenticated ? (
           <>
             <NavLink to="/games">Games</NavLink>
-            <NavLink to="/white-repertoire">♔ White</NavLink>
-            <NavLink to="/black-repertoire">♚ Black</NavLink>
-            <NavLink to="/stats">Analytics</NavLink>
-            <NavLink to="/visualization">Visualization</NavLink>
+            <NavLink to="/repertoire">Repertoire</NavLink>
+            <NavLink to="/analytics">Analytics</NavLink>
             <NavLink to="/settings" title="Account Settings">⚙</NavLink>
             <div className="navbar-user">
               <span className="navbar-username">{user?.username}</span>

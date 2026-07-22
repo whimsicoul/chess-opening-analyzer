@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import api from '../api';
 import OpeningSunburst from '../components/OpeningSunburst';
 import ChessBoardViewer from '../components/ChessBoardViewer';
-import './Visualization.css';
+import './Analytics.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -34,7 +34,7 @@ function MoveSequence({ moves }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function Visualization() {
+export default function Analytics() {
   const [color,       setColor      ] = useState('white');
   const [treeData,    setTreeData   ] = useState(null);
   const [winRates,    setWinRates   ] = useState({});
@@ -69,7 +69,7 @@ export default function Visualization() {
   return (
     <main className="page">
       <div className="page-header">
-        <h1>Opening Visualization</h1>
+        <h1>Analytics</h1>
         <p>Explore your repertoire as an interactive sunburst — hover to preview, click to zoom in</p>
       </div>
 
