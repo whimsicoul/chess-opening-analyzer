@@ -4,19 +4,19 @@ import './Home.css';
 const FEATURES = [
   {
     num: '01',
-    icon: '♜',
-    title: 'Build Your Repertoire',
-    desc: 'Add and manage your prepared opening lines with ECO codes and move trees.',
-    link: '/repertoire',
-    label: 'Open Repertoire',
-  },
-  {
-    num: '02',
     icon: '⬆',
     title: 'Upload Your Games',
     desc: 'Upload your games and instantly see the exact move where you or your opponent went off-book.',
     link: '/upload',
     label: 'Upload PGN',
+  },
+  {
+    num: '02',
+    icon: '♜',
+    title: 'Build Your Repertoire',
+    desc: 'Add and manage your prepared opening lines with ECO codes and move trees.',
+    link: '/repertoire',
+    label: 'Open Repertoire',
   },
   {
     num: '03',
