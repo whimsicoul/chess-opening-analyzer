@@ -234,8 +234,8 @@ export default function Repertoire() {
     const el = boardPanelRef.current;
     if (!el) return;
     const ro = new ResizeObserver(entries => {
-      const w = entries[0].contentRect.width;
-      if (w > 0) setDynamicBoardWidth(Math.floor(w));
+      const { width: w, height: h } = entries[0].contentRect;
+      if (w > 0 && h > 0) setDynamicBoardWidth(Math.floor(Math.min(w, h)));
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -792,25 +792,26 @@ export default function Repertoire() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <main className="page">
-      <div className="page-header">
-        <h1>Repertoire {color === 'white' ? '♔' : '♚'}</h1>
-        <p>Play moves on the board — your lines are saved automatically as you build</p>
-      </div>
-
-      {repertoireStatus?.built_at && (
-        <div className="rep-status-banner">
-          <span>
-            Auto-built from {repertoireStatus.games_count ?? 0} game
-            {repertoireStatus.games_count === 1 ? '' : 's'}
-            {' '}(last updated {new Date(repertoireStatus.built_at).toLocaleString()}).
-            Manually-added lines are kept alongside auto-built ones.
-          </span>
-          <button className="rep-rebuild-btn" onClick={handleRebuild} disabled={rebuilding}>
-            {rebuilding ? 'Rebuilding…' : 'Rebuild from Games'}
-          </button>
+    <main className="page rep-page">
+      <div className="page-header rep-page-header">
+        <div className="rep-page-header-text">
+          <h1>Repertoire {color === 'white' ? '♔' : '♚'}</h1>
+          <p>Play moves on the board — your lines are saved automatically as you build</p>
         </div>
-      )}
+
+        {repertoireStatus?.built_at && (
+          <div className="rep-status-banner">
+            <span>
+              Auto-built from {repertoireStatus.games_count ?? 0} game
+              {repertoireStatus.games_count === 1 ? '' : 's'}
+              {' '}(last updated {new Date(repertoireStatus.built_at).toLocaleString()}).
+            </span>
+            <button className="rep-rebuild-btn" onClick={handleRebuild} disabled={rebuilding}>
+              {rebuilding ? 'Rebuilding…' : 'Rebuild from Games'}
+            </button>
+          </div>
+        )}
+      </div>
 
         <PanelGroup direction="horizontal" className="rep-panel-group">
           <Panel defaultSize={17} minSize={8}>
