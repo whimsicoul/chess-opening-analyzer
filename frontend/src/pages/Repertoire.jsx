@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { woodenPieces } from '../utils/woodenPieces.jsx';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 import { useEngine } from '../hooks/useEngine';
 import './Repertoire.css';
 
@@ -192,6 +194,13 @@ function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef,
 }
 
 export default function Repertoire() {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const requireAuth = useCallback(() => {
+    navigate('/login', { state: { from: location } });
+  }, [navigate, location]);
+
   const [color, setColor]   = useState('white'); // 'white' | 'black'
   const [lines, setLines]   = useState([]);
   const [tree,  setTree]    = useState(null);
@@ -454,6 +463,7 @@ export default function Repertoire() {
   }
 
   async function handleRebuild() {
+    if (!isAuthenticated) { requireAuth(); return; }
     setRebuilding(true);
     try {
       await api.post(rebuildEndpoint);
@@ -533,9 +543,11 @@ export default function Repertoire() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [explorerTab, boardGame]);
 
-  // Auto-save: debounced 1.5s after any move
+  // Auto-save: debounced 1.5s after any move (guests can play freely, but
+  // nothing is persisted — never fire the network call for them)
   useEffect(() => {
     if (allMoves.length === 0) return;
+    if (!isAuthenticated) return;
     setSaveStatus('saving');
     const timer = setTimeout(async () => {
       try {
@@ -566,6 +578,7 @@ export default function Repertoire() {
   // ── Actions ────────────────────────────────────────────────────────────────
 
   async function handleDeleteFromMove(path) {
+    if (!isAuthenticated) { requireAuth(); return; }
     const matchingLines = lines.filter(line => {
       const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
       return path.length <= tokens.length &&
@@ -615,6 +628,7 @@ export default function Repertoire() {
   // ── Clear repertoire (both colors) ──────────────────────────────────────────
 
   async function handleClearRepertoire() {
+    if (!isAuthenticated) { requireAuth(); return; }
     if (!window.confirm('Clear your entire repertoire — both White and Black lines? This cannot be undone.')) return;
     setClearing(true);
     try {
@@ -693,17 +707,28 @@ export default function Repertoire() {
           )}
         </div>
 
-        {saveStatus && (
+        {isAuthenticated && saveStatus && (
           <div className={`save-status save-status-${saveStatus}`}>
             {saveStatus === 'saving' && 'Saving…'}
             {saveStatus === 'saved'  && 'Saved ✓'}
             {saveStatus === 'error'  && 'Save error'}
           </div>
         )}
+        {!isAuthenticated && allMoves.length > 0 && (
+          <div className="save-status">
+            <button type="button" className="save-status-signin-link" onClick={requireAuth}>
+              Sign in to save this line
+            </button>
+          </div>
+        )}
 
         <div className="live-tree-scroll">
           {isEmpty ? (
-            <p className="engine-empty muted">No lines saved yet — play some moves above</p>
+            <p className="engine-empty muted">
+              {isAuthenticated
+                ? 'No lines saved yet — play some moves above'
+                : 'Play some moves above to explore — sign in to save your repertoire'}
+            </p>
           ) : (
             displayTree.children.map(child => (
               <TreeNode
