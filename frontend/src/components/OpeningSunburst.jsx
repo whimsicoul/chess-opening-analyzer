@@ -3,8 +3,8 @@ import * as d3 from 'd3';
 import './OpeningSunburst.css';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-const OUTER_R  = 220;
-const INNER_R  = 52;
+const OUTER_R  = 340;
+const INNER_R  = 70;
 const SVG_SIZE = (OUTER_R + 20) * 2;
 const CENTER   = SVG_SIZE / 2;
 const MAX_DEPTH = 8;

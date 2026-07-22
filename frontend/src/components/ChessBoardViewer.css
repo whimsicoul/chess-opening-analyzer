@@ -86,7 +86,7 @@
 /* Board container */
 /* ───────────────────────────────────────────── */
 .board-outer {
-  width: 520px;
+  width: 640px;
 }
 
 .board-wrap {
@@ -140,10 +140,11 @@
   font-family: 'Fira Code', ui-monospace, Consolas, monospace;
   font-size: 0.82rem;
 
-  flex: 1;
-  min-width: 160px;
+  flex: 0 0 140px;
+  width: 140px;
   align-self: stretch;
   overflow-y: auto;
+  max-height: 640px;
 
   padding: 0.4rem 0.5rem;
   background: #0d1020;
