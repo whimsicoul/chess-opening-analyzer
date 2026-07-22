@@ -4,9 +4,6 @@ import { Chessboard } from 'react-chessboard';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { woodenPieces } from '../utils/woodenPieces.jsx';
 import api from '../api';
-import RepertoireWizard from '../components/RepertoireWizard.jsx';
-import { BLACK_WIZARD_STEPS } from '../components/wizardSteps.js';
-import { useOnboarding } from '../context/OnboardingContext';
 import { useEngine } from '../hooks/useEngine';
 import './Repertoire.css';
 
@@ -107,23 +104,6 @@ function isPathActive(activePath, movePath) {
 // Strip check/checkmate annotations so tree nodes and stored lines compare equal
 function normSan(san) { return san.replace(/[+#]$/, ''); }
 
-// Find all positions where the player has multiple moves saved.
-// White rep: player moves at even depths (0,2,4…); Black rep: odd depths.
-function findConflicts(node, depth, isWhiteRep, path = []) {
-  const conflicts = [];
-  const isPlayerTurn = isWhiteRep ? (depth % 2 === 0) : (depth % 2 === 1);
-  if (isPlayerTurn && node.children && node.children.length > 1) {
-    conflicts.push({ path, node, children: node.children });
-  }
-  if (node.children) {
-    for (const child of node.children) {
-      conflicts.push(...findConflicts(child, depth + 1, isWhiteRep, [...path, child.name]));
-    }
-  }
-  return conflicts;
-}
-
-
 // Recursive compact tree node — ChessTempo pairing style
 function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef, onMoveMenu, collapsedPaths }) {
   const myPath = [...pathMoves, node.name];
@@ -217,13 +197,10 @@ export default function BlackRepertoire() {
   const [form, setForm] = useState({ moves: '', opening_name: '', eco_code: '' });
   const [repertoireStatus, setRepertoireStatus] = useState(null);
   const [rebuilding, setRebuilding] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
-  // Auto-save & review state
-  const [saveStatus,     setSaveStatus]     = useState(null); // null | 'saving' | 'saved' | 'error'
-  const [reviewMode,     setReviewMode]     = useState(false);
-  const [conflicts,      setConflicts]      = useState([]);
-  const [conflictIndex,  setConflictIndex]  = useState(0);
-  const [reviewComplete, setReviewComplete] = useState(false);
+  // Auto-save state
+  const [saveStatus, setSaveStatus] = useState(null); // null | 'saving' | 'saved' | 'error'
 
   // Interactive input board state
   const [boardGame, setBoardGame] = useState(() => new Chess());
@@ -244,57 +221,6 @@ export default function BlackRepertoire() {
   const [explorerMasters, setExplorerMasters] = useState(null);
   const [explorerLichess, setExplorerLichess] = useState(null);
   const [explorerLoading, setExplorerLoading] = useState(false);
-
-  // Wizard state
-  const { tourActive, tourStep } = useOnboarding();
-  const [wizardStep, setWizardStep] = useState(0);
-  const [wizardDismissed, setWizardDismissed] = useState(
-    () => localStorage.getItem('wizard_black_seen') === '1'
-  );
-
-  // When the tour brings us to the black repertoire step, reset the wizard
-  useEffect(() => {
-    if (tourActive && tourStep === 2) {
-      setWizardDismissed(false);
-      setWizardStep(0);
-      localStorage.removeItem('wizard_black_seen');
-    }
-  }, [tourActive, tourStep]);
-
-  function advanceWizard(trigger) {
-    if (wizardDismissed) return;
-    const step = BLACK_WIZARD_STEPS[wizardStep];
-    if (step?.advanceOn === trigger) setWizardStep(s => s + 1);
-  }
-
-  // Fire wizard-complete when all black wizard steps have been answered
-  useEffect(() => {
-    if (wizardDismissed) return;
-    if (wizardStep >= BLACK_WIZARD_STEPS.length) {
-      setWizardDismissed(true);
-      localStorage.setItem('wizard_black_seen', '1');
-      window.dispatchEvent(new CustomEvent('wizard-complete', { detail: 'black' }));
-    }
-  }, [wizardStep, wizardDismissed]);
-
-  // Auto-play 1.e4 or 1.d4 when wizard enters step 0 or 1
-  useEffect(() => {
-    if (wizardDismissed) return;
-    if (wizardStep === 0 || wizardStep === 1) {
-      const san = wizardStep === 0 ? 'e4' : 'd4';
-      const t = setTimeout(() => {
-        const g = new Chess();
-        const move = g.move(san);
-        if (!move) return;
-        setBoardGame(g);
-        setAllMoves([move.san]);
-        setStepIndex(1);
-        setInputText(`1. ${move.san}`);
-        setForm(f => ({ ...f, moves: move.san }));
-      }, 300);
-      return () => clearTimeout(t);
-    }
-  }, [wizardStep, wizardDismissed]);
 
   // Live tree scroll ref — scrolls to the active move when allMoves changes
   const activeNodeRef = useRef(null);
@@ -339,14 +265,8 @@ export default function BlackRepertoire() {
     try {
       const move = next.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
       if (!move) return false;
-      const movesBefore = allMoves.length;
       setBoardGame(next);
       _applyMoves([...allMoves.slice(0, stepIndex), move.san]);
-      // Wizard: detect Black's response (2nd move in sequence)
-      if (movesBefore === 1 && wizardStep === 0) advanceWizard('black-response-e4');
-      else if (movesBefore === 1 && wizardStep === 1) advanceWizard('black-response-d4');
-      else if (movesBefore === 0) advanceWizard('first-move');
-      else advanceWizard('move-made');
       return true;
     } catch {
       return false;
@@ -435,7 +355,6 @@ export default function BlackRepertoire() {
   }, []);
 
   function playEngineMove(uciMove) {
-    advanceWizard('book-click');
     const next = new Chess(boardGame.fen());
     try {
       const move = next.move({ from: uciMove.slice(0, 2), to: uciMove.slice(2, 4), promotion: uciMove[4] || 'q' });
@@ -471,7 +390,6 @@ export default function BlackRepertoire() {
 
   // Context menu: open on right-click of a tree move
   function openContextMenu(e, path, hasBranches = false, isCollapsed = false) {
-    if (!wizardDismissed && wizardStep < BLACK_WIZARD_STEPS.length) return;
     e.preventDefault();
     e.stopPropagation();
     const matchingLines = lines.filter(line => {
@@ -587,9 +505,9 @@ export default function BlackRepertoire() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [explorerTab, boardGame]);
 
-  // Auto-save: debounced 1.5s after any move; skipped in review mode
+  // Auto-save: debounced 1.5s after any move
   useEffect(() => {
-    if (allMoves.length === 0 || reviewMode) return;
+    if (allMoves.length === 0) return;
     setSaveStatus('saving');
     const timer = setTimeout(async () => {
       try {
@@ -607,7 +525,7 @@ export default function BlackRepertoire() {
     }, 1500);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allMoves.join(','), reviewMode]);
+  }, [allMoves.join(',')]);
 
   // Clear 'saved' indicator after 3s
   useEffect(() => {
@@ -664,67 +582,20 @@ export default function BlackRepertoire() {
     });
   }
 
-  // ── Review mode ────────────────────────────────────────────────────────────
+  // ── Clear repertoire ───────────────────────────────────────────────────────
 
-  function enterReviewMode() {
-    // Build tree from lines (not from backend tree) so conflict paths
-    // are guaranteed to match the flat lines used during deletion.
-    const reviewTree = buildTreeFromLines(lines);
-    if (reviewTree.children.length === 0) return;
-    const found = findConflicts(reviewTree, 0, false);
-    if (found.length === 0) {
-      setReviewComplete(true);
-      return;
-    }
-    setConflicts(found);
-    setConflictIndex(0);
-    setReviewMode(true);
-    loadPosition(found[0].path);
-  }
-
-  function exitReviewMode() {
-    setReviewMode(false);
-    setConflicts([]);
-    setConflictIndex(0);
-    setReviewComplete(false);
-  }
-
-  async function handleConflictResolve(keepMove) {
-    const conflict = conflicts[conflictIndex];
-    const movesToDelete = conflict.children.filter(c => c.name !== keepMove.name);
+  async function handleClearRepertoire() {
+    if (!window.confirm('Clear your entire Black repertoire? This cannot be undone.')) return;
+    setClearing(true);
     try {
-      const toDeleteIds = [];
-      for (const moveNode of movesToDelete) {
-        const deletePath = [...conflict.path, moveNode.name];
-        const matching = lines.filter(line => {
-          const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
-          return deletePath.length <= tokens.length &&
-            deletePath.map(normSan).join(',') === tokens.slice(0, deletePath.length).map(normSan).join(',');
-        });
-        toDeleteIds.push(...matching.map(l => l.id));
-      }
-      if (toDeleteIds.length > 0) {
-        await Promise.all(toDeleteIds.map(id => api.delete(`/openings/black/${id}`)));
-      }
-      await fetchLines();
-      await fetchTree();
-      // Re-check conflicts using fresh lines
-      const freshLines = (await api.get('/openings/black/')).data;
-      const freshReviewTree = buildTreeFromLines(freshLines);
-      const remaining = findConflicts(freshReviewTree, 0, false);
-      if (remaining.length === 0) {
-        setReviewMode(false);
-        setReviewComplete(true);
-        setConflicts([]);
-        setConflictIndex(0);
-      } else {
-        setConflicts(remaining);
-        setConflictIndex(0);
-        loadPosition(remaining[0].path);
-      }
+      await api.delete('/openings/black/');
+      await Promise.all([fetchLines(), fetchTree(), fetchRepertoireStatus()]);
+      resetBoard();
     } catch (err) {
-      console.error('[review] error resolving conflict:', err);
-      setError('Failed to resolve conflict.');
+      console.error('[handleClearRepertoire] failed:', err?.response?.status, err?.message);
+      setError('Failed to clear repertoire.');
+    } finally {
+      setClearing(false);
     }
   }
 
@@ -764,7 +635,6 @@ export default function BlackRepertoire() {
   function renderLiveTree() {
     const displayTree = (tree && tree.children.length > 0) ? tree : buildTreeFromLines(lines);
     const isEmpty = displayTree.children.length === 0;
-    const currentConflict = reviewMode ? conflicts[conflictIndex] : null;
 
     return (
       <div className="live-tree-col">
@@ -773,14 +643,9 @@ export default function BlackRepertoire() {
           <span className="rep-section-count muted">
             {lines.length} line{lines.length !== 1 ? 's' : ''}
           </span>
-          {!isEmpty && !reviewMode && (
-            <button type="button" className="btn btn-ghost btn-review" onClick={enterReviewMode}>
-              Review Repertoire
-            </button>
-          )}
-          {reviewMode && (
-            <button type="button" className="btn btn-ghost btn-review-stop" onClick={exitReviewMode}>
-              Stop Review
+          {!isEmpty && (
+            <button type="button" className="btn btn-ghost btn-clear-rep" onClick={handleClearRepertoire} disabled={clearing}>
+              {clearing ? 'Clearing\u2026' : 'Clear Repertoire'}
             </button>
           )}
         </div>
@@ -790,33 +655,6 @@ export default function BlackRepertoire() {
             {saveStatus === 'saving' && 'Saving\u2026'}
             {saveStatus === 'saved'  && 'Saved \u2713'}
             {saveStatus === 'error'  && 'Save error'}
-          </div>
-        )}
-
-        {reviewComplete && !reviewMode && (
-          <div className="review-complete-banner">Repertoire looks good! No conflicts found.</div>
-        )}
-
-        {reviewMode && currentConflict && (
-          <div className="review-panel">
-            <div className="review-panel-header">
-              Review your repertoire
-              <span className="review-conflicts-count">
-                {conflicts.length - conflictIndex} conflict{conflicts.length - conflictIndex !== 1 ? 's' : ''} remaining
-              </span>
-            </div>
-            <p className="review-panel-prompt">You have multiple moves from this position. Keep one:</p>
-            <div className="review-move-choices">
-              {currentConflict.children.map(child => (
-                <button key={child.name} type="button" className="btn review-move-btn"
-                  onClick={() => handleConflictResolve(child)}>
-                  {moveLabel(currentConflict.path.length, child.name)}
-                  {child.opening_name && (
-                    <span className="review-move-opening">{child.opening_name}</span>
-                  )}
-                </button>
-              ))}
-            </div>
           </div>
         )}
 
@@ -924,22 +762,6 @@ export default function BlackRepertoire() {
             {rebuilding ? 'Rebuilding…' : 'Rebuild from Games'}
           </button>
         </div>
-      )}
-
-      {!wizardDismissed && wizardStep < BLACK_WIZARD_STEPS.length && (
-        <RepertoireWizard
-          steps={BLACK_WIZARD_STEPS}
-          stepIndex={wizardStep}
-          onAdvance={() => setWizardStep(s => s + 1)}
-          onDismiss={({ skipped }) => {
-            setWizardDismissed(true);
-            localStorage.setItem('wizard_black_seen', '1');
-            // Only fire wizard-complete if the wizard was actually completed, not skipped
-            if (!skipped) {
-              window.dispatchEvent(new CustomEvent('wizard-complete', { detail: 'black' }));
-            }
-          }}
-        />
       )}
 
         <PanelGroup direction="horizontal" className="rep-panel-group">

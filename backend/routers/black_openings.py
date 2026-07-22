@@ -221,6 +221,25 @@ def rebuild_from_games(current_user: dict = Depends(get_current_user)):
 
 
 # ---------------------------------------------------------------------------
+# DELETE /openings/black/ — clear the entire black repertoire
+# ---------------------------------------------------------------------------
+
+@router.delete("/", status_code=204)
+def clear_openings(current_user: dict = Depends(get_current_user)):
+    user_id = current_user["user_id"]
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM black_opening WHERE user_id = %s", (user_id,))
+            cur.execute("DELETE FROM black_opening_tree WHERE user_id = %s", (user_id,))
+            cur.execute(
+                "DELETE FROM repertoire_builds WHERE user_id = %s AND color = 'black'",
+                (user_id,),
+            )
+            conn.commit()
+
+
+# ---------------------------------------------------------------------------
 # DELETE /openings/black/{opening_id}
 # ---------------------------------------------------------------------------
 
