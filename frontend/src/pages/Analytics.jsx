@@ -198,6 +198,7 @@ export default function Analytics() {
               <ChessBoardViewer
                 pgn={pgn}
                 highlightIndex={activeMoves.length}
+                showControls={false}
               />
             ) : (
               <div className="viz-board-empty">
