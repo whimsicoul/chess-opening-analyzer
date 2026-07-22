@@ -73,17 +73,44 @@ export default function Analytics() {
         <p>Explore your repertoire as an interactive sunburst — hover to preview, click to zoom in</p>
       </div>
 
-      {/* ── Color toggle ─────────────────────────────────────────────────── */}
-      <div className="viz-color-toggle">
-        {['white', 'black'].map(c => (
-          <button
-            key={c}
-            className={`toggle-btn ${color === c ? 'active' : ''}`}
-            onClick={() => { setColor(c); setActiveMoves([]); setActiveInfo(null); }}
-          >
-            {c === 'white' ? '♔ White' : '♚ Black'}
-          </button>
-        ))}
+      {/* ── Color toggle + legend ────────────────────────────────────────── */}
+      <div className="viz-toolbar">
+        <div className="viz-color-toggle">
+          {['white', 'black'].map(c => (
+            <button
+              key={c}
+              className={`toggle-btn ${color === c ? 'active' : ''}`}
+              onClick={() => { setColor(c); setActiveMoves([]); setActiveInfo(null); }}
+            >
+              {c === 'white' ? '♔ White' : '♚ Black'}
+            </button>
+          ))}
+        </div>
+
+        <div className="viz-legend">
+          <span className="viz-legend-label">Win rate</span>
+          <span className="viz-legend-item">
+            <span className="viz-legend-dot" style={{ background: 'hsl(120,48%,16%)' }} />&gt;60%
+          </span>
+          <span className="viz-legend-item">
+            <span className="viz-legend-dot" style={{ background: 'hsl(112,48%,28%)' }} />55–60%
+          </span>
+          <span className="viz-legend-item">
+            <span className="viz-legend-dot" style={{ background: 'hsl(88,48%,36%)' }} />50–55%
+          </span>
+          <span className="viz-legend-item">
+            <span className="viz-legend-dot" style={{ background: 'hsl(52,48%,36%)' }} />48–50%
+          </span>
+          <span className="viz-legend-item">
+            <span className="viz-legend-dot" style={{ background: 'hsl(22,48%,32%)' }} />45–48%
+          </span>
+          <span className="viz-legend-item">
+            <span className="viz-legend-dot" style={{ background: 'hsl(0,48%,28%)' }} />&lt;45%
+          </span>
+          <span className="viz-legend-item">
+            <span className="viz-legend-dot" style={{ background: 'hsl(220,12%,22%)' }} />No data
+          </span>
+        </div>
       </div>
 
       {error && <div className="msg-error">⚠ {error}</div>}
@@ -116,39 +143,6 @@ export default function Analytics() {
               winRates={winRates}
               onActivePath={handleActivePath}
             />
-
-            {/* Legend */}
-            <div className="viz-legend">
-              <div className="viz-legend-label">Hue — win rate</div>
-              <div className="viz-legend-item">
-                <div className="viz-legend-dot" style={{ background: 'hsl(120,48%,16%)' }} />
-                <span>&gt;60%</span>
-              </div>
-              <div className="viz-legend-item">
-                <div className="viz-legend-dot" style={{ background: 'hsl(112,48%,28%)' }} />
-                <span>55–60%</span>
-              </div>
-              <div className="viz-legend-item">
-                <div className="viz-legend-dot" style={{ background: 'hsl(88,48%,36%)' }} />
-                <span>50–55%</span>
-              </div>
-              <div className="viz-legend-item">
-                <div className="viz-legend-dot" style={{ background: 'hsl(52,48%,36%)' }} />
-                <span>48–50%</span>
-              </div>
-              <div className="viz-legend-item">
-                <div className="viz-legend-dot" style={{ background: 'hsl(22,48%,32%)' }} />
-                <span>45–48%</span>
-              </div>
-              <div className="viz-legend-item">
-                <div className="viz-legend-dot" style={{ background: 'hsl(0,48%,28%)' }} />
-                <span>&lt;45%</span>
-              </div>
-              <div className="viz-legend-item">
-                <div className="viz-legend-dot" style={{ background: 'hsl(220,12%,22%)' }} />
-                <span>No game data</span>
-              </div>
-            </div>
           </div>
 
           {/* ── Right: Info + Board ─────────────────────────────────────── */}
