@@ -85,6 +85,8 @@ export default function Stats() {
   const [error, setError]       = useState(null);
   const [colorFilter, setColorFilter] = useState('all');
   const [reprocessing, setReprocessing] = useState(false);
+  const [weaknesses, setWeaknesses] = useState([]);
+  const [weaknessesError, setWeaknessesError] = useState(null);
 
   const fetchGames = () =>
     api.get('/games/')
@@ -92,6 +94,21 @@ export default function Stats() {
       .catch(() => setError('Failed to load games.'));
 
   useEffect(() => { fetchGames(); }, []);
+
+  useEffect(() => {
+    const colors = colorFilter === 'all' ? ['white', 'black'] : [colorFilter];
+    Promise.all(
+      colors.map(color =>
+        api.get('/openings/weaknesses', { params: { color } }).then(res => res.data)
+      )
+    )
+      .then(results => {
+        const combined = results.flat().sort((a, b) => a.winRate - b.winRate);
+        setWeaknesses(combined);
+        setWeaknessesError(null);
+      })
+      .catch(() => setWeaknessesError('Failed to load weaknesses.'));
+  }, [colorFilter]);
 
   const handleReprocess = () => {
     setReprocessing(true);
@@ -143,26 +160,6 @@ export default function Stats() {
         oppGames: opp.length,
       }))
       .sort((a, b) => a.move - b.move);
-  }, [games]);
-
-  // ── Weakness table: deviation moves ranked by win rate ──
-  const weaknesses = useMemo(() => {
-    const map = {};
-    for (const g of games) {
-      if (!g.move_uci || g.opponent_deviation !== false) continue; // only your deviations
-      if (!map[g.move_uci]) map[g.move_uci] = [];
-      map[g.move_uci].push(g);
-    }
-    return Object.entries(map)
-      .map(([move, gs]) => ({ move, games: gs.length, rate: winRate(gs), avgRating: avgOppRating(gs) }))
-      .filter(r => r.games >= 1)
-      .sort((a, b) => {
-        // null rates go to bottom, then sort by win rate ascending (weakest first)
-        if (a.rate == null && b.rate == null) return b.games - a.games;
-        if (a.rate == null) return 1;
-        if (b.rate == null) return -1;
-        return a.rate - b.rate;
-      });
   }, [games]);
 
   return (
@@ -305,16 +302,17 @@ export default function Stats() {
           )}
 
           {/* ── Weakness table ── */}
+          {weaknessesError && <div className="msg-error">⚠ {weaknessesError}</div>}
           {weaknesses.length > 0 && (
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               <div style={{ padding: '1.25rem 1.5rem 0.75rem' }}>
-                <div className="card-label">Your Deviation Moves — Weakest First</div>
+                <div className="card-label">Weakest Lines in Your Repertoire</div>
               </div>
               <div className="table-wrap">
                 <table>
                   <thead>
                     <tr>
-                      <th>Move Played</th>
+                      <th>Line</th>
                       <th>Games</th>
                       <th>Win Rate</th>
                       <th>Avg Opp Rating</th>
@@ -323,16 +321,16 @@ export default function Stats() {
                   </thead>
                   <tbody>
                     {weaknesses.map(row => {
-                      const rate = row.rate;
-                      const cls = rate == null ? '' : rate >= 55 ? 'badge-green' : rate >= 45 ? 'badge-amber' : 'badge-red';
+                      const rate = row.winRate;
+                      const cls = rate >= 55 ? 'badge-green' : rate >= 45 ? 'badge-amber' : 'badge-red';
                       return (
-                        <tr key={row.move}>
-                          <td><code>{row.move}</code></td>
-                          <td className="muted">{row.games}</td>
+                        <tr key={row.node_id}>
+                          <td><code>{row.path.join(' ')}</code></td>
+                          <td className="muted">{row.total}</td>
                           <td>
                             <span className={`badge ${cls}`}>{fmt(rate)}</span>
                           </td>
-                          <td className="muted">{row.avgRating != null ? Math.round(row.avgRating) : '—'}</td>
+                          <td className="muted">{row.avgOppRating != null ? Math.round(row.avgOppRating) : '—'}</td>
                           <td>
                             <div className="wr-bar-track">
                               <div

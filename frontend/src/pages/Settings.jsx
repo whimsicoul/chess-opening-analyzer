@@ -245,6 +245,84 @@ function ChangePasswordForm() {
   );
 }
 
+function PlatformUsernamesForm({ profile, onUsernamesChanged }) {
+  const [form, setForm] = useState({ lichess_username: '', chesscom_username: '' });
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setForm({
+        lichess_username: profile.lichess_username || '',
+        chesscom_username: profile.chesscom_username || '',
+      });
+    }
+  }, [profile]);
+
+  function handleChange(e) {
+    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+    setError('');
+    setSuccess('');
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await api.patch('/auth/platform-usernames', {
+        lichess_username: form.lichess_username || null,
+        chesscom_username: form.chesscom_username || null,
+      });
+      onUsernamesChanged(res.data);
+      setSuccess('Connected accounts updated.');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Something went wrong.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <div className="card-label">Connected Accounts</div>
+      <p className="settings-danger-desc">
+        Used to automatically detect which side you played when importing games — no need
+        to re-enter your username every time.
+      </p>
+      {error && <div className="auth-error">{error}</div>}
+      {success && <div className="auth-success">{success}</div>}
+      <form onSubmit={handleSubmit}>
+        <div className="auth-field">
+          <label>Lichess Username</label>
+          <input
+            name="lichess_username"
+            type="text"
+            placeholder="your-lichess-username"
+            value={form.lichess_username}
+            onChange={handleChange}
+          />
+        </div>
+        <div className="auth-field">
+          <label>Chess.com Username</label>
+          <input
+            name="chesscom_username"
+            type="text"
+            placeholder="your-chesscom-username"
+            value={form.chesscom_username}
+            onChange={handleChange}
+          />
+        </div>
+        <button className="auth-submit" type="submit" disabled={loading}>
+          {loading ? 'Saving…' : 'Save Connected Accounts'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export default function Settings() {
   const { updateUser, logout } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -272,6 +350,10 @@ export default function Settings() {
 
   function handleEmailChanged(newEmail) {
     setProfile(p => p ? { ...p, email: newEmail } : p);
+  }
+
+  function handleUsernamesChanged(usernames) {
+    setProfile(p => p ? { ...p, ...usernames } : p);
   }
 
   function resetModal() {
@@ -330,6 +412,10 @@ export default function Settings() {
           <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Loading…</p>
         ) : null}
       </div>
+
+      <div className="settings-section-label">Connected Accounts</div>
+
+      <PlatformUsernamesForm profile={profile} onUsernamesChanged={handleUsernamesChanged} />
 
       <div className="settings-section-label">Security</div>
 
