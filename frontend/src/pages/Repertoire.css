@@ -512,6 +512,39 @@
   background: linear-gradient(to right, transparent, rgba(201,168,76,0.3), transparent);
 }
 
+.rep-color-toggle {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.rep-color-toggle .toggle-btn {
+  flex: 1;
+  padding: 0.35rem 0.6rem;
+  border-radius: 3px;
+  border: 1px solid #2a3060;
+  background: #12162a;
+  color: #8a93c8;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.rep-color-toggle .toggle-btn:hover {
+  background: #1a2040;
+  color: #c8cce0;
+}
+
+.rep-color-toggle .toggle-btn.active {
+  background: rgba(201,168,76,0.15);
+  color: #f0e8d5;
+  border-color: rgba(201,168,76,0.35);
+}
+
 .live-tree-header {
   display: flex;
   align-items: center;

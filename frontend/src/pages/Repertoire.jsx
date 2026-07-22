@@ -37,7 +37,6 @@ function wdlPercents(white, draws, black) {
   return { w: (white / total) * 100, d: (draws / total) * 100, l: (black / total) * 100, total };
 }
 
-// Convert a UCI move string to SAN given a Chess position
 // Convert a UCI move sequence to an array of formatted tokens (e.g. "4.O-O", "g6", "5.d4")
 function buildContinuation(fen, uciMoves, maxMoves = 10) {
   try {
@@ -104,7 +103,8 @@ function isPathActive(activePath, movePath) {
 // Strip check/checkmate annotations so tree nodes and stored lines compare equal
 function normSan(san) { return san.replace(/[+#]$/, ''); }
 
-// Recursive compact tree node — ChessTempo pairing style
+// Recursive compact tree node — ChessTempo pairing style:
+// Each row shows this move + its single child inline; branches nest below.
 function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef, onMoveMenu, collapsedPaths }) {
   const myPath = [...pathMoves, node.name];
   const myKey  = myPath.join(',');
@@ -118,6 +118,7 @@ function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef,
   const childIsExact = childPath && activePath.length === childPath.length &&
     activePath.join(',') === childPath.join(',');
 
+  // What to render below this row
   const grandchildren = singleChild ? singleChild.children : [];
   const branchChildren = multiChildren.length > 0 ? multiChildren : grandchildren;
   const branchDepth = multiChildren.length > 0 ? depth + 1 : depth + 2;
@@ -126,8 +127,8 @@ function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef,
 
   const isForceCollapsed = collapsedPaths?.has(myKey) ?? false;
 
-  // Start fully expanded; user can collapse branches manually
-  const [collapsed, setCollapsed] = useState(isForceCollapsed);
+  // Collapsed by default; user can expand branches manually (or navigation into them expands automatically)
+  const [collapsed, setCollapsed] = useState(!isExact);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isExact || isAncestor) setCollapsed(false);
@@ -190,7 +191,8 @@ function TreeNode({ node, depth, pathMoves, onSelect, activePath, activeNodeRef,
   );
 }
 
-export default function BlackRepertoire() {
+export default function Repertoire() {
+  const [color, setColor]   = useState('white'); // 'white' | 'black'
   const [lines, setLines]   = useState([]);
   const [tree,  setTree]    = useState(null);
   const [error, setError]   = useState(null);
@@ -221,6 +223,7 @@ export default function BlackRepertoire() {
   const [explorerMasters, setExplorerMasters] = useState(null);
   const [explorerLichess, setExplorerLichess] = useState(null);
   const [explorerLoading, setExplorerLoading] = useState(false);
+  const [explorerError,   setExplorerError]   = useState(null);
 
   // Live tree scroll ref — scrolls to the active move when allMoves changes
   const activeNodeRef = useRef(null);
@@ -244,6 +247,12 @@ export default function BlackRepertoire() {
 
   // Paths that have been manually collapsed via context menu
   const [collapsedPaths, setCollapsedPaths] = useState(new Set());
+
+  // ── Endpoint helpers (color-scoped) ─────────────────────────────────────────
+  const base = color === 'black' ? '/openings/black/' : '/openings/';
+  const treeEndpoint = color === 'black' ? '/openings/black/tree' : '/openings/tree';
+  const statusEndpoint = color === 'black' ? '/openings/black/status' : '/openings/status';
+  const rebuildEndpoint = color === 'black' ? '/openings/black/rebuild' : '/openings/rebuild';
 
   // ── Board helpers ──────────────────────────────────────────────────────────
 
@@ -417,35 +426,37 @@ export default function BlackRepertoire() {
 
   async function fetchLines() {
     try {
-      const res = await api.get('/openings/black/');
+      const res = await api.get(base);
       setLines(res.data);
-    } catch {
+    } catch (err) {
+      console.error('[fetchLines] failed:', err?.response?.status, err?.message);
       setError('Failed to load openings.');
     }
   }
 
   async function fetchTree() {
     try {
-      const res = await api.get('/openings/black/tree');
+      const res = await api.get(treeEndpoint);
       setTree(res.data);
-    } catch {
+    } catch (err) {
+      console.error('[fetchTree] failed:', err?.response?.status, err?.message);
       setTree(null);
     }
   }
 
   async function fetchRepertoireStatus() {
     try {
-      const res = await api.get('/openings/black/status');
+      const res = await api.get(statusEndpoint);
       setRepertoireStatus(res.data);
-    } catch {
-      // non-critical, ignore
+    } catch (err) {
+      console.error('[fetchRepertoireStatus] failed:', err?.response?.status, err?.message);
     }
   }
 
   async function handleRebuild() {
     setRebuilding(true);
     try {
-      await api.post('/openings/black/rebuild');
+      await api.post(rebuildEndpoint);
       await Promise.all([fetchLines(), fetchTree(), fetchRepertoireStatus()]);
     } catch (err) {
       console.error('[handleRebuild] failed:', err?.response?.status, err?.message);
@@ -454,18 +465,31 @@ export default function BlackRepertoire() {
     }
   }
 
+  // Switch between White/Black: reset the board and reload data for the new color
+  function handleColorChange(next) {
+    if (next === color) return;
+    setColor(next);
+    resetBoard();
+    setTree(null);
+    setLines([]);
+    setRepertoireStatus(null);
+    setCollapsedPaths(new Set());
+  }
+
   useEffect(() => {
     fetchLines();
     fetchTree();
     fetchRepertoireStatus();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [color]);
 
 
   // Explorer: fetch Masters data + eco autofill whenever position changes (debounced 500ms)
   useEffect(() => {
     setExplorerLoading(true);
+    setExplorerMasters(null);
     setExplorerLichess(null);
+    setExplorerError(null);
     const timer = setTimeout(async () => {
       try {
         const res = await api.get('/openings/explorer', {
@@ -480,7 +504,11 @@ export default function BlackRepertoire() {
             opening_name: f.opening_name || data.opening.name || '',
           }));
         }
-      } catch { setExplorerMasters(null); }
+      } catch (e) {
+        setExplorerMasters(null);
+        setExplorerError(e?.message ?? 'Opening book unavailable');
+        console.warn('[explorer] masters fetch failed:', e);
+      }
       finally  { setExplorerLoading(false); }
     }, 500);
     return () => clearTimeout(timer);
@@ -511,10 +539,11 @@ export default function BlackRepertoire() {
     setSaveStatus('saving');
     const timer = setTimeout(async () => {
       try {
-        await api.post('/openings/black/', {
+        await api.post(base, {
           moves: allMoves.join(' '),
           opening_name: form.opening_name || '',
           eco_code: form.eco_code || '',
+          color,
         });
         await fetchLines();
         await fetchTree();
@@ -545,12 +574,13 @@ export default function BlackRepertoire() {
     const truncatedMoves = path.slice(0, path.length - 1).join(' ');
     try {
       for (const line of matchingLines) {
-        await api.delete(`/openings/black/${line.id}`);
+        await api.delete(`${base}${line.id}`);
         if (truncatedMoves.length > 0) {
-          await api.post('/openings/black/', {
+          await api.post(base, {
             moves: truncatedMoves,
             opening_name: line.opening_name || '',
             eco_code: line.eco_code || '',
+            color,
           });
         }
       }
@@ -582,13 +612,13 @@ export default function BlackRepertoire() {
     });
   }
 
-  // ── Clear repertoire ───────────────────────────────────────────────────────
+  // ── Clear repertoire (both colors) ──────────────────────────────────────────
 
   async function handleClearRepertoire() {
-    if (!window.confirm('Clear your entire Black repertoire? This cannot be undone.')) return;
+    if (!window.confirm('Clear your entire repertoire — both White and Black lines? This cannot be undone.')) return;
     setClearing(true);
     try {
-      await api.delete('/openings/black/');
+      await Promise.all([api.delete('/openings/'), api.delete('/openings/black/')]);
       await Promise.all([fetchLines(), fetchTree(), fetchRepertoireStatus()]);
       resetBoard();
     } catch (err) {
@@ -638,6 +668,19 @@ export default function BlackRepertoire() {
 
     return (
       <div className="live-tree-col">
+        <div className="rep-color-toggle">
+          {['white', 'black'].map(c => (
+            <button
+              key={c}
+              type="button"
+              className={`toggle-btn${color === c ? ' active' : ''}`}
+              onClick={() => handleColorChange(c)}
+            >
+              {c === 'white' ? '♔ White' : '♚ Black'}
+            </button>
+          ))}
+        </div>
+
         <div className="live-tree-header">
           <span className="engine-title">Opening Tree</span>
           <span className="rep-section-count muted">
@@ -645,15 +688,15 @@ export default function BlackRepertoire() {
           </span>
           {!isEmpty && (
             <button type="button" className="btn btn-ghost btn-clear-rep" onClick={handleClearRepertoire} disabled={clearing}>
-              {clearing ? 'Clearing\u2026' : 'Clear Repertoire'}
+              {clearing ? 'Clearing…' : 'Clear Repertoire'}
             </button>
           )}
         </div>
 
         {saveStatus && (
           <div className={`save-status save-status-${saveStatus}`}>
-            {saveStatus === 'saving' && 'Saving\u2026'}
-            {saveStatus === 'saved'  && 'Saved \u2713'}
+            {saveStatus === 'saving' && 'Saving…'}
+            {saveStatus === 'saved'  && 'Saved ✓'}
             {saveStatus === 'error'  && 'Save error'}
           </div>
         )}
@@ -683,7 +726,12 @@ export default function BlackRepertoire() {
 
   function renderContextMenu() {
     if (!contextMenu) return null;
-    const { x, y, flipUp, path, matchingLines, hasBranches } = contextMenu;
+    const { x, y, flipUp, path, hasBranches } = contextMenu;
+    const matchingLines = lines.filter(line => {
+      const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
+      return path.length <= tokens.length &&
+        path.map(normSan).join(',') === tokens.slice(0, path.length).map(normSan).join(',');
+    });
     const label = moveLabel(path.length - 1, path[path.length - 1]);
     const isForcedCollapsed = collapsedPaths.has(path.join(','));
     const posStyle = flipUp
@@ -746,7 +794,7 @@ export default function BlackRepertoire() {
   return (
     <main className="page">
       <div className="page-header">
-        <h1>Black Repertoire ♚</h1>
+        <h1>Repertoire {color === 'white' ? '♔' : '♚'}</h1>
         <p>Play moves on the board — your lines are saved automatically as you build</p>
       </div>
 
@@ -775,7 +823,7 @@ export default function BlackRepertoire() {
                 position={boardGame.fen()}
                 onPieceDrop={onPieceDrop}
                 boardWidth={dynamicBoardWidth}
-                boardOrientation="black"
+                boardOrientation={color}
                 customPieces={woodenPieces}
                 customBoardStyle={{ backgroundImage: 'url(/wood4.jpg)', backgroundSize: '100% 100%' }}
                 customDarkSquareStyle={{}}
@@ -794,9 +842,9 @@ export default function BlackRepertoire() {
                   <button
                     className={`engine-mode-btn${engineMode ? ' active' : ''}`}
                     onClick={() => setEngineMode(v => !v)}
-                    title={engineMode ? 'Switch to Cloud Eval' : 'Switch to Engine'}
+                    title={engineMode ? 'Switch to Cloud Eval' : 'Switch to Stockfish'}
                   >
-                    {engineMode ? 'Engine' : 'Auto'}
+                    Engine
                   </button>
                   {topEval && (
                     <span className={`eval-score${evalPositive ? ' eval-pos' : ' eval-neg'}`}>
@@ -953,7 +1001,7 @@ export default function BlackRepertoire() {
             position={engineHoverFen}
             arePiecesDraggable={false}
             boardWidth={220}
-            boardOrientation="black"
+            boardOrientation={color}
             customPieces={woodenPieces}
             customBoardStyle={{ backgroundImage: 'url(/wood4.jpg)', backgroundSize: '100% 100%' }}
             customDarkSquareStyle={{}}
