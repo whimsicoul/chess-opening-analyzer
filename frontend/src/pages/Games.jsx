@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 import ChessBoardViewer from '../components/ChessBoardViewer';
 import './Games.css';
 
@@ -201,7 +203,7 @@ function FilterSection({ onFetch, loading }) {
 
 // ── Upload section ────────────────────────────────────────────────────────────
 
-function UploadSection({ onGameAnalyzed }) {
+function UploadSection({ onGameAnalyzed, isAuthenticated, requireAuth }) {
   const [open,      setOpen]      = useState(false);
   const [file,      setFile]      = useState(null);
   const [pgnText,   setPgnText]   = useState(null);
@@ -224,6 +226,7 @@ function UploadSection({ onGameAnalyzed }) {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!file) return;
+    if (!isAuthenticated) { requireAuth(); return; }
     setLoading(true);
     setResult(null);
     setError(null);
@@ -298,7 +301,7 @@ function UploadSection({ onGameAnalyzed }) {
             </div>
 
             <button className="btn upload-btn" type="submit" disabled={loading || !file}>
-              {loading ? 'Analyzing…' : 'Analyze Game'}
+              {loading ? 'Analyzing…' : isAuthenticated ? 'Analyze Game' : 'Sign in to Analyze Game'}
             </button>
           </form>
 
@@ -554,6 +557,13 @@ function GameCard({ game, expanded, onToggle, loadingDetail, detail }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function Games() {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const requireAuth = useCallback(() => {
+    navigate('/login', { state: { from: location } });
+  }, [navigate, location]);
+
   // Uploaded/analyzed games from backend
   const [uploadedGames, setUploadedGames] = useState([]);
   const [uploadedDetails, setUploadedDetails] = useState({});
@@ -625,6 +635,7 @@ export default function Games() {
 
   // Import fetched games into backend
   async function handleImport() {
+    if (!isAuthenticated) { requireAuth(); return; }
     setImportLoading(true);
     setImportResult(null);
     const pgns = fetchedGames.filter(g => g.pgn).map(g => g.pgn);
@@ -641,6 +652,7 @@ export default function Games() {
 
   // Clear all saved games from backend
   async function handleClear() {
+    if (!isAuthenticated) { requireAuth(); return; }
     if (!window.confirm('Delete all saved games from the backend? This cannot be undone.')) return;
     setClearLoading(true);
     try {
@@ -699,7 +711,11 @@ export default function Games() {
             onClick={handleImport}
             disabled={importLoading}
           >
-            {importLoading ? 'Importing…' : `Save ${fetchedGames.length} games to backend`}
+            {importLoading
+              ? 'Importing…'
+              : isAuthenticated
+                ? `Save ${fetchedGames.length} games to backend`
+                : `Sign in to save ${fetchedGames.length} games`}
           </button>
         </div>
       )}
@@ -734,7 +750,7 @@ export default function Games() {
         </section>
       )}
 
-      <UploadSection onGameAnalyzed={loadUploadedGames} />
+      <UploadSection onGameAnalyzed={loadUploadedGames} isAuthenticated={isAuthenticated} requireAuth={requireAuth} />
 
       {uploadedError && <div className="msg-error" role="alert">⚠ {uploadedError}</div>}
 
@@ -743,6 +759,18 @@ export default function Games() {
           <div className="card empty-state" style={{ padding: '3rem', textAlign: 'center' }}>
             <div style={{ fontSize: '2.5rem', opacity: 0.25, marginBottom: '0.75rem' }}>◑</div>
             <p className="muted">Fetch games from Lichess or Chess.com, or upload a PGN above.</p>
+            {!isAuthenticated && (
+              <p className="muted" style={{ marginTop: '0.4rem' }}>
+                <button
+                  type="button"
+                  onClick={requireAuth}
+                  style={{ font: 'inherit', background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
+                >
+                  Sign in
+                </button>
+                {' '}to save games to your account for future reference.
+              </p>
+            )}
           </div>
         )
       ) : (

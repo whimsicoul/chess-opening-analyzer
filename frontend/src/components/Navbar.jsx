@@ -20,11 +20,11 @@ export default function Navbar() {
       </NavLink>
 
       <div className="navbar-links">
+        <NavLink to="/games">Games</NavLink>
+        <NavLink to="/repertoire">Repertoire</NavLink>
+        <NavLink to="/analytics">Analytics</NavLink>
         {isAuthenticated ? (
           <>
-            <NavLink to="/games">Games</NavLink>
-            <NavLink to="/repertoire">Repertoire</NavLink>
-            <NavLink to="/analytics">Analytics</NavLink>
             <NavLink to="/settings" title="Account Settings">⚙</NavLink>
             <div className="navbar-user">
               <span className="navbar-username">{user?.username}</span>

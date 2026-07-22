@@ -19,12 +19,16 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// On 401, clear token and redirect to login (but not for the login request itself)
+// On 401, clear token and redirect to login — but only when a session actually
+// expired mid-use. A guest with no token hitting a 401 (e.g. a gated write
+// endpoint reached despite frontend guards) never had a session to lose, so
+// they're left on the page to let the caller show its own "sign in" state.
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     const isAuthEndpoint = err.config?.url?.includes('/auth/login') || err.config?.url?.includes('/auth/register');
-    if (err.response?.status === 401 && !isAuthEndpoint) {
+    const hadToken = !!(localStorage.getItem('chess_token') || sessionStorage.getItem('chess_token'));
+    if (err.response?.status === 401 && !isAuthEndpoint && hadToken) {
       localStorage.removeItem('chess_token');
       sessionStorage.removeItem('chess_token');
       window.location.href = '/login';

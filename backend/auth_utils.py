@@ -15,6 +15,7 @@ ALGORITHM = "HS256"
 EXPIRE_DAYS = int(os.getenv("JWT_EXPIRE_DAYS", 7))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
 def create_access_token(user_id: int, username: str) -> str:
@@ -38,3 +39,20 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         return {"user_id": int(user_id), "username": username}
     except JWTError:
         raise credentials_error
+
+
+def get_current_user_optional(token: str | None = Depends(oauth2_scheme_optional)) -> dict | None:
+    """Like get_current_user, but returns None instead of raising 401 when no
+    (or an invalid/expired) token is present — for routes that should work for
+    guests as well as logged-in users."""
+    if token is None:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        username = payload.get("username")
+        if user_id is None or username is None:
+            return None
+        return {"user_id": int(user_id), "username": username}
+    except JWTError:
+        return None
