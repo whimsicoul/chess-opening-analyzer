@@ -475,6 +475,25 @@ def get_cloud_eval(fen: str, multiPv: int = 1, current_user: dict = Depends(get_
 
 
 # ---------------------------------------------------------------------------
+# DELETE /openings/ — clear the entire white repertoire
+# ---------------------------------------------------------------------------
+
+@router.delete("/", status_code=204)
+def clear_openings(current_user: dict = Depends(get_current_user)):
+    user_id = current_user["user_id"]
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM white_opening WHERE user_id = %s", (user_id,))
+            cur.execute("DELETE FROM white_opening_tree WHERE user_id = %s", (user_id,))
+            cur.execute(
+                "DELETE FROM repertoire_builds WHERE user_id = %s AND color = 'white'",
+                (user_id,),
+            )
+            conn.commit()
+
+
+# ---------------------------------------------------------------------------
 # DELETE /openings/{opening_id}
 # ---------------------------------------------------------------------------
 

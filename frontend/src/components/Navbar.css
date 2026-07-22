@@ -111,31 +111,6 @@
   background: #181c2e;
 }
 
-.navbar-help {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: transparent;
-  border: 1.5px solid #2e3560;
-  border-radius: 50%;
-  color: #5c6180;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-  margin-right: 0.25rem;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-  flex-shrink: 0;
-}
-
-.navbar-help:hover {
-  color: #c9a84c;
-  border-color: #c9a84c;
-  background: rgba(201, 168, 76, 0.08);
-}
-
 .navbar-register {
   background: #c9a84c !important;
   color: #0b0d14 !important;
@@ -151,18 +126,4 @@
 .navbar-register:hover {
   background: #d9b85c !important;
   color: #0b0d14 !important;
-}
-
-.navbar-help--pulse {
-  position: relative;
-  animation: navbar-help-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes navbar-help-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.7);
-  }
-  50% {
-    box-shadow: 0 0 0 8px rgba(201, 168, 76, 0);
-  }
 }

@@ -1088,23 +1088,8 @@
   50%       { opacity: 0.45; }
 }
 
-/* ── Review mode buttons ─────────────────────────────────────────────────── */
-.btn-review {
-  font-size: 0.65rem;
-  padding: 0.22rem 0.65rem;
-  margin-left: auto;
-  white-space: nowrap;
-  border-color: rgba(201, 168, 76, 0.3);
-  color: rgba(201, 168, 76, 0.75);
-}
-
-.btn-review:hover {
-  border-color: #c9a84c;
-  color: #c9a84c;
-  background: rgba(201, 168, 76, 0.06);
-}
-
-.btn-review-stop {
+/* ── Clear repertoire button ─────────────────────────────────────────────── */
+.btn-clear-rep {
   font-size: 0.65rem;
   padding: 0.22rem 0.65rem;
   margin-left: auto;
@@ -1113,100 +1098,15 @@
   color: rgba(239, 68, 68, 0.75);
 }
 
-.btn-review-stop:hover {
+.btn-clear-rep:hover {
   border-color: #ef4444;
   color: #ef4444;
   background: rgba(239, 68, 68, 0.06);
 }
 
-/* ── Review complete banner ──────────────────────────────────────────────── */
-.review-complete-banner {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  color: #22c55e;
-  background: rgba(34, 197, 94, 0.06);
-  border: 1px solid rgba(34, 197, 94, 0.20);
-  border-radius: 6px;
-  padding: 0.5rem 0.75rem;
-  margin-bottom: 0.5rem;
-  letter-spacing: 0.04em;
-}
-
-/* ── Review conflict panel ───────────────────────────────────────────────── */
-.review-panel {
-  background: rgba(201, 168, 76, 0.04);
-  border: 1px solid rgba(201, 168, 76, 0.20);
-  border-radius: 8px;
-  padding: 0.75rem 0.9rem;
-  margin-bottom: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.review-panel-header {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.63rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: rgba(201, 168, 76, 0.65);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.review-conflicts-count {
-  font-weight: 400;
-  color: rgba(201, 168, 76, 0.45);
-  letter-spacing: 0.06em;
-}
-
-.review-panel-prompt {
-  font-size: 0.78rem;
-  color: var(--text-dim);
-  margin: 0;
-  font-family: 'JetBrains Mono', monospace;
-  letter-spacing: 0.03em;
-}
-
-.review-move-choices {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.review-move-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 0.85rem;
-  background: var(--bg-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.82rem;
-  color: #e8dfca;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 0.15s, background 0.15s;
-  gap: 0.5rem;
-}
-
-.review-move-btn:hover {
-  border-color: rgba(201, 168, 76, 0.35);
-  background: rgba(201, 168, 76, 0.06);
-  color: #f0e8d5;
-}
-
-.review-move-opening {
-  font-size: 0.68rem;
-  color: var(--text-dim);
-  font-weight: 400;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 120px;
+.btn-clear-rep:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ── Opening info read-only label ────────────────────────────────────────── */

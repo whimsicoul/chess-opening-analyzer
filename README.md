@@ -6,12 +6,13 @@ A personal chess improvement tool for tracking opening repertoire adherence and 
 
 ## Features
 
-- **Games** — Import from Lichess or upload a PGN; view results by opening/ECO with move-by-move board playback
-- **Upload** — Drag-and-drop a single PGN to instantly analyze it against your repertoire; shows exactly where (and who) deviated
-- **Repertoire** — Build opening lines for White and Black via interactive board; live Lichess Cloud Eval shows top 3 engine moves
-- **Analytics** — Win/loss/draw rates, deviation tracker, and a zoomable sunburst chart of your opening tree
-- **Onboarding wizard** — Guided setup walks new users through building their first White and Black repertoire
-- **Settings** — Change username, email, or password; delete account
+- **Games** — Import from Lichess/Chess.com or drag-and-drop PGN uploads right on the Games page; view results by opening/ECO with move-by-move board playback
+- **Auto-built repertoire** — Uploading or importing games automatically builds/updates your White and Black opening trees from your own move history (most-played continuations per line); manually-added lines are merged, never overwritten. Each repertoire page shows when it was last auto-built and lets you force a rebuild
+- **Repertoire** — Build opening lines for White and Black via interactive board or paste PGN; live Lichess Cloud Eval shows top 3 engine moves
+- **Stats** — Win/loss/draw rates and a server-computed "Weakest Lines" breakdown (win rate, average opponent rating, sample size per repertoire line)
+- **Visualization** — Zoomable sunburst chart of your saved repertoire tree
+- **Onboarding wizard** — Guided setup walks new users through uploading games and building their first White and Black repertoire
+- **Settings** — Connect Lichess/Chess.com usernames (used to auto-detect your side on import), change username/email/password, delete account
 
 ## Stack
 
@@ -103,22 +104,28 @@ Open [http://localhost:5173](http://localhost:5173)
 chess-analyzer-web/
 ├── start.ps1
 ├── backend/
-│   ├── main.py             # App entrypoint, CORS, DB migration
-│   ├── db.py               # PostgreSQL helpers (supports DATABASE_URL or individual vars)
-│   ├── auth_utils.py       # JWT + password hashing
-│   ├── migrate.py          # Schema migration runner
+│   ├── main.py                     # App entrypoint, CORS, DB migration
+│   ├── db.py                       # PostgreSQL helpers (supports DATABASE_URL or individual vars)
+│   ├── auth_utils.py               # JWT + password hashing
+│   ├── email_utils.py              # Email verification sending
+│   ├── migrate.py                  # Schema migration runner
 │   └── routers/
-│       ├── auth.py         # Register, login, email verify, account settings
-│       ├── openings.py     # White repertoire CRUD, tree builder, cloud-eval proxy
-│       ├── black_openings.py  # Black repertoire CRUD + tree builder
-│       └── games.py        # PGN upload/import, deviation detection
+│       ├── auth.py                 # Register, login, email verify, account settings, platform usernames
+│       ├── openings.py             # White repertoire CRUD, tree builder, status/rebuild, weaknesses, cloud-eval proxy
+│       ├── black_openings.py       # Black repertoire CRUD, tree builder, status/rebuild
+│       ├── games.py                # PGN upload/import, deviation detection, triggers repertoire auto-build
+│       └── repertoire_builder.py   # Shared helper: builds/merges opening trees from a user's stored games
 └── frontend/src/
-    ├── App.jsx
-    ├── api.js              # Axios + JWT interceptors
+    ├── App.jsx                     # Routes (/upload, /analytics kept as redirects for old links)
+    ├── api.js                      # Axios + JWT interceptors
+    ├── context/
+    │   ├── AuthContext.jsx
+    │   └── OnboardingContext.jsx   # Guided-tour state
     ├── hooks/
-    │   └── useEngine.js    # Lichess Cloud Eval hook
+    │   └── useEngine.js            # Lichess Cloud Eval hook, falls back to local Stockfish WASM
     ├── components/
     │   ├── ChessBoardViewer.jsx
+    │   ├── EyeIcon.jsx
     │   ├── GuidanceModal.jsx
     │   ├── Navbar.jsx
     │   ├── OpeningSunburst.jsx
@@ -128,14 +135,12 @@ chess-analyzer-web/
     └── pages/
         ├── Home.jsx
         ├── Login.jsx / Register.jsx / VerifyEmail.jsx
-        ├── Games.jsx
-        ├── Upload.jsx          # Single-game PGN analyzer
-        ├── WhiteRepertoire.jsx
-        ├── BlackRepertoire.jsx
-        ├── Analytics.jsx       # Tabs: Stats + Visualization
-        ├── Stats.jsx
-        ├── Visualization.jsx
-        └── Settings.jsx
+        ├── Games.jsx                # Game table + playback + inline PGN upload/drag-drop
+        ├── WhiteRepertoire.jsx      # Includes auto-build status banner + rebuild control
+        ├── BlackRepertoire.jsx      # Includes auto-build status banner + rebuild control
+        ├── Stats.jsx                # Win/loss/draw rates, weakest-lines breakdown
+        ├── Visualization.jsx        # Sunburst chart of opening tree
+        └── Settings.jsx             # Account info, connected accounts, security, delete account
 ```
 
 ## Troubleshooting

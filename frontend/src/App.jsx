@@ -1,10 +1,8 @@
-import { useContext, useEffect } from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, AuthContext } from './context/AuthContext';
-import { OnboardingProvider, useOnboarding } from './context/OnboardingContext';
+import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
-import GuidanceModal from './components/GuidanceModal';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -17,8 +15,6 @@ import Visualization from './pages/Visualization';
 import Settings from './pages/Settings';
 
 function AppInner() {
-  const { tourActive, skipTour, startTour } = useOnboarding();
-
   useEffect(() => {
     const onMove = (e) => {
       const distX = window.innerWidth - e.clientX;
@@ -32,8 +28,7 @@ function AppInner() {
 
   return (
     <BrowserRouter>
-      <Navbar onOpenGuidance={startTour} />
-      <GuidanceModal open={tourActive} onClose={skipTour} />
+      <Navbar />
       <Routes>
         {/* Public */}
         <Route path="/"             element={<Home />} />
@@ -61,9 +56,7 @@ function AppInner() {
 export default function App() {
   return (
     <AuthProvider>
-      <OnboardingProvider>
-        <AppInner />
-      </OnboardingProvider>
+      <AppInner />
     </AuthProvider>
   );
 }
