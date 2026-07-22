@@ -53,6 +53,7 @@ def _migrate_black():
                 cur.execute("ALTER TABLE black_opening_tree ADD COLUMN IF NOT EXISTS opening_name TEXT;")
                 cur.execute("ALTER TABLE black_opening_tree ADD COLUMN IF NOT EXISTS eco_code TEXT;")
                 cur.execute("ALTER TABLE black_opening_tree ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;")
+                cur.execute("ALTER TABLE black_opening_tree ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'manual';")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_black_opening_tree_user_id ON black_opening_tree(user_id);")
             conn.commit()
             print("[migrate_black] OK")
@@ -75,6 +76,8 @@ def _migrate():
                     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
             """)
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS lichess_username TEXT;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS chesscom_username TEXT;")
 
             # Email verification codes
             cur.execute("""
@@ -114,6 +117,7 @@ def _migrate():
                     color        TEXT NOT NULL DEFAULT 'white'
                 )
             """)
+        conn.commit()
 
     try:
       _migrate_black()
@@ -184,6 +188,7 @@ def _migrate():
                     user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE
                 )
             """)
+            cur.execute("ALTER TABLE white_opening_tree ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'manual';")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_white_opening_tree_user_id ON white_opening_tree(user_id);")
 
             # Migrate legacy opening_tree table if it still exists
@@ -210,6 +215,20 @@ def _migrate():
                         COALESCE((SELECT MAX(id) FROM white_opening_tree), 1))
                 """)
                 cur.execute("DROP TABLE opening_tree;")
+
+            # ----------------------------------------------------------------
+            # Repertoire build bookkeeping (informational — auto-rebuild is
+            # additive/merging, so this is not used to gate or protect anything)
+            # ----------------------------------------------------------------
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS repertoire_builds (
+                    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    color       TEXT NOT NULL,
+                    built_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    games_count INTEGER,
+                    PRIMARY KEY (user_id, color)
+                )
+            """)
 
         conn.commit()
 
