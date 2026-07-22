@@ -259,6 +259,124 @@
   gap: 0.5rem;
 }
 
+/* ── Games section actions (clear button row) ────────────────────────────── */
+.games-section-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* ── My Games section ────────────────────────────────────────────────────── */
+.my-games-section {
+  margin-bottom: 1rem;
+}
+
+.my-games-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.25rem;
+  cursor: pointer;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #eceffe;
+  background: #111420;
+  border: 1px solid #1e2338;
+  border-radius: 10px;
+  text-align: left;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.my-games-toggle:hover {
+  border-color: #2e3560;
+  background: #131726;
+}
+
+.my-games-toggle-right {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.my-games-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #5c6180;
+}
+
+.my-games-toggle-arrow {
+  font-size: 0.8rem;
+  color: #5c6180;
+}
+
+.my-games-body {
+  border: 1px solid #1e2338;
+  border-top: none;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  padding: 1.25rem;
+  margin-top: -2px;
+}
+
+.my-games-filters {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.my-games-search {
+  flex: 1 1 240px;
+  background: #0d0f1a;
+  border: 1px solid #1e2338;
+  border-radius: 3px;
+  color: #eceffe;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.my-games-search:focus {
+  outline: none;
+  border-color: rgba(201,168,76,0.5);
+  box-shadow: 0 0 0 2px rgba(201,168,76,0.12);
+}
+
+.my-games-result-filter {
+  flex: 0 0 auto;
+  background: #0d0f1a;
+  border: 1px solid #1e2338;
+  border-radius: 3px;
+  color: #eceffe;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.875rem;
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235c6180' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  padding-right: 2rem;
+}
+
+.my-games-result-filter:focus {
+  outline: none;
+  border-color: rgba(201,168,76,0.5);
+  box-shadow: 0 0 0 2px rgba(201,168,76,0.12);
+}
+
+.my-games-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #1e2338;
+}
+
 /* ── Individual game card ────────────────────────────────────────────────── */
 .game-card {
   background: #111420;
