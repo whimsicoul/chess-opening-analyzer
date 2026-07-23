@@ -121,15 +121,22 @@
 }
 
 /* ── Notation ticker ── */
-/* Full-bleed, frames the bottom of the page after the feature grid. */
+/* Full-bleed; the bordered strip (line + moves, kept together) is
+   centered as one unit in the remaining space below the feature grid
+   (roughly halfway between the cards and the bottom of the viewport). */
+.notation-strip-wrap {
+  flex: 1;
+  min-height: 4rem;
+  display: flex;
+  align-items: center;
+}
+
 .notation-strip {
   border-top: 1px solid rgba(201, 168, 76, 0.1);
   overflow: hidden;
   position: relative;
   width: 100vw;
   margin-left: calc(50% - 50vw);
-  margin-top: 4rem;
-  flex-shrink: 0;
 }
 
 .notation-strip::before,
@@ -185,11 +192,9 @@
   z-index: 1;
   max-width: 1520px;
   margin: 0 auto;
-  padding: 3.5rem 3vw 6rem 2.5vw;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  padding: 3.5rem 3vw 0 2.5vw;
+  width: 100%;
+  flex-shrink: 0;
 }
 
 /* ── Feature grid ── */
