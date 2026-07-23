@@ -1,5 +1,5 @@
 .auth-page {
-  min-height: 80vh;
+  min-height: calc(100svh - 84px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -29,12 +29,12 @@
   background: rgba(14, 11, 8, 0.85);
   border: 1px solid rgba(201, 168, 76, 0.15);
   border-radius: 4px;
-  padding: 2.5rem 2rem;
+  padding: 7rem 4.25rem;
   width: 100%;
-  max-width: 420px;
+  max-width: 860px;
   position: relative;
   z-index: 1;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.08);
+  box-shadow: var(--shadow-lg);
 }
 
 .auth-card::before {
@@ -49,42 +49,42 @@
 
 .auth-card h1 {
   font-family: 'Cormorant Garamond', Georgia, serif;
-  font-size: 2.1rem;
+  font-size: 3rem;
   font-weight: 700;
   color: #f0e8d5;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.6rem;
   letter-spacing: -0.02em;
 }
 
 .auth-card .auth-subtitle {
-  font-size: 0.9rem;
+  font-size: 1.1rem;
   color: #4a5070;
-  margin-bottom: 2rem;
+  margin-bottom: 4rem;
 }
 
 .auth-field {
-  margin-bottom: 1.1rem;
+  margin-bottom: 2.4rem;
 }
 
 .auth-field label {
   display: block;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: #8890b0;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.65rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
 }
 
 .auth-field input {
   width: 100%;
-  padding: 0.7rem 0.9rem;
+  padding: 1.25rem 1.2rem;
   background: rgba(8, 6, 4, 0.6);
   border: 1px solid rgba(201, 168, 76, 0.12);
   border-radius: 3px;
   color: #e8dfca;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   outline: none;
   transition: border-color 0.15s;
   box-sizing: border-box;
@@ -127,24 +127,24 @@
 
 .auth-submit {
   width: 100%;
-  padding: 0.8rem;
+  padding: 1.3rem;
   background: #c9a84c;
   color: #0b0d14;
   font-family: 'JetBrains Mono', monospace;
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   border: none;
   border-radius: 3px;
   cursor: pointer;
   transition: background 0.15s, box-shadow 0.15s;
-  margin-top: 0.5rem;
+  margin-top: 1rem;
 }
 
 .auth-submit:hover {
   background: #d9b85c;
-  box-shadow: 0 0 20px rgba(201, 168, 76, 0.3);
+  box-shadow: 0 6px 24px rgba(201, 168, 76, 0.25);
 }
 
 .auth-submit:disabled {
@@ -154,7 +154,7 @@
 
 .auth-footer {
   text-align: center;
-  margin-top: 1.5rem;
+  margin-top: 2.25rem;
   font-size: 0.875rem;
   color: #5c6180;
 }
@@ -236,7 +236,7 @@
 .auth-remember {
   display: flex;
   align-items: center;
-  margin: 0.75rem 0 1.25rem;
+  margin: 1rem 0 1.75rem;
 }
 
 .auth-remember label {
