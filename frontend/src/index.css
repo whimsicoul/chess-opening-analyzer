@@ -72,8 +72,8 @@ body::after {
   background-size: 65px 65px;
   pointer-events: none;
   z-index: 0;
-  mask-image: radial-gradient(ellipse 80% 80% at 90% 10%, black 20%, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse 80% 80% at 90% 10%, black 20%, transparent 70%);
+  mask-image: radial-gradient(ellipse 65% 65% at 90% 10%, black 15%, transparent 50%);
+  -webkit-mask-image: radial-gradient(ellipse 65% 65% at 90% 10%, black 15%, transparent 50%);
   transition: width 12s cubic-bezier(0.0, 0, 0.2, 1),
               height 12s cubic-bezier(0.0, 0, 0.2, 1),
               opacity 3s ease;

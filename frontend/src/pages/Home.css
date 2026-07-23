@@ -9,19 +9,9 @@
   flex: 1;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
-
-/* ── Atmospheric background ── */
-.home::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 90% 55% at 75% 15%, rgba(201, 168, 76, 0.07) 0%, transparent 55%);
-  pointer-events: none;
-  z-index: 0;
-}
-
 
 /* ══════════════════════════════
    HERO
@@ -31,30 +21,55 @@
 .hero {
   position: relative;
   z-index: 1;
-  padding: 4.5rem 2rem 0 1.25rem;
-  max-width: 1200px;
+  padding: 5.5rem 3vw 0 2.5vw;
+  max-width: 1520px;
   margin: 0 auto;
+  flex-shrink: 0;
+  width: 100%;
+}
+
+/*
+  Ambient glow — the same soft gold bloom that used to sit behind the
+  logo, now anchored top-left behind "Know" instead. Static (no pulse).
+*/
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -320px;
+  left: -360px;
+  width: 1200px;
+  height: 1000px;
+  background: radial-gradient(
+    ellipse closest-side at 40% 45%,
+    rgba(201, 168, 76, 0.07) 0%,
+    rgba(201, 168, 76, 0.03) 35%,
+    transparent 65%
+  );
+  z-index: 0;
+  pointer-events: none;
 }
 
 /* ── Eyebrow ── */
 .hero-eyebrow {
+  position: relative;
+  z-index: 1;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 0.68rem;
+  font-size: 0.8rem;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.28em;
   color: #c9a84c;
-  margin-bottom: 1.75rem;
+  margin-bottom: 2.25rem;
   display: inline-flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: 1rem;
   animation: fadeSlideUp 0.6s 0.05s ease both;
 }
 
 .hero-eyebrow::before {
   content: '';
   display: block;
-  width: 32px;
+  width: 44px;
   height: 1px;
   background: linear-gradient(to right, #c9a84c, transparent);
   flex-shrink: 0;
@@ -62,23 +77,22 @@
 
 /* ── Headline ── */
 .hero-headline {
+  position: relative;
+  z-index: 1;
   font-family: 'Cormorant Garamond', Georgia, serif;
-  font-size: clamp(3.4rem, 6vw, 5.5rem);
+  font-size: clamp(4.2rem, 7.5vw, 7.25rem);
   font-weight: 700;
-  line-height: 1.06;
+  line-height: 1.05;
   letter-spacing: -0.025em;
   color: #f0e8d5;
-  margin: 0 0 2rem;
+  margin: 0 0 2.5rem;
   display: flex;
   flex-direction: column;
-  max-width: 900px;
+  max-width: 1150px;
 }
 
 .hl {
   display: block;
-  overflow: hidden;
-  padding-bottom: 0.15em;
-  margin-bottom: -0.15em;
 }
 
 /* "Know exactly where your" must stay on one line — it must not
@@ -96,10 +110,12 @@
 
 /* ── Sub-text ── */
 .hero-sub {
-  font-size: 1.15rem;
+  position: relative;
+  z-index: 1;
+  font-size: 1.45rem;
   color: #7a80a4;
-  max-width: 620px;
-  line-height: 1.75;
+  max-width: 780px;
+  line-height: 1.65;
   margin: 0;
   animation: fadeSlideUp 0.6s 0.55s ease both;
 }
@@ -113,6 +129,7 @@
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-top: 4rem;
+  flex-shrink: 0;
 }
 
 .notation-strip::before,
@@ -139,18 +156,18 @@
 .notation-inner {
   display: flex;
   gap: 0;
-  padding: 0.875rem 0;
+  padding: 1.15rem 0;
   animation: notationScroll 28s linear infinite;
   width: max-content;
 }
 
 .notation-inner span {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
+  font-size: 0.8rem;
   font-weight: 400;
   letter-spacing: 0.08em;
   color: rgba(201, 168, 76, 0.28);
-  padding: 0 2.5rem;
+  padding: 0 3rem;
   border-right: 1px solid rgba(201, 168, 76, 0.1);
   white-space: nowrap;
 }
@@ -166,34 +183,35 @@
 .features {
   position: relative;
   z-index: 1;
-  max-width: 1200px;
+  max-width: 1520px;
   margin: 0 auto;
-  padding: 3rem 2rem 5rem 1.25rem;
+  padding: 3.5rem 3vw 6rem 2.5vw;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 /* ── Feature grid ── */
 .features-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
-  overflow: hidden;
+  gap: 2rem;
 }
 
 .feature-card {
   display: flex;
-  gap: 1.1rem;
-  padding: 2.5rem 2rem 2.25rem;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  flex-direction: column;
+  gap: 1.75rem;
+  padding: 4.5rem 3rem 3.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  background: linear-gradient(165deg, rgba(201, 168, 76, 0.06), rgba(255, 255, 255, 0.015) 55%);
   position: relative;
-  transition: background 0.25s;
+  transition: background 0.25s, border-color 0.25s, transform 0.25s, box-shadow 0.25s;
   overflow: hidden;
   text-decoration: none;
   color: inherit;
-}
-
-.feature-card:last-child {
-  border-right: none;
 }
 
 /* Top accent line on hover */
@@ -203,11 +221,11 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
+  height: 2px;
   background: linear-gradient(
     to right,
     transparent,
-    rgba(201, 168, 76, 0.55),
+    rgba(201, 168, 76, 0.75),
     transparent
   );
   transform: scaleX(0);
@@ -218,19 +236,22 @@
 .feature-card::after {
   content: '';
   position: absolute;
-  bottom: -60px;
+  bottom: -80px;
   left: 50%;
   transform: translateX(-50%);
-  width: 120px;
-  height: 120px;
-  background: radial-gradient(ellipse, rgba(201, 168, 76, 0.1), transparent 70%);
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(ellipse, rgba(201, 168, 76, 0.16), transparent 70%);
   opacity: 0;
   transition: opacity 0.3s;
   pointer-events: none;
 }
 
 .feature-card:hover {
-  background: rgba(201, 168, 76, 0.025);
+  background: linear-gradient(165deg, rgba(201, 168, 76, 0.09), rgba(255, 255, 255, 0.02) 55%);
+  border-color: rgba(201, 168, 76, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(201, 168, 76, 0.1);
 }
 
 .feature-card:hover::before {
@@ -244,19 +265,18 @@
 /* ── Ghost number ── */
 .feature-num {
   font-family: 'Cormorant Garamond', Georgia, serif;
-  font-size: 4rem;
+  font-size: 7rem;
   font-weight: 700;
   line-height: 1;
-  color: rgba(201, 168, 76, 0.13);
+  color: rgba(201, 168, 76, 0.18);
   flex-shrink: 0;
   user-select: none;
   letter-spacing: -0.04em;
-  margin-top: -0.2rem;
   transition: color 0.25s;
 }
 
 .feature-card:hover .feature-num {
-  color: rgba(201, 168, 76, 0.25);
+  color: rgba(201, 168, 76, 0.32);
 }
 
 /* ── Feature body ── */
@@ -269,19 +289,19 @@
 .feature-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.85rem;
+  gap: 0.75rem;
+  margin-bottom: 1.1rem;
 }
 
 .feature-icon {
-  font-size: 0.95rem;
-  opacity: 0.6;
+  font-size: 1.4rem;
+  opacity: 0.7;
   flex-shrink: 0;
 }
 
 .feature-body h3 {
   font-family: 'Cormorant Garamond', Georgia, serif;
-  font-size: 1.2rem;
+  font-size: 2rem;
   font-weight: 600;
   color: #e8dfca;
   letter-spacing: 0.01em;
@@ -289,20 +309,20 @@
 }
 
 .feature-body p {
-  font-size: 0.85rem;
-  color: #525870;
-  line-height: 1.75;
-  margin-bottom: 1.75rem;
+  font-size: 1.1rem;
+  color: #6a7090;
+  line-height: 1.7;
+  margin-bottom: 2rem;
   flex: 1;
 }
 
 .feature-link {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
+  font-size: 0.8rem;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: rgba(201, 168, 76, 0.55);
+  color: rgba(201, 168, 76, 0.6);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -343,6 +363,17 @@
 /* ══════════════════════════════
    RESPONSIVE
 ══════════════════════════════ */
+@media (max-width: 1100px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .feature-card {
+    padding: 3.5rem 2.5rem;
+  }
+}
+
 @media (max-width: 860px) {
   .hero {
     text-align: center;
@@ -379,16 +410,15 @@
     padding: 2.5rem 1.25rem 4rem;
   }
 
-  .features-grid {
-    grid-template-columns: 1fr;
-  }
-
   .feature-card {
-    border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 2.75rem 2rem;
   }
 
-  .feature-card:last-child {
-    border-bottom: none;
+  .feature-num {
+    font-size: 5rem;
+  }
+
+  .feature-body h3 {
+    font-size: 1.6rem;
   }
 }
