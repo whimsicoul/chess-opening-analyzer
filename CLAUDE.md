@@ -15,19 +15,21 @@ A personal chess improvement tool that connects to users' game history, tracks a
 - Uploading/importing games automatically builds/updates the user's opening repertoire tree (see Repertoire)
 - Usable without an account (see Guest access below)
 
+### Analytics
+- Single page (`Analytics.jsx`) combining stats and visualization — not separate pages/routes
+- The step after uploading games: win/draw/loss rates, plus a server-computed "Weakest Lines" table (win rate, avg. opponent rating, sample size per repertoire line) that tells the user exactly where their opening prep is failing
+- Interactive sunburst chart of saved repertoire, segments zoomable, hover shows opening names and ECO codes
+- Clicking a weak line (or a sunburst segment) navigates to `/repertoire` with that line pre-loaded and highlighted, so the user can go straight from "here's a weakness" to "fix the repertoire" — see `navigate('/repertoire', { state: { moves, color } })` in `Analytics.jsx` and the matching nav-state effect in `Repertoire.jsx`
+- Usable without an account (see Guest access below)
+
 ### Repertoire
 - Single page (`Repertoire.jsx`) with a White ♔ / Black ♚ toggle — not separate pages/routes
+- The fix-it step reached from Analytics: expand or patch the lines Analytics flagged as weak, or build out the tree from scratch
 - Auto-built from uploaded game history (most-played continuations), and merged with manually-added lines — manual lines are never overwritten
 - Add lines manually via interactive board or paste PGN
 - Lichess Cloud Eval panel shows top 3 engine moves with evaluation scores (falls back to local Stockfish WASM if unavailable)
 - Save lines with name and ECO code
 - Shows an auto-build status banner (last built, games count) with a manual "Rebuild from Games" action
-- Usable without an account (see Guest access below)
-
-### Analytics
-- Single page (`Analytics.jsx`) combining stats and visualization — not separate pages/routes
-- Win/draw/loss rates, plus a server-computed "Weakest Lines" table (win rate, avg. opponent rating, sample size per repertoire line)
-- Interactive sunburst chart of saved repertoire, segments zoomable, hover shows opening names and ECO codes
 - Usable without an account (see Guest access below)
 
 ### Guest access
@@ -115,10 +117,10 @@ chess-analyzer-web/
 │ # Auth pages
 │ Games.jsx
 │ # Game table view, playback, and inline PGN upload/drag-drop; usable as a guest
-│ Repertoire.jsx
-│ # White/Black toggle; auto-build status banner + rebuild control; usable as a guest
 │ Analytics.jsx
-│ # Win/loss/draw stats, weakest-lines breakdown, sunburst chart; usable as a guest
+│ # Win/loss/draw stats, weakest-lines breakdown, sunburst chart; clicking a weak line jumps into Repertoire; usable as a guest
+│ Repertoire.jsx
+│ # White/Black toggle; auto-build status banner + rebuild control; can deep-load a line via nav state from Analytics; usable as a guest
 │ Settings.jsx
 │ # Account info, connected accounts, security, delete account — requires an account
 
@@ -148,9 +150,10 @@ chess-analyzer-web/
 - **UI/UX improvements:** prioritize minimal and chess-focused design; keep the White/Black toggle on Repertoire rather than splitting back into two pages, unless asked
 
 ## Cross-reference Hints
+- Intended user flow: upload/import games (`Games.jsx`) → review `Analytics.jsx` to see weakest lines → jump into `Repertoire.jsx` to fix them. Keep this ordering in nav, homepage copy, and docs unless asked otherwise
 - Upload/import PGN in frontend `Games.jsx` → triggers backend route `routers/games.py`, which also calls `repertoire_builder.py` to auto-update the tree
+- Stats (win/loss/draw, weakest lines) and sunburst visualization are both computed/served by the backend and rendered together in `Analytics.jsx`; clicking a weak line or sunburst segment navigates to `/repertoire` with `location.state.moves`/`color` so that line loads and highlights automatically
 - Adding a repertoire line in `Repertoire.jsx` → updates backend via `routers/openings.py` (White) or `routers/black_openings.py` (Black), selected by the page's color toggle
-- Stats (win/loss/draw, weakest lines) and sunburst visualization are both computed/served by the backend and rendered together in `Analytics.jsx`
 - Every route touching Games/Repertoire/Analytics data resolves its caller via `owner_utils.get_owner`, not a hard auth dependency — check there before assuming a route requires login
 
 ## Notes
