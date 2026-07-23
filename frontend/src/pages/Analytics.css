@@ -1,8 +1,25 @@
 /* ── Wider page container — matches Repertoire, avoids the default 980px cap ── */
-.page:has(.viz-layout) {
+.page:has(.viz-toolbar) {
   max-width: 100%;
   padding-left: 2rem;
   padding-right: 2rem;
+}
+
+/* ── Page header divider — matches Repertoire's gold underline ── */
+.page:has(.viz-toolbar) .page-header {
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.10);
+  position: relative;
+}
+
+.page:has(.viz-toolbar) .page-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 80px;
+  height: 1px;
+  background: linear-gradient(to right, #c9a84c, transparent);
 }
 
 /* ── Toolbar: color toggle + legend ── */
