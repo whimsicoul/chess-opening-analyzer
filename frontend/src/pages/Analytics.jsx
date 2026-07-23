@@ -1,7 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Chess } from 'chess.js';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
+import { useEngine } from '../hooks/useEngine';
 import OpeningSunburst from '../components/OpeningSunburst';
 import ChessBoardViewer from '../components/ChessBoardViewer';
 import './Analytics.css';
@@ -13,6 +15,14 @@ function movesToPgn(moves) {
   return moves
     .map((m, i) => (i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${m}` : m))
     .join(' ');
+}
+
+// Format a centipawn value as "+0.3" / "-1.2" from white's perspective
+function formatEval(cp, mate) {
+  if (mate != null) return mate > 0 ? `M${mate}` : `M${mate}`;
+  if (cp == null) return null;
+  const val = (cp / 100).toFixed(1);
+  return cp >= 0 ? `+${val}` : `${val}`;
 }
 
 function MoveSequence({ moves }) {
@@ -38,6 +48,7 @@ function MoveSequence({ moves }) {
 
 export default function Analytics() {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [color,       setColor      ] = useState('white');
   const [treeData,    setTreeData   ] = useState(null);
   const [winRates,    setWinRates   ] = useState({});
@@ -45,6 +56,36 @@ export default function Analytics() {
   const [error,       setError      ] = useState(null);
   const [activeMoves, setActiveMoves] = useState([]);
   const [activeInfo,  setActiveInfo ] = useState(null);
+  const [weakLines,   setWeakLines  ] = useState([]);
+
+  // Live board built from the hovered/selected sunburst node — feeds both the
+  // engine mini-readout below and the "Open in Repertoire" click-through.
+  const activeBoard = useMemo(() => {
+    if (!activeMoves.length) return null;
+    const g = new Chess();
+    for (const san of activeMoves) {
+      try {
+        if (!g.move(san)) return null;
+      } catch {
+        return null;
+      }
+    }
+    return g;
+  }, [activeMoves]);
+
+  const { evalData, evalLoading } = useEngine(activeBoard, { engineMode: false });
+  const topEval = evalData?.pvs?.[0] ? formatEval(evalData.pvs[0].cp, evalData.pvs[0].mate ?? null) : null;
+  const topMoveSan = useMemo(() => {
+    const uci = evalData?.pvs?.[0]?.moves?.split(' ')[0];
+    if (!uci || !activeBoard) return null;
+    try {
+      const preview = new Chess(activeBoard.fen());
+      const move = preview.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] || 'q' });
+      return move?.san ?? null;
+    } catch {
+      return null;
+    }
+  }, [evalData, activeBoard]);
 
   useEffect(() => {
     setLoading(true);
@@ -52,10 +93,12 @@ export default function Analytics() {
     Promise.all([
       api.get(color === 'black' ? '/openings/black/tree' : '/openings/tree'),
       api.get('/openings/winrates', { params: { color } }),
+      api.get('/openings/weaknesses', { params: { color, min_games: 5, max_win_rate: 45 } }),
     ])
-      .then(([treeRes, wrRes]) => {
+      .then(([treeRes, wrRes, weakRes]) => {
         setTreeData(treeRes.data);
         setWinRates(wrRes.data);
+        setWeakLines(weakRes.data ?? []);
       })
       .catch(() => setError('Failed to load data.'))
       .finally(() => setLoading(false));
@@ -113,6 +156,9 @@ export default function Analytics() {
           <span className="viz-legend-item">
             <span className="viz-legend-dot" style={{ background: 'hsl(220,12%,22%)' }} />No data
           </span>
+          <span className="viz-legend-item">
+            <span className="viz-legend-dot viz-legend-dot-outline" style={{ borderColor: '#ff4d4f' }} />Weak spot (3+ games, &lt;30% wins)
+          </span>
         </div>
       </div>
 
@@ -153,6 +199,27 @@ export default function Analytics() {
               winRates={winRates}
               onActivePath={handleActivePath}
             />
+
+            {weakLines.length > 0 && (
+              <div className="viz-weak-lines">
+                <div className="card-label">Weakest Lines</div>
+                <div className="viz-weak-list">
+                  {weakLines.slice(0, 8).map(w => (
+                    <button
+                      key={w.node_id}
+                      type="button"
+                      className="viz-weak-row"
+                      onMouseEnter={() => handleActivePath(w.path, { name: w.move_san, id: w.node_id })}
+                      onClick={() => navigate('/repertoire', { state: { moves: w.path, color } })}
+                    >
+                      <span className="viz-weak-path">{w.path.join(' ')}</span>
+                      <span className="badge badge-red">{w.winRate.toFixed(0)}%</span>
+                      <span className="viz-weak-sample">{w.total}g</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── Right: Info + Board ─────────────────────────────────────── */}
@@ -179,7 +246,15 @@ export default function Analytics() {
                       <span className={`badge ${cls}`}>{wr.toFixed(1)}% win rate</span>
                       <span className="viz-node-record">{s.wins}W · {s.draws}D · {s.losses}L</span>
                       {s.avgOppRating != null && (
-                        <span className="viz-node-rating">Avg opp rating: <strong>{s.avgOppRating}</strong></span>
+                        <span className="viz-node-rating">
+                          Avg opp rating: <strong>{s.avgOppRating}</strong>
+                          {s.ratingMin != null && s.ratingMax != null && (
+                            <> ({s.ratingMin}–{s.ratingMax})</>
+                          )}
+                        </span>
+                      )}
+                      {s.lastPlayed && (
+                        <span className="viz-node-last-played">Last played: <strong>{s.lastPlayed}</strong></span>
                       )}
                     </div>
                   );
@@ -188,6 +263,26 @@ export default function Analytics() {
                     <span className="muted" style={{ fontSize: '0.78rem' }}>No game data for this position</span>
                   </div>
                 )}
+
+                {/* Inline engine opinion */}
+                <div className="viz-engine-mini">
+                  {evalLoading && !topEval ? (
+                    <span className="muted" style={{ fontSize: '0.78rem' }}>Checking engine…</span>
+                  ) : topEval ? (
+                    <span className="viz-engine-mini-line">
+                      Engine: <strong className={topEval.startsWith('-') ? 'eval-neg' : 'eval-pos'}>{topEval}</strong>
+                      {topMoveSan && <> · best: <strong>{topMoveSan}</strong></>}
+                    </span>
+                  ) : null}
+                </div>
+
+                <button
+                  type="button"
+                  className="btn btn-ghost viz-open-repertoire-btn"
+                  onClick={() => navigate('/repertoire', { state: { moves: activeMoves, color } })}
+                >
+                  Open in Repertoire →
+                </button>
               </div>
             ) : (
               <div className="viz-idle">
