@@ -1,6 +1,8 @@
-/* ── Wider page container (sunburst + board need more room) ── */
+/* ── Wider page container — matches Repertoire, avoids the default 980px cap ── */
 .page:has(.viz-layout) {
-  max-width: 1680px;
+  max-width: 100%;
+  padding-left: 2rem;
+  padding-right: 2rem;
 }
 
 /* ── Toolbar: color toggle + legend ── */
@@ -45,7 +47,7 @@
 /* ── Two-column layout ── */
 .viz-layout {
   display: grid;
-  grid-template-columns: minmax(0, 760px) minmax(560px, 820px);
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   gap: 2.5rem;
   align-items: start;
 }

@@ -1,6 +1,6 @@
 /* ── Wider page layout — matches Repertoire, avoids the default 980px cap ── */
 .games-page.page {
-  max-width: 1400px;
+  max-width: 100%;
   padding-left: 2rem;
   padding-right: 2rem;
 }
