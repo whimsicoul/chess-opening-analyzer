@@ -1,6 +1,7 @@
+import hashlib
 import io
 import re
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, File, Form
 from pydantic import BaseModel
 import chess.pgn
 from db import get_connection
@@ -152,18 +153,37 @@ def _process_pgn(cur, pgn_text: str, username: str | None, owner: Owner) -> dict
         opponent_rating = None
 
     moves = _extract_moves(game)
+    pgn_hash = hashlib.md5(pgn_text.encode("utf-8")).hexdigest()
 
-    cur.execute(
-        """
-        INSERT INTO games (result, eco_code, opening_name, game_date, pgn,
-                           player_color, white_player, black_player, user_id, guest_id, opponent_rating)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id
-        """,
-        (result, eco_code, opening_name, game_date, pgn_text,
-         player_color, white or None, black or None, owner.user_id, owner.guest_id, opponent_rating),
-    )
-    game_id = cur.fetchone()["id"]
+    if owner.user_id is not None:
+        cur.execute(
+            """
+            INSERT INTO games (result, eco_code, opening_name, game_date, pgn, pgn_hash,
+                               player_color, white_player, black_player, user_id, guest_id, opponent_rating)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (user_id, pgn_hash) WHERE user_id IS NOT NULL DO NOTHING
+            RETURNING id
+            """,
+            (result, eco_code, opening_name, game_date, pgn_text, pgn_hash,
+             player_color, white or None, black or None, owner.user_id, owner.guest_id, opponent_rating),
+        )
+    else:
+        cur.execute(
+            """
+            INSERT INTO games (result, eco_code, opening_name, game_date, pgn, pgn_hash,
+                               player_color, white_player, black_player, user_id, guest_id, opponent_rating)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (guest_id, pgn_hash) WHERE guest_id IS NOT NULL DO NOTHING
+            RETURNING id
+            """,
+            (result, eco_code, opening_name, game_date, pgn_text, pgn_hash,
+             player_color, white or None, black or None, owner.user_id, owner.guest_id, opponent_rating),
+        )
+
+    row = cur.fetchone()
+    if row is None:
+        return {"skipped": True, "reason": "duplicate"}
+    game_id = row["id"]
 
     deviation = _detect_deviation(cur, moves, owner, player_color)
     deviation_id = None
@@ -198,11 +218,12 @@ def _process_pgn(cur, pgn_text: str, username: str | None, owner: Owner) -> dict
 # POST /games/upload
 # ---------------------------------------------------------------------------
 
-@router.post("/upload", status_code=201)
+@router.post("/upload")
 async def upload_game(
     file: UploadFile = File(...),
     username: str = Form(None),
     owner: Owner = Depends(get_owner),
+    response: Response = None,
 ):
     from routers.repertoire_builder import build_tree_from_games
 
@@ -210,6 +231,10 @@ async def upload_game(
     with get_connection() as conn:
         with conn.cursor() as cur:
             result = _process_pgn(cur, pgn_text, username, owner)
+            if result.get("skipped"):
+                response.status_code = 200
+                return result
+            response.status_code = 201
             player_color = result.get("player_color")
             if player_color:
                 build_tree_from_games(cur, owner, player_color)
@@ -231,6 +256,7 @@ def import_games(payload: ImportRequest, owner: Owner = Depends(get_owner)):
     from routers.repertoire_builder import build_tree_from_games
 
     imported = 0
+    duplicates = 0
     errors = []
     colors_seen: set[str] = set()
     with get_connection() as conn:
@@ -238,6 +264,9 @@ def import_games(payload: ImportRequest, owner: Owner = Depends(get_owner)):
             for i, pgn_text in enumerate(payload.pgns):
                 try:
                     result = _process_pgn(cur, pgn_text, payload.username, owner)
+                    if result.get("skipped"):
+                        duplicates += 1
+                        continue
                     imported += 1
                     if result.get("player_color"):
                         colors_seen.add(result["player_color"])
@@ -248,7 +277,7 @@ def import_games(payload: ImportRequest, owner: Owner = Depends(get_owner)):
             for color in colors_seen:
                 repertoire_rebuilt[color] = build_tree_from_games(cur, owner, color)
         conn.commit()
-    return {"imported": imported, "errors": errors, "repertoire_rebuilt": repertoire_rebuilt}
+    return {"imported": imported, "duplicates": duplicates, "errors": errors, "repertoire_rebuilt": repertoire_rebuilt}
 
 
 # ---------------------------------------------------------------------------
