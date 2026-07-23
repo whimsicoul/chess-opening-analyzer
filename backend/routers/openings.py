@@ -5,7 +5,7 @@ import requests as http
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from db import get_connection
-from auth_utils import get_current_user, get_current_user_optional
+from owner_utils import Owner, get_owner
 
 router = APIRouter(prefix="/openings", tags=["openings"])
 
@@ -20,7 +20,7 @@ class OpeningCreate(BaseModel):
 # Internal helper — sync white_opening_tree for a user from their manual lines
 # ---------------------------------------------------------------------------
 
-def _sync_tree(cur, user_id: int, lines: list):
+def _sync_tree(cur, owner: Owner, lines: list):
     """Insert/update tree nodes for the given manual lines, then prune any
     manual-source node no longer covered by any of them. Games-derived nodes
     (source='games') are never touched here — manual and games-derived trees
@@ -37,8 +37,8 @@ def _sync_tree(cur, user_id: int, lines: list):
             except Exception:
                 break
             cur.execute(
-                "SELECT id FROM white_opening_tree WHERE parent_id = %s AND move_san = %s AND user_id = %s",
-                (parent_id, san, user_id),
+                f"SELECT id FROM white_opening_tree WHERE parent_id = %s AND move_san = %s AND {owner.clause()}",
+                (parent_id, san, owner.value),
             )
             row = cur.fetchone()
             if row:
@@ -46,10 +46,10 @@ def _sync_tree(cur, user_id: int, lines: list):
             else:
                 cur.execute(
                     """
-                    INSERT INTO white_opening_tree (parent_id, move_san, opening_name, eco_code, user_id, source)
-                    VALUES (%s, %s, %s, %s, %s, 'manual') RETURNING id
+                    INSERT INTO white_opening_tree (parent_id, move_san, opening_name, eco_code, user_id, guest_id, source)
+                    VALUES (%s, %s, %s, %s, %s, %s, 'manual') RETURNING id
                     """,
-                    (parent_id, san, line["opening_name"], line["eco_code"], user_id),
+                    (parent_id, san, line["opening_name"], line["eco_code"], owner.user_id, owner.guest_id),
                 )
                 parent_id = cur.fetchone()["id"]
             kept_ids.add(parent_id)
@@ -59,15 +59,15 @@ def _sync_tree(cur, user_id: int, lines: list):
     # up front, so a parent and its now-unreachable children are all deleted
     # together regardless of ON DELETE CASCADE ordering.
     cur.execute(
-        "SELECT id FROM white_opening_tree WHERE user_id = %s AND source = 'manual'",
-        (user_id,),
+        f"SELECT id FROM white_opening_tree WHERE {owner.clause()} AND source = 'manual'",
+        (owner.value,),
     )
     manual_ids = [r["id"] for r in cur.fetchall()]
     orphans = [nid for nid in manual_ids if nid not in kept_ids]
     if orphans:
         cur.execute(
-            "DELETE FROM white_opening_tree WHERE id = ANY(%s) AND user_id = %s",
-            (orphans, user_id),
+            f"DELETE FROM white_opening_tree WHERE id = ANY(%s) AND {owner.clause()}",
+            (orphans, owner.value),
         )
 
 
@@ -76,14 +76,12 @@ def _sync_tree(cur, user_id: int, lines: list):
 # ---------------------------------------------------------------------------
 
 @router.get("/")
-def get_openings(current_user: dict | None = Depends(get_current_user_optional)):
-    if current_user is None:
-        return []
+def get_openings(owner: Owner = Depends(get_owner)):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT * FROM white_opening WHERE user_id = %s ORDER BY id",
-                (current_user["user_id"],),
+                f"SELECT * FROM white_opening WHERE {owner.clause()} ORDER BY id",
+                (owner.value,),
             )
             return cur.fetchall()
 
@@ -93,15 +91,13 @@ def get_openings(current_user: dict | None = Depends(get_current_user_optional))
 # ---------------------------------------------------------------------------
 
 @router.get("/status")
-def get_status(current_user: dict | None = Depends(get_current_user_optional)):
+def get_status(owner: Owner = Depends(get_owner)):
     """Return games-based repertoire build metadata for the white tree, if any."""
-    if current_user is None:
-        return {"built_at": None, "games_count": None}
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT built_at, games_count FROM repertoire_builds WHERE user_id = %s AND color = 'white'",
-                (current_user["user_id"],),
+                f"SELECT built_at, games_count FROM repertoire_builds WHERE {owner.clause()} AND color = 'white'",
+                (owner.value,),
             )
             row = cur.fetchone()
     return row or {"built_at": None, "games_count": None}
@@ -112,15 +108,13 @@ def get_status(current_user: dict | None = Depends(get_current_user_optional)):
 # ---------------------------------------------------------------------------
 
 @router.post("/", status_code=201)
-def create_opening(opening: OpeningCreate, current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user_id"]
-
+def create_opening(opening: OpeningCreate, owner: Owner = Depends(get_owner)):
     with get_connection() as conn:
         with conn.cursor() as cur:
             # Deduplicate: return existing line if same moves already exist for this user
             cur.execute(
-                "SELECT * FROM white_opening WHERE user_id = %s AND moves = %s",
-                (user_id, opening.moves),
+                f"SELECT * FROM white_opening WHERE {owner.clause()} AND moves = %s",
+                (owner.value, opening.moves),
             )
             existing = cur.fetchone()
             if existing:
@@ -128,20 +122,20 @@ def create_opening(opening: OpeningCreate, current_user: dict = Depends(get_curr
 
             cur.execute(
                 """
-                INSERT INTO white_opening (opening_name, eco_code, moves, user_id)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO white_opening (opening_name, eco_code, moves, user_id, guest_id)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING *
                 """,
-                (opening.opening_name, opening.eco_code, opening.moves, user_id),
+                (opening.opening_name, opening.eco_code, opening.moves, owner.user_id, owner.guest_id),
             )
             new_line = cur.fetchone()
 
             # Rebuild opening tree (includes the new line)
             cur.execute(
-                "SELECT opening_name, eco_code, moves FROM white_opening WHERE user_id = %s",
-                (user_id,),
+                f"SELECT opening_name, eco_code, moves FROM white_opening WHERE {owner.clause()}",
+                (owner.value,),
             )
-            _sync_tree(cur, user_id, cur.fetchall())
+            _sync_tree(cur, owner, cur.fetchall())
             conn.commit()
             return new_line
 
@@ -151,35 +145,31 @@ def create_opening(opening: OpeningCreate, current_user: dict = Depends(get_curr
 # ---------------------------------------------------------------------------
 
 @router.get("/tree")
-def get_opening_tree(current_user: dict | None = Depends(get_current_user_optional)):
+def get_opening_tree(owner: Owner = Depends(get_owner)):
     """Return the user's white opening tree as a nested JSON structure."""
-    if current_user is None:
-        return {"name": "start", "id": 0, "children": []}
-    uid = current_user["user_id"]
-
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, parent_id, move_san, opening_name, eco_code "
-                "FROM white_opening_tree WHERE user_id = %s ORDER BY id",
-                (uid,),
+                f"SELECT id, parent_id, move_san, opening_name, eco_code "
+                f"FROM white_opening_tree WHERE {owner.clause()} ORDER BY id",
+                (owner.value,),
             )
             rows = cur.fetchall()
 
             # Auto-sync: if tree is empty but flat lines exist, rebuild now
             if not rows:
                 cur.execute(
-                    "SELECT opening_name, eco_code, moves FROM white_opening WHERE user_id = %s",
-                    (uid,),
+                    f"SELECT opening_name, eco_code, moves FROM white_opening WHERE {owner.clause()}",
+                    (owner.value,),
                 )
                 existing_lines = cur.fetchall()
                 if existing_lines:
-                    _sync_tree(cur, uid, existing_lines)
+                    _sync_tree(cur, owner, existing_lines)
                     conn.commit()
                     cur.execute(
-                        "SELECT id, parent_id, move_san, opening_name, eco_code "
-                        "FROM white_opening_tree WHERE user_id = %s ORDER BY id",
-                        (uid,),
+                        f"SELECT id, parent_id, move_san, opening_name, eco_code "
+                        f"FROM white_opening_tree WHERE {owner.clause()} ORDER BY id",
+                        (owner.value,),
                     )
                     rows = cur.fetchall()
 
@@ -213,17 +203,17 @@ def get_opening_tree(current_user: dict | None = Depends(get_current_user_option
 # GET /openings/winrates & GET /openings/weaknesses — shared computation
 # ---------------------------------------------------------------------------
 
-def _compute_winrates(cur, uid: int, color: str) -> tuple[dict[int, dict], dict[int, dict]]:
+def _compute_winrates(cur, owner: Owner, color: str) -> tuple[dict[int, dict], dict[int, dict]]:
     """Return (stats_by_node_id, node_by_id) — win/draw/loss stats and tree
-    node metadata (id, parent_id, move_san) for the given user/color."""
+    node metadata (id, parent_id, move_san) for the given owner/color."""
     import io
     import chess.pgn as cpgn
 
     tree_table = "white_opening_tree" if color == "white" else "black_opening_tree"
 
     cur.execute(
-        f"SELECT id, parent_id, move_san FROM {tree_table} WHERE user_id = %s",
-        (uid,),
+        f"SELECT id, parent_id, move_san FROM {tree_table} WHERE {owner.clause()}",
+        (owner.value,),
     )
     rows = cur.fetchall()
     node_by_id = {r["id"]: r for r in rows}
@@ -235,8 +225,8 @@ def _compute_winrates(cur, uid: int, color: str) -> tuple[dict[int, dict], dict[
         children_map.setdefault(pid, []).append((row["id"], row["move_san"]))
 
     cur.execute(
-        "SELECT pgn, result, opponent_rating FROM games WHERE user_id = %s AND player_color = %s",
-        (uid, color),
+        f"SELECT pgn, result, opponent_rating, game_date FROM games WHERE {owner.clause()} AND player_color = %s",
+        (owner.value, color),
     )
     games = cur.fetchall()
 
@@ -266,16 +256,29 @@ def _compute_winrates(cur, uid: int, color: str) -> tuple[dict[int, dict], dict[
 
             node_id = match[0]
             if node_id not in stats:
-                stats[node_id] = {"wins": 0, "draws": 0, "losses": 0, "rating_sum": 0, "rating_count": 0}
+                stats[node_id] = {
+                    "wins": 0, "draws": 0, "losses": 0,
+                    "rating_sum": 0, "rating_count": 0,
+                    "rating_min": None, "rating_max": None,
+                    "last_played": None,
+                }
+            s = stats[node_id]
             if win:
-                stats[node_id]["wins"] += 1
+                s["wins"] += 1
             elif draw:
-                stats[node_id]["draws"] += 1
+                s["draws"] += 1
             else:
-                stats[node_id]["losses"] += 1
-            if game["opponent_rating"] is not None:
-                stats[node_id]["rating_sum"] += game["opponent_rating"]
-                stats[node_id]["rating_count"] += 1
+                s["losses"] += 1
+            rating = game["opponent_rating"]
+            if rating is not None:
+                s["rating_sum"] += rating
+                s["rating_count"] += 1
+                s["rating_min"] = rating if s["rating_min"] is None else min(s["rating_min"], rating)
+                s["rating_max"] = rating if s["rating_max"] is None else max(s["rating_max"], rating)
+            played_on = game["game_date"]
+            if played_on is not None:
+                if s["last_played"] is None or played_on > s["last_played"]:
+                    s["last_played"] = played_on
             parent_id = node_id
 
     result_map = {}
@@ -289,6 +292,9 @@ def _compute_winrates(cur, uid: int, color: str) -> tuple[dict[int, dict], dict[
             "total": total,
             "winRate": s["wins"] / total * 100,
             "avgOppRating": round(avg_opp_rating) if avg_opp_rating is not None else None,
+            "ratingMin": s["rating_min"],
+            "ratingMax": s["rating_max"],
+            "lastPlayed": s["last_played"].isoformat() if s["last_played"] is not None else None,
         }
 
     return result_map, node_by_id
@@ -306,17 +312,14 @@ def _reconstruct_path(node_by_id: dict, node_id: int) -> list[str]:
 
 
 @router.get("/winrates")
-def get_opening_winrates(color: str, current_user: dict | None = Depends(get_current_user_optional)):
+def get_opening_winrates(color: str, owner: Owner = Depends(get_owner)):
     """Return win/draw/loss stats per opening tree node for the given color."""
     if color not in ("white", "black"):
         raise HTTPException(status_code=400, detail="color must be 'white' or 'black'")
-    if current_user is None:
-        return {}
-    uid = current_user["user_id"]
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            result_map, _ = _compute_winrates(cur, uid, color)
+            result_map, _ = _compute_winrates(cur, owner, color)
 
     return result_map
 
@@ -330,18 +333,15 @@ def get_weaknesses(
     color: str,
     min_games: int = 5,
     max_win_rate: float = 45.0,
-    current_user: dict | None = Depends(get_current_user_optional),
+    owner: Owner = Depends(get_owner),
 ):
     """Return opening tree nodes with a low win rate, above a minimum sample size."""
     if color not in ("white", "black"):
         raise HTTPException(status_code=400, detail="color must be 'white' or 'black'")
-    if current_user is None:
-        return []
-    uid = current_user["user_id"]
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            stats, node_by_id = _compute_winrates(cur, uid, color)
+            stats, node_by_id = _compute_winrates(cur, owner, color)
 
     weak = [
         {
@@ -362,15 +362,14 @@ def get_weaknesses(
 # ---------------------------------------------------------------------------
 
 @router.post("/rebuild")
-def rebuild_from_games(current_user: dict = Depends(get_current_user)):
+def rebuild_from_games(owner: Owner = Depends(get_owner)):
     """Force a games-based rebuild of the white opening tree. Additive — never
     deletes manually-added lines."""
     from routers.repertoire_builder import build_tree_from_games
 
-    uid = current_user["user_id"]
     with get_connection() as conn:
         with conn.cursor() as cur:
-            result = build_tree_from_games(cur, uid, "white")
+            result = build_tree_from_games(cur, owner, "white")
         conn.commit()
     return result
 
@@ -488,16 +487,14 @@ def get_cloud_eval(fen: str, multiPv: int = 1):
 # ---------------------------------------------------------------------------
 
 @router.delete("/", status_code=204)
-def clear_openings(current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user_id"]
-
+def clear_openings(owner: Owner = Depends(get_owner)):
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM white_opening WHERE user_id = %s", (user_id,))
-            cur.execute("DELETE FROM white_opening_tree WHERE user_id = %s", (user_id,))
+            cur.execute(f"DELETE FROM white_opening WHERE {owner.clause()}", (owner.value,))
+            cur.execute(f"DELETE FROM white_opening_tree WHERE {owner.clause()}", (owner.value,))
             cur.execute(
-                "DELETE FROM repertoire_builds WHERE user_id = %s AND color = 'white'",
-                (user_id,),
+                f"DELETE FROM repertoire_builds WHERE {owner.clause()} AND color = 'white'",
+                (owner.value,),
             )
             conn.commit()
 
@@ -509,23 +506,21 @@ def clear_openings(current_user: dict = Depends(get_current_user)):
 @router.delete("/{opening_id}", status_code=204)
 def delete_opening(
     opening_id: int,
-    current_user: dict = Depends(get_current_user),
+    owner: Owner = Depends(get_owner),
 ):
-    user_id = current_user["user_id"]
-
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM white_opening WHERE id = %s AND user_id = %s RETURNING id",
-                (opening_id, user_id),
+                f"DELETE FROM white_opening WHERE id = %s AND {owner.clause()} RETURNING id",
+                (opening_id, owner.value),
             )
             if cur.fetchone() is None:
                 raise HTTPException(status_code=404, detail="Opening not found")
 
             # Rebuild tree from remaining lines
             cur.execute(
-                "SELECT opening_name, eco_code, moves FROM white_opening WHERE user_id = %s",
-                (user_id,),
+                f"SELECT opening_name, eco_code, moves FROM white_opening WHERE {owner.clause()}",
+                (owner.value,),
             )
-            _sync_tree(cur, user_id, cur.fetchall())
+            _sync_tree(cur, owner, cur.fetchall())
             conn.commit()

@@ -463,7 +463,6 @@ export default function Repertoire() {
   }
 
   async function handleRebuild() {
-    if (!isAuthenticated) { requireAuth(); return; }
     setRebuilding(true);
     try {
       await api.post(rebuildEndpoint);
@@ -492,6 +491,23 @@ export default function Repertoire() {
     fetchRepertoireStatus();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [color]);
+
+  // Consume a line handed off via navigate('/repertoire', { state: { moves, color } })
+  // (e.g. "Open in Repertoire" on the Analytics sunburst). Ref-guarded so it only
+  // fires once per navigation, not on every re-render.
+  const consumedNavStateRef = useRef(false);
+  useEffect(() => {
+    if (consumedNavStateRef.current) return;
+    const navState = location.state;
+    if (!navState?.moves?.length) return;
+    consumedNavStateRef.current = true;
+    if (navState.color && navState.color !== color) {
+      setColor(navState.color);
+    }
+    loadPosition(navState.moves);
+    navigate(location.pathname, { replace: true, state: null });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   // Explorer: fetch Masters data + eco autofill whenever position changes (debounced 500ms)
@@ -543,11 +559,10 @@ export default function Repertoire() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [explorerTab, boardGame]);
 
-  // Auto-save: debounced 1.5s after any move (guests can play freely, but
-  // nothing is persisted — never fire the network call for them)
+  // Auto-save: debounced 1.5s after any move (guests are saved too, scoped
+  // to their anonymous guest_id cookie)
   useEffect(() => {
     if (allMoves.length === 0) return;
-    if (!isAuthenticated) return;
     setSaveStatus('saving');
     const timer = setTimeout(async () => {
       try {
@@ -578,7 +593,6 @@ export default function Repertoire() {
   // ── Actions ────────────────────────────────────────────────────────────────
 
   async function handleDeleteFromMove(path) {
-    if (!isAuthenticated) { requireAuth(); return; }
     const matchingLines = lines.filter(line => {
       const tokens = (line.moves || '').split(/\s+/).filter(Boolean);
       return path.length <= tokens.length &&
@@ -628,7 +642,6 @@ export default function Repertoire() {
   // ── Clear repertoire (both colors) ──────────────────────────────────────────
 
   async function handleClearRepertoire() {
-    if (!isAuthenticated) { requireAuth(); return; }
     if (!window.confirm('Clear your entire repertoire — both White and Black lines? This cannot be undone.')) return;
     setClearing(true);
     try {
@@ -707,17 +720,17 @@ export default function Repertoire() {
           )}
         </div>
 
-        {isAuthenticated && saveStatus && (
+        {saveStatus && (
           <div className={`save-status save-status-${saveStatus}`}>
             {saveStatus === 'saving' && 'Saving…'}
             {saveStatus === 'saved'  && 'Saved ✓'}
             {saveStatus === 'error'  && 'Save error'}
           </div>
         )}
-        {!isAuthenticated && allMoves.length > 0 && (
+        {!isAuthenticated && saveStatus === 'saved' && (
           <div className="save-status">
             <button type="button" className="save-status-signin-link" onClick={requireAuth}>
-              Sign in to save this line
+              Sign in to sync this repertoire across devices
             </button>
           </div>
         )}
@@ -725,9 +738,7 @@ export default function Repertoire() {
         <div className="live-tree-scroll">
           {isEmpty ? (
             <p className="engine-empty muted">
-              {isAuthenticated
-                ? 'No lines saved yet — play some moves above'
-                : 'Play some moves above to explore — sign in to save your repertoire'}
+              No lines saved yet — play some moves above
             </p>
           ) : (
             displayTree.children.map(child => (

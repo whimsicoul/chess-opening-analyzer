@@ -203,7 +203,7 @@ function FilterSection({ onFetch, loading }) {
 
 // ── Upload section ────────────────────────────────────────────────────────────
 
-function UploadSection({ onGameAnalyzed, isAuthenticated, requireAuth }) {
+function UploadSection({ onGameAnalyzed }) {
   const [open,      setOpen]      = useState(false);
   const [file,      setFile]      = useState(null);
   const [pgnText,   setPgnText]   = useState(null);
@@ -226,7 +226,6 @@ function UploadSection({ onGameAnalyzed, isAuthenticated, requireAuth }) {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!file) return;
-    if (!isAuthenticated) { requireAuth(); return; }
     setLoading(true);
     setResult(null);
     setError(null);
@@ -301,7 +300,7 @@ function UploadSection({ onGameAnalyzed, isAuthenticated, requireAuth }) {
             </div>
 
             <button className="btn upload-btn" type="submit" disabled={loading || !file}>
-              {loading ? 'Analyzing…' : isAuthenticated ? 'Analyze Game' : 'Sign in to Analyze Game'}
+              {loading ? 'Analyzing…' : 'Analyze Game'}
             </button>
           </form>
 
@@ -635,7 +634,6 @@ export default function Games() {
 
   // Import fetched games into backend
   async function handleImport() {
-    if (!isAuthenticated) { requireAuth(); return; }
     setImportLoading(true);
     setImportResult(null);
     const pgns = fetchedGames.filter(g => g.pgn).map(g => g.pgn);
@@ -652,7 +650,6 @@ export default function Games() {
 
   // Clear all saved games from backend
   async function handleClear() {
-    if (!isAuthenticated) { requireAuth(); return; }
     if (!window.confirm('Delete all saved games from the backend? This cannot be undone.')) return;
     setClearLoading(true);
     try {
@@ -713,9 +710,7 @@ export default function Games() {
           >
             {importLoading
               ? 'Importing…'
-              : isAuthenticated
-                ? `Save ${fetchedGames.length} games to backend`
-                : `Sign in to save ${fetchedGames.length} games`}
+              : `Save ${fetchedGames.length} games to backend`}
           </button>
         </div>
       )}
@@ -750,7 +745,7 @@ export default function Games() {
         </section>
       )}
 
-      <UploadSection onGameAnalyzed={loadUploadedGames} isAuthenticated={isAuthenticated} requireAuth={requireAuth} />
+      <UploadSection onGameAnalyzed={loadUploadedGames} />
 
       {uploadedError && <div className="msg-error" role="alert">⚠ {uploadedError}</div>}
 
@@ -768,7 +763,7 @@ export default function Games() {
                 >
                   Sign in
                 </button>
-                {' '}to save games to your account for future reference.
+                {' '}to sync your games across devices.
               </p>
             )}
           </div>

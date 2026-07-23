@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 import chess.pgn
 from db import get_connection
-from auth_utils import get_current_user, get_current_user_optional
+from owner_utils import Owner, get_owner
 
 
 def _pgn_tag(pgn_text: str, tag: str) -> str | None:
@@ -54,16 +54,21 @@ def _detect_player_color(white: str, black: str, username: str | None) -> str | 
     return None
 
 
-def _resolve_player_color(cur, white: str, black: str, username: str | None, user_id: int) -> str | None:
-    """Try the explicit per-request username override first, then fall back to
-    the account's stored platform usernames."""
+def _resolve_player_color(cur, white: str, black: str, username: str | None, owner: Owner) -> str | None:
+    """Try the explicit per-request username override first, then — only for
+    logged-in users — fall back to the account's stored platform usernames.
+    Guests have no users row to look up, so they must always pass an
+    explicit username from the frontend."""
     color = _detect_player_color(white, black, username)
     if color:
         return color
 
+    if owner.user_id is None:
+        return None
+
     cur.execute(
         "SELECT lichess_username, chesscom_username FROM users WHERE id = %s",
-        (user_id,),
+        (owner.user_id,),
     )
     row = cur.fetchone() or {}
     for candidate in (row.get("lichess_username"), row.get("chesscom_username")):
@@ -73,9 +78,9 @@ def _resolve_player_color(cur, white: str, black: str, username: str | None, use
     return None
 
 
-def _detect_deviation(cur, moves: list[str], user_id: int, color: str | None = None) -> dict | None:
+def _detect_deviation(cur, moves: list[str], owner: Owner, color: str | None = None) -> dict | None:
     """
-    Walk the opening tree following the game's moves (scoped to user_id and color).
+    Walk the opening tree following the game's moves (scoped to owner and color).
     Uses white_opening_tree or black_opening_tree depending on player color.
     Root nodes have parent_id = 0.
     Returns dict with deviation_move_number, deviated_by, game_move, expected_moves
@@ -95,8 +100,8 @@ def _detect_deviation(cur, moves: list[str], user_id: int, color: str | None = N
 
     for ply_index, san in enumerate(moves):
         cur.execute(
-            f"SELECT id, move_san FROM {table} WHERE parent_id = %s AND user_id = %s",
-            (parent_id, user_id),
+            f"SELECT id, move_san FROM {table} WHERE parent_id = %s AND {owner.clause()}",
+            (parent_id, owner.value),
         )
         children = cur.fetchall()
 
@@ -121,7 +126,7 @@ def _detect_deviation(cur, moves: list[str], user_id: int, color: str | None = N
     return None
 
 
-def _process_pgn(cur, pgn_text: str, username: str | None, user_id: int) -> dict:
+def _process_pgn(cur, pgn_text: str, username: str | None, owner: Owner) -> dict:
     """Parse a PGN, insert into games + game_deviations, return insert result."""
     game = _parse_pgn(pgn_text)
 
@@ -135,7 +140,7 @@ def _process_pgn(cur, pgn_text: str, username: str | None, user_id: int) -> dict
     white        = _pgn_tag(pgn_text, "White") or ""
     black        = _pgn_tag(pgn_text, "Black") or ""
 
-    player_color = _resolve_player_color(cur, white, black, username, user_id)
+    player_color = _resolve_player_color(cur, white, black, username, owner)
 
     white_elo = _parse_elo(_pgn_tag(pgn_text, "WhiteElo"))
     black_elo = _parse_elo(_pgn_tag(pgn_text, "BlackElo"))
@@ -151,16 +156,16 @@ def _process_pgn(cur, pgn_text: str, username: str | None, user_id: int) -> dict
     cur.execute(
         """
         INSERT INTO games (result, eco_code, opening_name, game_date, pgn,
-                           player_color, white_player, black_player, user_id, opponent_rating)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                           player_color, white_player, black_player, user_id, guest_id, opponent_rating)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id
         """,
         (result, eco_code, opening_name, game_date, pgn_text,
-         player_color, white or None, black or None, user_id, opponent_rating),
+         player_color, white or None, black or None, owner.user_id, owner.guest_id, opponent_rating),
     )
     game_id = cur.fetchone()["id"]
 
-    deviation = _detect_deviation(cur, moves, user_id, player_color)
+    deviation = _detect_deviation(cur, moves, owner, player_color)
     deviation_id = None
 
     if deviation:
@@ -197,18 +202,17 @@ def _process_pgn(cur, pgn_text: str, username: str | None, user_id: int) -> dict
 async def upload_game(
     file: UploadFile = File(...),
     username: str = Form(None),
-    current_user: dict = Depends(get_current_user),
+    owner: Owner = Depends(get_owner),
 ):
     from routers.repertoire_builder import build_tree_from_games
 
     pgn_text = (await file.read()).decode("utf-8", errors="replace")
-    user_id = current_user["user_id"]
     with get_connection() as conn:
         with conn.cursor() as cur:
-            result = _process_pgn(cur, pgn_text, username, user_id)
+            result = _process_pgn(cur, pgn_text, username, owner)
             player_color = result.get("player_color")
             if player_color:
-                build_tree_from_games(cur, user_id, player_color)
+                build_tree_from_games(cur, owner, player_color)
         conn.commit()
     return result
 
@@ -223,10 +227,9 @@ class ImportRequest(BaseModel):
 
 
 @router.post("/import", status_code=201)
-def import_games(payload: ImportRequest, current_user: dict = Depends(get_current_user)):
+def import_games(payload: ImportRequest, owner: Owner = Depends(get_owner)):
     from routers.repertoire_builder import build_tree_from_games
 
-    user_id = current_user["user_id"]
     imported = 0
     errors = []
     colors_seen: set[str] = set()
@@ -234,7 +237,7 @@ def import_games(payload: ImportRequest, current_user: dict = Depends(get_curren
         with conn.cursor() as cur:
             for i, pgn_text in enumerate(payload.pgns):
                 try:
-                    result = _process_pgn(cur, pgn_text, payload.username, user_id)
+                    result = _process_pgn(cur, pgn_text, payload.username, owner)
                     imported += 1
                     if result.get("player_color"):
                         colors_seen.add(result["player_color"])
@@ -243,7 +246,7 @@ def import_games(payload: ImportRequest, current_user: dict = Depends(get_curren
 
             repertoire_rebuilt = {}
             for color in colors_seen:
-                repertoire_rebuilt[color] = build_tree_from_games(cur, user_id, color)
+                repertoire_rebuilt[color] = build_tree_from_games(cur, owner, color)
         conn.commit()
     return {"imported": imported, "errors": errors, "repertoire_rebuilt": repertoire_rebuilt}
 
@@ -253,15 +256,14 @@ def import_games(payload: ImportRequest, current_user: dict = Depends(get_curren
 # ---------------------------------------------------------------------------
 
 @router.delete("/")
-def clear_games(current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user_id"]
+def clear_games(owner: Owner = Depends(get_owner)):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM game_deviations WHERE game_id IN (SELECT id FROM games WHERE user_id = %s)",
-                (user_id,),
+                f"DELETE FROM game_deviations WHERE game_id IN (SELECT id FROM games WHERE {owner.clause()})",
+                (owner.value,),
             )
-            cur.execute("DELETE FROM games WHERE user_id = %s", (user_id,))
+            cur.execute(f"DELETE FROM games WHERE {owner.clause()}", (owner.value,))
         conn.commit()
     return {"deleted": True}
 
@@ -271,13 +273,11 @@ def clear_games(current_user: dict = Depends(get_current_user)):
 # ---------------------------------------------------------------------------
 
 @router.get("/")
-def get_games(current_user: dict | None = Depends(get_current_user_optional)):
-    if current_user is None:
-        return []
+def get_games(owner: Owner = Depends(get_owner)):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """
+                f"""
                 SELECT
                     g.id,
                     g.result,
@@ -293,10 +293,10 @@ def get_games(current_user: dict | None = Depends(get_current_user_optional)):
                     gd.opponent_deviation
                 FROM games g
                 LEFT JOIN game_deviations gd ON gd.game_id = g.id
-                WHERE g.user_id = %s
+                WHERE {owner.clause('g')}
                 ORDER BY g.id DESC
                 """,
-                (current_user["user_id"],),
+                (owner.value,),
             )
             return cur.fetchall()
 
@@ -306,15 +306,14 @@ def get_games(current_user: dict | None = Depends(get_current_user_optional)):
 # ---------------------------------------------------------------------------
 
 @router.post("/reprocess")
-def reprocess_deviations(current_user: dict = Depends(get_current_user)):
+def reprocess_deviations(owner: Owner = Depends(get_owner)):
     """Re-detect deviations for all user games using the current opening repertoire."""
-    user_id = current_user["user_id"]
     reprocessed = 0
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, pgn, player_color FROM games WHERE user_id = %s",
-                (user_id,),
+                f"SELECT id, pgn, player_color FROM games WHERE {owner.clause()}",
+                (owner.value,),
             )
             rows = cur.fetchall()
             for row in rows:
@@ -324,7 +323,7 @@ def reprocess_deviations(current_user: dict = Depends(get_current_user)):
                 try:
                     game = _parse_pgn(pgn_text)
                     moves = _extract_moves(game)
-                    deviation = _detect_deviation(cur, moves, user_id, player_color)
+                    deviation = _detect_deviation(cur, moves, owner, player_color)
 
                     cur.execute(
                         "DELETE FROM game_deviations WHERE game_id = %s", (game_id,)
@@ -353,13 +352,11 @@ def reprocess_deviations(current_user: dict = Depends(get_current_user)):
 # ---------------------------------------------------------------------------
 
 @router.get("/{game_id}")
-def get_game(game_id: int, current_user: dict | None = Depends(get_current_user_optional)):
-    if current_user is None:
-        raise HTTPException(status_code=404, detail="Game not found")
+def get_game(game_id: int, owner: Owner = Depends(get_owner)):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """
+                f"""
                 SELECT
                     g.id,
                     g.result,
@@ -378,9 +375,9 @@ def get_game(game_id: int, current_user: dict | None = Depends(get_current_user_
                     gd.completion_percentage
                 FROM games g
                 LEFT JOIN game_deviations gd ON gd.game_id = g.id
-                WHERE g.id = %s AND g.user_id = %s
+                WHERE g.id = %s AND {owner.clause('g')}
                 """,
-                (game_id, current_user["user_id"]),
+                (game_id, owner.value),
             )
             row = cur.fetchone()
             if row is None:

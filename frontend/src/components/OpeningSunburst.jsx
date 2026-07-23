@@ -7,7 +7,7 @@ const OUTER_R  = 340;
 const INNER_R  = 70;
 const SVG_SIZE = (OUTER_R + 20) * 2;
 const CENTER   = SVG_SIZE / 2;
-const MAX_DEPTH = 8;
+const MAX_DEPTH = 12;
 const RING_W   = (OUTER_R - INNER_R) / MAX_DEPTH; // ~21 px per ring
 
 // Control points: [winRate, hue, baseLgt] — sorted descending
@@ -34,6 +34,13 @@ function wrBand(wr) {
     }
   }
   return { hue: 0, baseLgt: 28 };
+}
+
+// Flags nodes with enough samples to be meaningful but a poor track record —
+// these are the likeliest spots for a recurring opening error.
+function isWeakNode(nodeId, winRates) {
+  const s = winRates?.[nodeId];
+  return !!s && s.total >= 3 && s.winRate < 30;
 }
 
 function segColor(nodeId, depth, x0, x1, winRates, bright) {
@@ -209,13 +216,14 @@ export default function OpeningSunburst({ data, onActivePath, winRates = {} }) {
             const isSel  = selected === d;
             const inPath = selected ? selected.ancestors().includes(d) : false;
             const bright = isHov || isSel || inPath;
+            const weak   = isWeakNode(d.data.id, winRates);
             return (
               <path
                 key={d.data.id ?? `${d.depth}-${d.x0.toFixed(5)}`}
                 d={path}
                 fill={segColor(d.data.id, d.depth, d.x0, d.x1, winRates, bright)}
-                stroke={bright ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.07)'}
-                strokeWidth={0.5}
+                stroke={weak ? '#ff4d4f' : (bright ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.07)')}
+                strokeWidth={weak ? 1.5 : 0.5}
                 transform={`translate(${CENTER},${CENTER})`}
                 style={{ cursor: hasKids ? 'pointer' : 'default', transition: 'fill 0.12s' }}
                 onMouseEnter={() => handleMouseEnter(d)}
@@ -301,7 +309,15 @@ export default function OpeningSunburst({ data, onActivePath, winRates = {} }) {
                   <span className="st-record">&nbsp;·&nbsp;{s.wins}W&nbsp;{s.draws}D&nbsp;{s.losses}L</span>
                 </div>
                 {s.avgOppRating != null && (
-                  <div className="st-rating">Avg opp rating: <strong>{s.avgOppRating}</strong></div>
+                  <div className="st-rating">
+                    Avg opp rating: <strong>{s.avgOppRating}</strong>
+                    {s.ratingMin != null && s.ratingMax != null && (
+                      <span className="st-rating-range">&nbsp;({s.ratingMin}–{s.ratingMax})</span>
+                    )}
+                  </div>
+                )}
+                {s.lastPlayed && (
+                  <div className="st-last-played">Last played: <strong>{s.lastPlayed}</strong></div>
                 )}
               </>
             );

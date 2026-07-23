@@ -10,6 +10,7 @@ if (!apiUrl) {
 
 const api = axios.create({
   baseURL: apiUrl,
+  withCredentials: true,
 });
 
 // Attach JWT to every request
