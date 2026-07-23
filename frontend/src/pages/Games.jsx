@@ -717,9 +717,9 @@ export default function Games() {
   }
 
   return (
-    <main className="page">
+    <main className="page games-page">
       <div className="page-header">
-        <h1>Games</h1>
+        <h1>Upload</h1>
         <p>Fetch, upload, and analyze your chess games</p>
       </div>
 
