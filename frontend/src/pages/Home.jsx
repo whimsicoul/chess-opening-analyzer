@@ -71,12 +71,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Notation ticker — frames the bottom of the page */}
-      <div className="notation-strip" aria-hidden="true">
-        <div className="notation-inner">
-          {NOTATION_MOVES.map((m, i) => <span key={i}>{m}</span>)}
-          {NOTATION_MOVES.map((m, i) => <span key={`b${i}`}>{m}</span>)}
-          {NOTATION_MOVES.map((m, i) => <span key={`c${i}`}>{m}</span>)}
+      {/* Notation ticker — centered as one unit (divider + moves) in the
+          remaining space below the feature grid */}
+      <div className="notation-strip-wrap">
+        <div className="notation-strip" aria-hidden="true">
+          <div className="notation-inner">
+            {NOTATION_MOVES.map((m, i) => <span key={i}>{m}</span>)}
+            {NOTATION_MOVES.map((m, i) => <span key={`b${i}`}>{m}</span>)}
+            {NOTATION_MOVES.map((m, i) => <span key={`c${i}`}>{m}</span>)}
+          </div>
         </div>
       </div>
     </main>
