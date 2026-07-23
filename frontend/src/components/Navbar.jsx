@@ -20,7 +20,7 @@ export default function Navbar() {
       </NavLink>
 
       <div className="navbar-links">
-        <NavLink to="/games">Games</NavLink>
+        <NavLink to="/games">Upload</NavLink>
         <NavLink to="/analytics">Analytics</NavLink>
         <NavLink to="/repertoire">Repertoire</NavLink>
         {isAuthenticated ? (
@@ -34,7 +34,7 @@ export default function Navbar() {
         ) : (
           <>
             <NavLink to="/login">Sign In</NavLink>
-            <NavLink to="/register" className="navbar-register">Get Started</NavLink>
+            <NavLink to="/register" className="navbar-register">Signup</NavLink>
           </>
         )}
       </div>
