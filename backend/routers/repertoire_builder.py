@@ -7,8 +7,9 @@ openings.py, and black_openings.py, and routers must not import each other.
 from collections import defaultdict
 
 from routers.games import _parse_pgn, _extract_moves
+from owner_utils import Owner
 
-MAX_PLY_DEPTH = 16  # ~8 full moves each side; opening/early-middlegame scope only
+MAX_PLY_DEPTH = 30  # ~15 full moves each side; opening/early-middlegame scope only
 
 _TREE_TABLE = {"white": "white_opening_tree", "black": "black_opening_tree"}
 
@@ -24,18 +25,18 @@ def _count_frequencies(move_lists: list[list[str]]) -> dict[tuple, dict[str, int
     return counts
 
 
-def _top_ranked_moves(move_counts: dict[str, int]) -> list[str]:
-    """Return the moves in the top 2 ranks by count, including all ties for the 2nd-place count."""
+def _top_ranked_moves(move_counts: dict[str, int], top_n: int = 4) -> list[str]:
+    """Return the moves in the top `top_n` ranks by count, including all ties for the last-place count."""
     distinct_counts = sorted(set(move_counts.values()), reverse=True)
-    keep_counts = set(distinct_counts[:2])
+    keep_counts = set(distinct_counts[:top_n])
     return [san for san, count in move_counts.items() if count in keep_counts]
 
 
-def build_tree_from_games(cur, user_id: int, color: str) -> dict:
+def build_tree_from_games(cur, owner: Owner, color: str) -> dict:
     """
-    Aggregate user_id's games played as `color` into the corresponding opening
-    tree, keeping the top-2-by-rank most-played moves (ties included) at each
-    node, capped at MAX_PLY_DEPTH plies. Insertion is additive: existing nodes
+    Aggregate owner's games played as `color` into the corresponding opening
+    tree, keeping the top-ranked most-played moves (ties included, see
+    _top_ranked_moves) at each node, capped at MAX_PLY_DEPTH plies. Insertion is additive: existing nodes
     (whether from a prior games-rebuild or from manual entry) are never
     deleted, so manually-added lines and games-derived lines simply union
     together in the same tree.
@@ -45,8 +46,8 @@ def build_tree_from_games(cur, user_id: int, color: str) -> dict:
         raise ValueError(f"Invalid color: {color}")
 
     cur.execute(
-        "SELECT pgn FROM games WHERE user_id = %s AND player_color = %s",
-        (user_id, color),
+        f"SELECT pgn FROM games WHERE {owner.clause()} AND player_color = %s",
+        (owner.value, color),
     )
     rows = cur.fetchall()
 
@@ -66,18 +67,18 @@ def build_tree_from_games(cur, user_id: int, color: str) -> dict:
     def _insert_or_get(parent_id: int, san: str) -> int:
         nonlocal nodes_created
         cur.execute(
-            f"SELECT id FROM {table} WHERE parent_id = %s AND move_san = %s AND user_id = %s",
-            (parent_id, san, user_id),
+            f"SELECT id FROM {table} WHERE parent_id = %s AND move_san = %s AND {owner.clause()}",
+            (parent_id, san, owner.value),
         )
         row = cur.fetchone()
         if row:
             return row["id"]
         cur.execute(
             f"""
-            INSERT INTO {table} (parent_id, move_san, opening_name, eco_code, user_id, source)
-            VALUES (%s, %s, %s, %s, %s, 'games') RETURNING id
+            INSERT INTO {table} (parent_id, move_san, opening_name, eco_code, user_id, guest_id, source)
+            VALUES (%s, %s, %s, %s, %s, %s, 'games') RETURNING id
             """,
-            (parent_id, san, None, None, user_id),
+            (parent_id, san, None, None, owner.user_id, owner.guest_id),
         )
         nodes_created += 1
         return cur.fetchone()["id"]
@@ -92,14 +93,25 @@ def build_tree_from_games(cur, user_id: int, color: str) -> dict:
 
     _walk((), 0)
 
-    cur.execute(
-        """
-        INSERT INTO repertoire_builds (user_id, color, built_at, games_count)
-        VALUES (%s, %s, NOW(), %s)
-        ON CONFLICT (user_id, color) DO UPDATE
-        SET built_at = EXCLUDED.built_at, games_count = EXCLUDED.games_count
-        """,
-        (user_id, color, len(move_lists)),
-    )
+    if owner.user_id is not None:
+        cur.execute(
+            """
+            INSERT INTO repertoire_builds (user_id, color, built_at, games_count)
+            VALUES (%s, %s, NOW(), %s)
+            ON CONFLICT (user_id, color) WHERE user_id IS NOT NULL DO UPDATE
+            SET built_at = EXCLUDED.built_at, games_count = EXCLUDED.games_count
+            """,
+            (owner.user_id, color, len(move_lists)),
+        )
+    else:
+        cur.execute(
+            """
+            INSERT INTO repertoire_builds (guest_id, color, built_at, games_count)
+            VALUES (%s, %s, NOW(), %s)
+            ON CONFLICT (guest_id, color) WHERE guest_id IS NOT NULL DO UPDATE
+            SET built_at = EXCLUDED.built_at, games_count = EXCLUDED.games_count
+            """,
+            (owner.guest_id, color, len(move_lists)),
+        )
 
     return {"games_count": len(move_lists), "nodes_created": nodes_created}

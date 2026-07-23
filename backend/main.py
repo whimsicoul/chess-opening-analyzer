@@ -37,6 +37,15 @@ def _migrate_black():
                     ON black_opening (user_id, moves)
                 """)
 
+                # Guest support: nullable guest_id column alongside user_id
+                cur.execute("ALTER TABLE black_opening ADD COLUMN IF NOT EXISTS guest_id TEXT;")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_black_opening_guest_id ON black_opening(guest_id);")
+                cur.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS uq_bo_guest_moves
+                    ON black_opening (guest_id, moves)
+                    WHERE guest_id IS NOT NULL
+                """)
+
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS black_opening_tree (
                         id            SERIAL PRIMARY KEY,
@@ -55,6 +64,10 @@ def _migrate_black():
                 cur.execute("ALTER TABLE black_opening_tree ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;")
                 cur.execute("ALTER TABLE black_opening_tree ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'manual';")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_black_opening_tree_user_id ON black_opening_tree(user_id);")
+
+                # Guest support: nullable guest_id column alongside user_id
+                cur.execute("ALTER TABLE black_opening_tree ADD COLUMN IF NOT EXISTS guest_id TEXT;")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_black_opening_tree_guest_id ON black_opening_tree(guest_id);")
             conn.commit()
             print("[migrate_black] OK")
     except Exception as e:
@@ -159,6 +172,14 @@ def _migrate():
             cur.execute("CREATE INDEX IF NOT EXISTS idx_games_user_id ON games(user_id);")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_white_opening_user_id ON white_opening(user_id);")
 
+            # Guest support: nullable guest_id column alongside user_id, so games
+            # and repertoire lines can be scoped to an anonymous cookie identity
+            # instead of a real account.
+            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS guest_id TEXT;")
+            cur.execute("ALTER TABLE white_opening ADD COLUMN IF NOT EXISTS guest_id TEXT;")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_games_guest_id ON games(guest_id);")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_white_opening_guest_id ON white_opening(guest_id);")
+
             # Remove duplicate rows — keep the lowest id per (user_id, moves, color)
             cur.execute("""
                 DELETE FROM white_opening
@@ -173,6 +194,14 @@ def _migrate():
             cur.execute("""
                 CREATE UNIQUE INDEX IF NOT EXISTS uq_wo_user_moves_color
                 ON white_opening (user_id, moves, color)
+            """)
+            # Guest-scoped counterpart — a plain composite index above only
+            # dedupes within the same user_id, so guest rows (user_id IS NULL)
+            # need their own uniqueness scoped by guest_id instead.
+            cur.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_wo_guest_moves_color
+                ON white_opening (guest_id, moves, color)
+                WHERE guest_id IS NOT NULL
             """)
 
             # ----------------------------------------------------------------
@@ -190,6 +219,10 @@ def _migrate():
             """)
             cur.execute("ALTER TABLE white_opening_tree ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'manual';")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_white_opening_tree_user_id ON white_opening_tree(user_id);")
+
+            # Guest support: nullable guest_id column alongside user_id
+            cur.execute("ALTER TABLE white_opening_tree ADD COLUMN IF NOT EXISTS guest_id TEXT;")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_white_opening_tree_guest_id ON white_opening_tree(guest_id);")
 
             # Migrate legacy opening_tree table if it still exists
             cur.execute("""
@@ -228,6 +261,46 @@ def _migrate():
                     games_count INTEGER,
                     PRIMARY KEY (user_id, color)
                 )
+            """)
+
+            # Guest support: user_id NOT NULL + a composite PK can't hold a
+            # guest row (PK columns disallow NULL), so drop the PK first (a
+            # column can't have its NOT NULL relaxed while still part of a
+            # PK), then relax user_id and replace the PK with a surrogate id,
+            # keeping the same upsert semantics via two partial unique
+            # indexes (one per owner kind).
+            cur.execute("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'repertoire_builds_pkey'
+                    ) THEN
+                        ALTER TABLE repertoire_builds DROP CONSTRAINT repertoire_builds_pkey;
+                    END IF;
+                END $$;
+            """)
+            cur.execute("ALTER TABLE repertoire_builds ALTER COLUMN user_id DROP NOT NULL;")
+            cur.execute("ALTER TABLE repertoire_builds ADD COLUMN IF NOT EXISTS guest_id TEXT;")
+            cur.execute("ALTER TABLE repertoire_builds ADD COLUMN IF NOT EXISTS id SERIAL;")
+            cur.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'repertoire_builds_id_pkey'
+                    ) THEN
+                        ALTER TABLE repertoire_builds ADD CONSTRAINT repertoire_builds_id_pkey PRIMARY KEY (id);
+                    END IF;
+                END $$;
+            """)
+            cur.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_repertoire_builds_user_color
+                ON repertoire_builds (user_id, color)
+                WHERE user_id IS NOT NULL
+            """)
+            cur.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_repertoire_builds_guest_color
+                ON repertoire_builds (guest_id, color)
+                WHERE guest_id IS NOT NULL
             """)
 
         conn.commit()

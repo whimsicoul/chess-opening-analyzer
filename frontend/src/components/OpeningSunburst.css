@@ -110,6 +110,17 @@
   color: #8a93c8;
 }
 
+.st-rating,
+.st-last-played {
+  margin-top: 0.2rem;
+  font-size: 0.74rem;
+  color: #8a93c8;
+}
+
+.st-rating-range {
+  opacity: 0.75;
+}
+
 /* ── Color legend ── */
 .sunburst-legend {
   display: flex;

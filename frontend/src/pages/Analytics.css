@@ -61,6 +61,54 @@
   min-width: 0;
 }
 
+/* ── Weakest lines panel ── */
+.viz-weak-lines {
+  margin-top: 1.5rem;
+}
+
+.viz-weak-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+}
+
+.viz-weak-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: #12162a;
+  border: 1px solid #2a3060;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.viz-weak-row:hover {
+  background: #1a2040;
+  border-color: #3a4280;
+}
+
+.viz-weak-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--text);
+}
+
+.viz-weak-sample {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
 /* ── Depth legend (compact horizontal strip) ── */
 .viz-legend {
   display: flex;
@@ -96,6 +144,12 @@
   flex-shrink: 0;
   opacity: 0.85;
   display: inline-block;
+}
+
+.viz-legend-dot-outline {
+  background: transparent;
+  border: 1.5px solid;
+  opacity: 1;
 }
 
 /* ── Active node info card ── */
@@ -139,6 +193,25 @@
 .viz-idle {
   margin-bottom: 1.25rem;
   padding: 0.5rem 0;
+}
+
+/* ── Inline engine readout + click-through ── */
+.viz-engine-mini {
+  margin-top: 0.6rem;
+  min-height: 1.1rem;
+}
+
+.viz-engine-mini-line {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.eval-pos { color: var(--green); }
+.eval-neg { color: var(--red); }
+
+.viz-open-repertoire-btn {
+  margin-top: 0.75rem;
 }
 
 /* ── Move sequence ── */
