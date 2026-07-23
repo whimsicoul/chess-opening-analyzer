@@ -207,10 +207,15 @@ export function useEngine(boardGame, { engineMode = false, depth = 18, lines = 3
 
   // Main effect: runs on every position change.
   useEffect(() => {
-    setEvalLoading(true);
     setEvalData(null);
     setEvalSource(null);
     setEvalDepth(null);
+
+    if (!boardGame) {
+      setEvalLoading(false);
+      return;
+    }
+    setEvalLoading(true);
 
     const fen = boardGame.fen();
     let cancelled = false;
