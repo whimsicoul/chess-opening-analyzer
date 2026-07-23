@@ -50,14 +50,16 @@ async function fetchFromLichess(username, months, gameType) {
     return true;
   });
   return games.map(g => ({
-    id:        `lichess-${g.id}`,
-    source:    'lichess',
-    white:     g.players?.white?.user?.name ?? 'White',
-    black:     g.players?.black?.user?.name ?? 'Black',
-    result:    lichessResult(g),
-    timeClass: g.perf ?? g.speed ?? '—',
-    pgn:       g.pgn,
-    date:      g.createdAt ? new Date(g.createdAt).toISOString().slice(0, 10) : '—',
+    id:          `lichess-${g.id}`,
+    source:      'lichess',
+    white:       g.players?.white?.user?.name ?? 'White',
+    black:       g.players?.black?.user?.name ?? 'Black',
+    whiteRating: g.players?.white?.rating ?? null,
+    blackRating: g.players?.black?.rating ?? null,
+    result:      lichessResult(g),
+    timeClass:   g.perf ?? g.speed ?? '—',
+    pgn:         g.pgn,
+    date:        g.createdAt ? new Date(g.createdAt).toISOString().slice(0, 10) : '—',
   }));
 }
 
@@ -98,14 +100,16 @@ async function fetchFromChessCom(username, months, gameType) {
     })
     .slice(0, 50)
     .map(g => ({
-      id:        `chesscom-${g.url?.split('/').pop() ?? Math.random().toString(36).slice(2)}`,
-      source:    'chesscom',
-      white:     g.white?.username ?? 'White',
-      black:     g.black?.username ?? 'Black',
-      result:    chessComResult(g),
-      timeClass: g.time_class ?? '—',
-      pgn:       g.pgn,
-      date:      g.end_time ? new Date(g.end_time * 1000).toISOString().slice(0, 10) : '—',
+      id:          `chesscom-${g.url?.split('/').pop() ?? Math.random().toString(36).slice(2)}`,
+      source:      'chesscom',
+      white:       g.white?.username ?? 'White',
+      black:       g.black?.username ?? 'Black',
+      whiteRating: g.white?.rating ?? null,
+      blackRating: g.black?.rating ?? null,
+      result:      chessComResult(g),
+      timeClass:   g.time_class ?? '—',
+      pgn:         g.pgn,
+      date:        g.end_time ? new Date(g.end_time * 1000).toISOString().slice(0, 10) : '—',
     }));
 }
 
@@ -484,6 +488,20 @@ function GameCard({ game, expanded, onToggle, loadingDetail, detail }) {
   // For upload games, PGN comes from backend detail fetch
   const pgn = game.pgn ?? detail?.pgn ?? null;
 
+  // Ratings: fetched games carry whiteRating/blackRating directly; uploaded
+  // games only know playerRating/opponentRating (relative to playerColor).
+  let whiteRating = game.whiteRating ?? null;
+  let blackRating = game.blackRating ?? null;
+  if (game.source === 'upload' && game.playerColor) {
+    if (game.playerColor === 'white') {
+      whiteRating = game.playerRating ?? null;
+      blackRating = game.opponentRating ?? null;
+    } else {
+      whiteRating = game.opponentRating ?? null;
+      blackRating = game.playerRating ?? null;
+    }
+  }
+
   const highlightIndex = game.source === 'upload'
     ? (detail ? toHighlightIndex(detail.move_number, detail.deviated_by ?? (detail.opponent_deviation ? 'black' : 'white')) : null)
     : null;
@@ -501,8 +519,10 @@ function GameCard({ game, expanded, onToggle, loadingDetail, detail }) {
           <SourceBadge source={game.source} />
           <span className="game-players" aria-label={label}>
             <strong>{game.white}</strong>
+            {whiteRating && <span className="player-rating muted">({whiteRating})</span>}
             <span className="vs-sep" aria-hidden="true"> vs </span>
             <strong>{game.black}</strong>
+            {blackRating && <span className="player-rating muted">({blackRating})</span>}
           </span>
           <span
             className={`result-pill result-${game.result.replace(/[^01½*]/g, '')}`}
@@ -601,7 +621,10 @@ export default function Games() {
             white:            g.white_player ?? '—',
             black:            g.black_player ?? '—',
             result:           g.result ?? '—',
-            timeClass:        null,
+            timeClass:        g.time_class ?? null,
+            playerRating:     g.player_rating ?? null,
+            opponentRating:   g.opponent_rating ?? null,
+            playerColor:      g.player_color,
             pgn:              null,
             date:             g.game_date ?? '—',
             openingName:      g.opening_name,

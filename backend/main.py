@@ -143,6 +143,8 @@ def _migrate():
             cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS white_player TEXT;")
             cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS black_player TEXT;")
             cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS opponent_rating INTEGER;")
+            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS player_rating INTEGER;")
+            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS time_class TEXT;")
             cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS eco_code TEXT;")
             cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS opening_name TEXT;")
             cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS game_date DATE;")

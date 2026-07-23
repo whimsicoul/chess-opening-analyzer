@@ -45,6 +45,26 @@ def _parse_elo(s: str | None) -> int | None:
         return None
 
 
+def _classify_time_control(time_control: str | None) -> str | None:
+    """Map a PGN TimeControl tag (e.g. "300+2", "600") to a speed label
+    using the same base+40*increment thresholds Lichess/Chess.com use."""
+    if not time_control or time_control == "-":
+        return None
+    m = re.match(r"(\d+)(?:\+(\d+))?", time_control)
+    if not m:
+        return None
+    base = int(m.group(1))
+    increment = int(m.group(2)) if m.group(2) else 0
+    total = base + increment * 40
+    if total < 179:
+        return "bullet"
+    if total < 479:
+        return "blitz"
+    if total < 1499:
+        return "rapid"
+    return "classical"
+
+
 def _detect_player_color(white: str, black: str, username: str | None) -> str | None:
     if not username:
         return None
@@ -147,10 +167,15 @@ def _process_pgn(cur, pgn_text: str, username: str | None, owner: Owner) -> dict
     black_elo = _parse_elo(_pgn_tag(pgn_text, "BlackElo"))
     if player_color == "white":
         opponent_rating = black_elo
+        player_rating = white_elo
     elif player_color == "black":
         opponent_rating = white_elo
+        player_rating = black_elo
     else:
         opponent_rating = None
+        player_rating = None
+
+    time_class = _classify_time_control(_pgn_tag(pgn_text, "TimeControl"))
 
     moves = _extract_moves(game)
     pgn_hash = hashlib.md5(pgn_text.encode("utf-8")).hexdigest()
@@ -159,25 +184,29 @@ def _process_pgn(cur, pgn_text: str, username: str | None, owner: Owner) -> dict
         cur.execute(
             """
             INSERT INTO games (result, eco_code, opening_name, game_date, pgn, pgn_hash,
-                               player_color, white_player, black_player, user_id, guest_id, opponent_rating)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                               player_color, white_player, black_player, user_id, guest_id,
+                               opponent_rating, player_rating, time_class)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (user_id, pgn_hash) WHERE user_id IS NOT NULL DO NOTHING
             RETURNING id
             """,
             (result, eco_code, opening_name, game_date, pgn_text, pgn_hash,
-             player_color, white or None, black or None, owner.user_id, owner.guest_id, opponent_rating),
+             player_color, white or None, black or None, owner.user_id, owner.guest_id,
+             opponent_rating, player_rating, time_class),
         )
     else:
         cur.execute(
             """
             INSERT INTO games (result, eco_code, opening_name, game_date, pgn, pgn_hash,
-                               player_color, white_player, black_player, user_id, guest_id, opponent_rating)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                               player_color, white_player, black_player, user_id, guest_id,
+                               opponent_rating, player_rating, time_class)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (guest_id, pgn_hash) WHERE guest_id IS NOT NULL DO NOTHING
             RETURNING id
             """,
             (result, eco_code, opening_name, game_date, pgn_text, pgn_hash,
-             player_color, white or None, black or None, owner.user_id, owner.guest_id, opponent_rating),
+             player_color, white or None, black or None, owner.user_id, owner.guest_id,
+             opponent_rating, player_rating, time_class),
         )
 
     row = cur.fetchone()
@@ -317,6 +346,8 @@ def get_games(owner: Owner = Depends(get_owner)):
                     g.white_player,
                     g.black_player,
                     g.opponent_rating,
+                    g.player_rating,
+                    g.time_class,
                     gd.move_number,
                     gd.move_uci,
                     gd.opponent_deviation
@@ -396,6 +427,9 @@ def get_game(game_id: int, owner: Owner = Depends(get_owner)):
                     g.player_color,
                     g.white_player,
                     g.black_player,
+                    g.opponent_rating,
+                    g.player_rating,
+                    g.time_class,
                     gd.id            AS deviation_id,
                     gd.move_number,
                     gd.move_uci,
