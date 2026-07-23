@@ -1,3 +1,10 @@
+/* ── Wider page layout — matches Repertoire, avoids the default 980px cap ── */
+.games-page.page {
+  max-width: 1400px;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
 /* ── Import bar ──────────────────────────────────────────────────────────── */
 .import-bar {
   display: flex;
@@ -16,8 +23,8 @@
 
 .filter-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
   align-items: flex-end;
 }
 
@@ -434,7 +441,7 @@
 
 .game-opening {
   font-size: 0.78rem;
-  max-width: 180px;
+  max-width: 320px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
