@@ -180,6 +180,37 @@ def _migrate():
             cur.execute("CREATE INDEX IF NOT EXISTS idx_games_guest_id ON games(guest_id);")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_white_opening_guest_id ON white_opening(guest_id);")
 
+            # Duplicate-game prevention: hash of the raw PGN text, scoped per
+            # owner, so re-importing/re-uploading the same game is a no-op
+            # instead of creating a second row.
+            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS pgn_hash TEXT;")
+            cur.execute("UPDATE games SET pgn_hash = md5(pgn) WHERE pgn_hash IS NULL AND pgn IS NOT NULL;")
+
+            # Remove pre-existing duplicates — keep the lowest id per owner + hash
+            cur.execute("""
+                DELETE FROM games
+                WHERE user_id IS NOT NULL AND id NOT IN (
+                    SELECT MIN(id) FROM games WHERE user_id IS NOT NULL GROUP BY user_id, pgn_hash
+                )
+            """)
+            cur.execute("""
+                DELETE FROM games
+                WHERE guest_id IS NOT NULL AND id NOT IN (
+                    SELECT MIN(id) FROM games WHERE guest_id IS NOT NULL GROUP BY guest_id, pgn_hash
+                )
+            """)
+
+            cur.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_games_user_pgn_hash
+                ON games (user_id, pgn_hash)
+                WHERE user_id IS NOT NULL
+            """)
+            cur.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_games_guest_pgn_hash
+                ON games (guest_id, pgn_hash)
+                WHERE guest_id IS NOT NULL
+            """)
+
             # Remove duplicate rows — keep the lowest id per (user_id, moves, color)
             cur.execute("""
                 DELETE FROM white_opening

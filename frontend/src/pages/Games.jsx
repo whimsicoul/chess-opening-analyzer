@@ -306,7 +306,13 @@ function UploadSection({ onGameAnalyzed }) {
 
           {error && <div className="msg-error" role="alert">⚠ {error}</div>}
 
-          {result && (
+          {result?.skipped && (
+            <div className="msg-success" role="status">
+              This game was already uploaded — skipped.
+            </div>
+          )}
+
+          {result && !result.skipped && (
             <div
               className={`result-card ${noDeviation ? 'result-green' : opponentDev ? 'result-amber' : 'result-red'}`}
               role="region"
@@ -349,7 +355,7 @@ function UploadSection({ onGameAnalyzed }) {
             </div>
           )}
 
-          {result && pgnText && (
+          {result && !result.skipped && pgnText && (
             <div
               role="region"
               aria-label={`Chessboard for uploaded game #${result.game_id}`}
@@ -718,7 +724,8 @@ export default function Games() {
       {importResult && !importResult.error && (
         <div className="msg-success" role="status">
           Imported {importResult.imported} game{importResult.imported !== 1 ? 's' : ''}
-          {importResult.errors?.length > 0 && ` (${importResult.errors.length} skipped)`}.
+          {importResult.duplicates > 0 && `, ${importResult.duplicates} already saved`}
+          {importResult.errors?.length > 0 && `, ${importResult.errors.length} failed`}.
         </div>
       )}
       {importResult?.error && (
