@@ -12,19 +12,19 @@ const FEATURES = [
   },
   {
     num: '02',
-    icon: '♜',
-    title: 'Build Your Repertoire',
-    desc: 'Add and manage your prepared opening lines with ECO codes and move trees.',
-    link: '/repertoire',
-    label: 'Open Repertoire',
+    icon: '◑',
+    title: 'Opening Analytics',
+    desc: 'See your win/draw/loss rates and a Weakest Lines breakdown that surfaces exactly which openings are costing you games.',
+    link: '/analytics',
+    label: 'View Analytics',
   },
   {
     num: '03',
-    icon: '◑',
-    title: 'Opening Analytics',
-    desc: 'Find trends in your opening play and see which lines you struggle with most.',
-    link: '/games',
-    label: 'View Games',
+    icon: '♜',
+    title: 'Shore Up Your Repertoire',
+    desc: 'Click a weak line from Analytics to jump straight to it in your repertoire tree, then patch the gap with engine-backed moves.',
+    link: '/repertoire',
+    label: 'Open Repertoire',
   },
 ];
 
@@ -49,12 +49,12 @@ export default function Home() {
               <span className="hl hl-4">prep ends.</span>
             </h1>
             <p className="hero-sub">
-              Upload your games, compare them against your opening repertoire,
-              and find the moves that took you off book.
+              Upload your games, see exactly where your opening play is weakest,
+              and fix it by expanding your repertoire right where it broke down.
             </p>
             <div className="hero-actions">
               <Link to="/upload" className="cta-primary">Upload Games</Link>
-              <Link to="/repertoire" className="cta-secondary">View Repertoire</Link>
+              <Link to="/analytics" className="cta-secondary">View Analytics</Link>
             </div>
           </div>
 
