@@ -8,9 +8,9 @@ A personal chess improvement tool for tracking opening repertoire adherence and 
 
 - **Games** — Import from Lichess/Chess.com or drag-and-drop PGN uploads right on the Games page; view results by opening/ECO with move-by-move board playback
 - **Auto-built repertoire** — Uploading or importing games automatically builds/updates your White and Black opening trees from your own move history (most-played continuations per line); manually-added lines are merged, never overwritten. The Repertoire page shows when it was last auto-built and lets you force a rebuild
-- **Repertoire** — One page, toggle between White ♔ and Black ♚. Build opening lines via interactive board or paste PGN; live Lichess Cloud Eval shows top 3 engine moves (falls back to local Stockfish WASM if unavailable)
-- **Analytics** — Combined stats and visualization page: win/loss/draw rates, a server-computed "Weakest Lines" breakdown (win rate, average opponent rating, sample size per repertoire line), and a zoomable sunburst chart of your saved repertoire tree
-- **Browse without an account** — Games, Repertoire, and Analytics all work for anonymous visitors via a guest cookie; creating an account is only required to persist data long-term and to reach Settings
+- **Analytics** — The step after uploading: win/loss/draw rates, a server-computed "Weakest Lines" breakdown (win rate, average opponent rating, sample size per repertoire line), and a zoomable sunburst chart of your saved repertoire tree, all pointing you to exactly where your opening prep is failing
+- **Repertoire** — Click a weak line in Analytics (or a sunburst segment) and it jumps straight here, highlighted. One page, toggle between White ♔ and Black ♚. Build opening lines via interactive board or paste PGN; live Lichess Cloud Eval shows top 3 engine moves (falls back to local Stockfish WASM if unavailable)
+- **Browse without an account** — Games, Analytics, and Repertoire all work for anonymous visitors via a guest cookie; creating an account is only required to persist data long-term and to reach Settings
 - **Settings** — Connect Lichess/Chess.com usernames (used to auto-detect your side on import), change username/email/password, delete account
 
 ## Stack
@@ -139,8 +139,8 @@ chess-analyzer-web/
         ├── Home.jsx
         ├── Login.jsx / Register.jsx / VerifyEmail.jsx
         ├── Games.jsx                # Game table + playback + inline PGN upload/drag-drop; usable as a guest
-        ├── Repertoire.jsx           # White/Black toggle, auto-build status banner + rebuild control; usable as a guest
-        ├── Analytics.jsx            # Win/loss/draw rates, weakest-lines breakdown, sunburst chart; usable as a guest
+        ├── Analytics.jsx            # Win/loss/draw rates, weakest-lines breakdown, sunburst chart; clicking a weak line jumps into Repertoire; usable as a guest
+        ├── Repertoire.jsx           # White/Black toggle, auto-build status banner + rebuild control; can deep-load a line via nav state from Analytics; usable as a guest
         └── Settings.jsx             # Account info, connected accounts, security, delete account — requires an account
 ```
 
