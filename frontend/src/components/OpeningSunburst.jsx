@@ -37,10 +37,11 @@ function wrBand(wr) {
 }
 
 // Flags nodes with enough samples to be meaningful but a poor track record —
-// these are the likeliest spots for a recurring opening error.
+// these are the likeliest spots for a recurring opening error. Uses `score`
+// (draws count as half a win) so draw-heavy lines aren't flagged as weak.
 function isWeakNode(nodeId, winRates) {
   const s = winRates?.[nodeId];
-  return !!s && s.total >= 3 && s.winRate < 30;
+  return !!s && s.total >= 3 && s.score < 30;
 }
 
 function segColor(nodeId, depth, x0, x1, winRates, bright) {
@@ -51,7 +52,7 @@ function segColor(nodeId, depth, x0, x1, winRates, bright) {
     return `hsl(220, 12%, ${lgt}%)`;
   }
 
-  const { hue, baseLgt } = wrBand(stats.winRate);
+  const { hue, baseLgt } = wrBand(stats.score);
   const sat = bright ? 62 : 48;
   const lgt = bright
     ? Math.max(baseLgt, baseLgt + 8 - depth * 1.5)

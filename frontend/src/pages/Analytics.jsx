@@ -134,7 +134,7 @@ export default function Analytics() {
         </div>
 
         <div className="viz-legend">
-          <span className="viz-legend-label">Win rate</span>
+          <span className="viz-legend-label">Score (draws = ½ win)</span>
           <span className="viz-legend-item">
             <span className="viz-legend-dot" style={{ background: 'hsl(120,48%,16%)' }} />&gt;60%
           </span>
@@ -157,7 +157,7 @@ export default function Analytics() {
             <span className="viz-legend-dot" style={{ background: 'hsl(220,12%,22%)' }} />No data
           </span>
           <span className="viz-legend-item">
-            <span className="viz-legend-dot viz-legend-dot-outline" style={{ borderColor: '#ff4d4f' }} />Weak spot (3+ games, &lt;30% wins)
+            <span className="viz-legend-dot viz-legend-dot-outline" style={{ borderColor: '#ff4d4f' }} />Weak spot (3+ games, &lt;30% score)
           </span>
         </div>
       </div>
@@ -177,11 +177,12 @@ export default function Analytics() {
           {isAuthenticated ? (
             <p className="muted">
               No {color} opening lines in your repertoire yet.{' '}
-              <Link to="/repertoire">Add some lines →</Link>
+              <Link to="/games">Upload games</Link> to build your repertoire automatically, or{' '}
+              <Link to="/repertoire">add lines by hand</Link>.
             </p>
           ) : (
             <p className="muted">
-              Build a {color} repertoire on the <Link to="/repertoire">Repertoire page</Link> to see it visualized here
+              <Link to="/games">Upload games</Link> to see your {color} repertoire visualized here
               — sign in to save your lines and track win rates.
             </p>
           )}
@@ -204,19 +205,22 @@ export default function Analytics() {
               <div className="viz-weak-lines">
                 <div className="card-label">Weakest Lines</div>
                 <div className="viz-weak-list">
-                  {weakLines.slice(0, 8).map(w => (
-                    <button
-                      key={w.node_id}
-                      type="button"
-                      className="viz-weak-row"
-                      onMouseEnter={() => handleActivePath(w.path, { name: w.move_san, id: w.node_id })}
-                      onClick={() => navigate('/repertoire', { state: { moves: w.path, color } })}
-                    >
-                      <span className="viz-weak-path">{w.path.join(' ')}</span>
-                      <span className="badge badge-red">{w.winRate.toFixed(0)}%</span>
-                      <span className="viz-weak-sample">{w.total}g</span>
-                    </button>
-                  ))}
+                  {weakLines.slice(0, 8).map(w => {
+                    const cls = w.score >= 45 ? 'badge-amber' : 'badge-red';
+                    return (
+                      <button
+                        key={w.node_id}
+                        type="button"
+                        className="viz-weak-row"
+                        onMouseEnter={() => handleActivePath(w.path, { name: w.move_san, id: w.node_id })}
+                        onClick={() => navigate('/repertoire', { state: { moves: w.path, color } })}
+                      >
+                        <span className="viz-weak-path">{w.path.join(' ')}</span>
+                        <span className={`badge ${cls}`}>{w.score.toFixed(0)}%</span>
+                        <span className="viz-weak-sample">{w.total}g</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -239,11 +243,11 @@ export default function Analytics() {
                 )}
                 {winRates[activeInfo.id] ? (() => {
                   const s = winRates[activeInfo.id];
-                  const wr = s.winRate;
+                  const wr = s.score;
                   const cls = wr >= 55 ? 'badge-green' : wr >= 45 ? 'badge-amber' : 'badge-red';
                   return (
                     <div className="viz-node-stats">
-                      <span className={`badge ${cls}`}>{wr.toFixed(1)}% win rate</span>
+                      <span className={`badge ${cls}`}>{wr.toFixed(1)}% score</span>
                       <span className="viz-node-record">{s.wins}W · {s.draws}D · {s.losses}L</span>
                       {s.avgOppRating != null && (
                         <span className="viz-node-rating">

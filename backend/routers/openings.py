@@ -291,6 +291,9 @@ def _compute_winrates(cur, owner: Owner, color: str) -> tuple[dict[int, dict], d
             "losses": s["losses"],
             "total": total,
             "winRate": s["wins"] / total * 100,
+            # Draws count as half a win rather than a loss, so an all-draws
+            # line scores neutral (50%) instead of reading as maximally weak.
+            "score": (s["wins"] + 0.5 * s["draws"]) / total * 100,
             "avgOppRating": round(avg_opp_rating) if avg_opp_rating is not None else None,
             "ratingMin": s["rating_min"],
             "ratingMax": s["rating_max"],
@@ -335,7 +338,9 @@ def get_weaknesses(
     max_win_rate: float = 45.0,
     owner: Owner = Depends(get_owner),
 ):
-    """Return opening tree nodes with a low win rate, above a minimum sample size."""
+    """Return opening tree nodes with a low score (wins + half of draws over
+    total), above a minimum sample size. `max_win_rate` filters on `score`,
+    not pure win rate, so draw-heavy lines aren't flagged as weak."""
     if color not in ("white", "black"):
         raise HTTPException(status_code=400, detail="color must be 'white' or 'black'")
 
@@ -351,9 +356,9 @@ def get_weaknesses(
             "path": _reconstruct_path(node_by_id, node_id),
         }
         for node_id, s in stats.items()
-        if s["total"] >= min_games and s["winRate"] < max_win_rate
+        if s["total"] >= min_games and s["score"] < max_win_rate
     ]
-    weak.sort(key=lambda w: w["winRate"])
+    weak.sort(key=lambda w: w["score"])
     return weak
 
 
