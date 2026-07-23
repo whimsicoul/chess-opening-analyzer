@@ -7,21 +7,20 @@ A personal chess improvement tool for tracking opening repertoire adherence and 
 ## Features
 
 - **Games** — Import from Lichess/Chess.com or drag-and-drop PGN uploads right on the Games page; view results by opening/ECO with move-by-move board playback
-- **Auto-built repertoire** — Uploading or importing games automatically builds/updates your White and Black opening trees from your own move history (most-played continuations per line); manually-added lines are merged, never overwritten. Each repertoire page shows when it was last auto-built and lets you force a rebuild
-- **Repertoire** — Build opening lines for White and Black via interactive board or paste PGN; live Lichess Cloud Eval shows top 3 engine moves
-- **Stats** — Win/loss/draw rates and a server-computed "Weakest Lines" breakdown (win rate, average opponent rating, sample size per repertoire line)
-- **Visualization** — Zoomable sunburst chart of your saved repertoire tree
-- **Onboarding wizard** — Guided setup walks new users through uploading games and building their first White and Black repertoire
+- **Auto-built repertoire** — Uploading or importing games automatically builds/updates your White and Black opening trees from your own move history (most-played continuations per line); manually-added lines are merged, never overwritten. The Repertoire page shows when it was last auto-built and lets you force a rebuild
+- **Repertoire** — One page, toggle between White ♔ and Black ♚. Build opening lines via interactive board or paste PGN; live Lichess Cloud Eval shows top 3 engine moves (falls back to local Stockfish WASM if unavailable)
+- **Analytics** — Combined stats and visualization page: win/loss/draw rates, a server-computed "Weakest Lines" breakdown (win rate, average opponent rating, sample size per repertoire line), and a zoomable sunburst chart of your saved repertoire tree
+- **Browse without an account** — Games, Repertoire, and Analytics all work for anonymous visitors via a guest cookie; creating an account is only required to persist data long-term and to reach Settings
 - **Settings** — Connect Lichess/Chess.com usernames (used to auto-detect your side on import), change username/email/password, delete account
 
 ## Stack
 
 | Layer | Tech |
 |-------|------|
-| Frontend | React 19 + Vite, chess.js, react-chessboard, recharts, d3 |
+| Frontend | React 19 + Vite, chess.js, react-chessboard, d3 |
 | Backend | FastAPI + uvicorn, python-chess |
 | Database | PostgreSQL — Neon (production) or local |
-| Auth | JWT (python-jose + bcrypt) |
+| Auth | JWT (python-jose + bcrypt), optional — guests get a cookie-based identity instead |
 | Hosting | Railway (backend + frontend, separate services) |
 
 ## Local Setup
@@ -54,6 +53,10 @@ JWT_EXPIRE_DAYS=7
 
 FRONTEND_URL=http://localhost:5173
 
+# Optional — set to "development" to relax guest cookie flags (SameSite=Lax
+# instead of None) for plain-HTTP local dev
+APP_ENV=development
+
 # Optional — email verification (Gmail: use App Password, not account password)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -61,7 +64,7 @@ SMTP_USER=your@gmail.com
 SMTP_PASSWORD=your_app_password
 SMTP_FROM=your@gmail.com
 
-# Optional — Lichess token (for import)
+# Optional — Lichess token (for import and opening explorer lookups)
 LICHESS_TOKEN=
 ```
 
@@ -107,40 +110,38 @@ chess-analyzer-web/
 │   ├── main.py                     # App entrypoint, CORS, DB migration
 │   ├── db.py                       # PostgreSQL helpers (supports DATABASE_URL or individual vars)
 │   ├── auth_utils.py               # JWT + password hashing
+│   ├── owner_utils.py              # Resolves request "owner" — logged-in user or guest cookie
 │   ├── email_utils.py              # Email verification sending
-│   ├── migrate.py                  # Schema migration runner
+│   ├── migrate.py                  # Manual schema migration runner (main.py also runs migrations on startup)
+│   ├── test_db.py                  # Manual DB connectivity check, not an automated test
 │   └── routers/
 │       ├── auth.py                 # Register, login, email verify, account settings, platform usernames
-│       ├── openings.py             # White repertoire CRUD, tree builder, status/rebuild, weaknesses, cloud-eval proxy
+│       ├── openings.py             # White repertoire CRUD, tree builder, status/rebuild, weaknesses, cloud-eval + explorer proxy
 │       ├── black_openings.py       # Black repertoire CRUD, tree builder, status/rebuild
 │       ├── games.py                # PGN upload/import, deviation detection, triggers repertoire auto-build
-│       └── repertoire_builder.py   # Shared helper: builds/merges opening trees from a user's stored games
+│       └── repertoire_builder.py   # Shared helper (not a router): builds/merges opening trees from a user's stored games
 └── frontend/src/
-    ├── App.jsx                     # Routes (/upload, /analytics kept as redirects for old links)
+    ├── App.jsx                     # Routes (/upload, /white-repertoire, /black-repertoire, /stats, /visualization kept as redirects for old links)
     ├── api.js                      # Axios + JWT interceptors
     ├── context/
-    │   ├── AuthContext.jsx
-    │   └── OnboardingContext.jsx   # Guided-tour state
+    │   └── AuthContext.jsx
     ├── hooks/
     │   └── useEngine.js            # Lichess Cloud Eval hook, falls back to local Stockfish WASM
+    ├── utils/
+    │   └── woodenPieces.jsx        # Custom wooden chess piece set for the board components
     ├── components/
     │   ├── ChessBoardViewer.jsx
     │   ├── EyeIcon.jsx
-    │   ├── GuidanceModal.jsx
     │   ├── Navbar.jsx
     │   ├── OpeningSunburst.jsx
-    │   ├── ProtectedRoute.jsx
-    │   ├── RepertoireWizard.jsx
-    │   └── wizardSteps.js
+    │   └── ProtectedRoute.jsx      # Gates only account-only routes (currently just /settings)
     └── pages/
         ├── Home.jsx
         ├── Login.jsx / Register.jsx / VerifyEmail.jsx
-        ├── Games.jsx                # Game table + playback + inline PGN upload/drag-drop
-        ├── WhiteRepertoire.jsx      # Includes auto-build status banner + rebuild control
-        ├── BlackRepertoire.jsx      # Includes auto-build status banner + rebuild control
-        ├── Stats.jsx                # Win/loss/draw rates, weakest-lines breakdown
-        ├── Visualization.jsx        # Sunburst chart of opening tree
-        └── Settings.jsx             # Account info, connected accounts, security, delete account
+        ├── Games.jsx                # Game table + playback + inline PGN upload/drag-drop; usable as a guest
+        ├── Repertoire.jsx           # White/Black toggle, auto-build status banner + rebuild control; usable as a guest
+        ├── Analytics.jsx            # Win/loss/draw rates, weakest-lines breakdown, sunburst chart; usable as a guest
+        └── Settings.jsx             # Account info, connected accounts, security, delete account — requires an account
 ```
 
 ## Troubleshooting
@@ -152,3 +153,4 @@ chess-analyzer-web/
 | Frontend can't reach backend | Verify `VITE_API_URL` port matches uvicorn; restart frontend after `.env` changes |
 | Port in use / requests hang | Use `start.ps1` — `uvicorn --reload` spawns two processes; restarting without clearing ports causes conflicts |
 | Email not arriving | Use a Gmail App Password, not your account password |
+| Guest data seems to disappear | Guest identity is a cookie (`guest_id`); clearing cookies or switching browsers loses guest-only data. Register an account to keep it permanently |

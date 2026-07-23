@@ -6,5 +6,4 @@ __pycache__/
 .git
 .gitignore
 test_db.py
-seed_whimsicouls.py
 migrate.py
