@@ -1,8 +1,8 @@
 .navbar {
   display: flex;
   align-items: center;
-  padding: 0 2rem;
-  height: 72px;
+  padding: 0 2.25rem;
+  height: 84px;
   background: rgba(11, 13, 20, 0.85);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid #1e2338;
@@ -21,8 +21,8 @@
 }
 
 .navbar-logo {
-  width: 52px;
-  height: 52px;
+  width: 60px;
+  height: 60px;
   object-fit: contain;
   filter:
     drop-shadow(0 0 8px rgba(201, 168, 76, 0.6))
@@ -38,7 +38,7 @@
 
 .navbar-name {
   font-family: 'Cormorant Garamond', Georgia, serif;
-  font-size: 1.35rem;
+  font-size: 1.55rem;
   font-weight: 700;
   color: #eceffe;
   letter-spacing: 0.01em;
@@ -58,11 +58,11 @@
   color: #5c6180;
   text-decoration: none;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 500;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  padding: 0.4rem 0.8rem;
+  padding: 0.55rem 1rem;
   border-radius: 6px;
   transition: color 0.15s, background 0.15s;
 }
@@ -97,9 +97,9 @@
   border: 1px solid #1e2338;
   color: #5c6180;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 500;
-  padding: 0.3rem 0.7rem;
+  padding: 0.4rem 0.85rem;
   border-radius: 6px;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
@@ -115,11 +115,11 @@
   background: #c9a84c !important;
   color: #0b0d14 !important;
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 0.72rem !important;
+  font-size: 0.8rem !important;
   font-weight: 700 !important;
   letter-spacing: 0.08em !important;
   text-transform: uppercase !important;
-  padding: 0.4rem 0.9rem !important;
+  padding: 0.55rem 1.1rem !important;
   border-radius: 6px !important;
 }
 
