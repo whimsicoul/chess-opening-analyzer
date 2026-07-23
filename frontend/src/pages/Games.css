@@ -5,6 +5,23 @@
   padding-right: 2rem;
 }
 
+/* ── Page header divider — matches Repertoire's gold underline ── */
+.games-page .page-header {
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.10);
+  position: relative;
+}
+
+.games-page .page-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 80px;
+  height: 1px;
+  background: linear-gradient(to right, #c9a84c, transparent);
+}
+
 /* ── Import bar ──────────────────────────────────────────────────────────── */
 .import-bar {
   display: flex;
