@@ -232,21 +232,6 @@
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Bottom glow on hover */
-.feature-card::after {
-  content: '';
-  position: absolute;
-  bottom: -80px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 180px;
-  height: 180px;
-  background: radial-gradient(ellipse, rgba(201, 168, 76, 0.16), transparent 70%);
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-}
-
 .feature-card:hover {
   background: linear-gradient(165deg, rgba(201, 168, 76, 0.09), rgba(255, 255, 255, 0.02) 55%);
   border-color: rgba(201, 168, 76, 0.3);
@@ -256,10 +241,6 @@
 
 .feature-card:hover::before {
   transform: scaleX(1);
-}
-
-.feature-card:hover::after {
-  opacity: 1;
 }
 
 /* ── Ghost number ── */
