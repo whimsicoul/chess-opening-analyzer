@@ -7,6 +7,7 @@ import { woodenPieces } from '../utils/woodenPieces.jsx';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useEngine } from '../hooks/useEngine';
+import MotifPanel from '../components/MotifPanel.jsx';
 import './Repertoire.css';
 
 // Convert a bare SAN moves array into a numbered PGN string: "1. e4 e5 2. Nf3 …"
@@ -226,6 +227,9 @@ export default function Repertoire() {
   const { evalData, evalLoading, evalSource, evalDepth } = useEngine(boardGame, { engineMode, depth: engineDepth, lines: engineLines });
   const [engineHoverFen, setEngineHoverFen] = useState(null);
   const [engineHoverPos, setEngineHoverPos] = useState(null);
+
+  // Right column top-level tab: 'analyze' (Engine + Book) or 'ideas' (MotifPanel)
+  const [rightColTab, setRightColTab] = useState('analyze');
 
   // Opening explorer state
   const [explorerTab,     setExplorerTab]     = useState('masters');
@@ -831,7 +835,7 @@ export default function Repertoire() {
     <main className="page rep-page">
       <div className="page-header rep-page-header">
         <div className="rep-page-header-text">
-          <h1>Repertoire {color === 'white' ? '♔' : '♚'}</h1>
+          <h1>Repertoire</h1>
           <p>Play moves on the board — your lines are saved automatically as you build</p>
         </div>
 
@@ -871,6 +875,26 @@ export default function Repertoire() {
           <PanelResizeHandle className="rep-resize-handle" />
           <Panel defaultSize={41} minSize={15}>
             <div className="rep-right-col">
+            <div className="rep-right-tabs" role="tablist">
+              {[['analyze', 'Analyze'], ['ideas', 'Ideas']].map(([tab, label]) => (
+                <button key={tab} type="button" role="tab" aria-selected={rightColTab === tab}
+                  className={`rep-right-tab${rightColTab === tab ? ' rep-right-tab-active' : ''}`}
+                  onClick={() => setRightColTab(tab)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {rightColTab === 'ideas' && (
+              <MotifPanel
+                fen={boardGame.fen()}
+                color={color}
+                sanPath={allMoves.slice(0, stepIndex)}
+              />
+            )}
+
+            {rightColTab === 'analyze' && (
+            <>
             <div className="engine-panel">
                 <div className="engine-header">
                   <span className="engine-title">
@@ -998,6 +1022,8 @@ export default function Repertoire() {
                   );
                 })()}
               </div>
+            </>
+            )}
 
             <div className="rep-nav-bar">
               <button

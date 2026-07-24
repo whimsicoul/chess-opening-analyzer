@@ -1279,3 +1279,126 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* ── Right-column top-level tabs (Analyze / Ideas) ──────────────────────── */
+
+.rep-right-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.rep-right-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.9rem;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.rep-right-tab:hover { color: #e8dfca; }
+.rep-right-tab-active { color: #c9a84c; border-bottom-color: #c9a84c; }
+
+/* ── Ideas panel (MotifPanel) ────────────────────────────────────────────── */
+
+.motif-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.motif-section {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  position: relative;
+}
+
+.motif-section::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(201,168,76,0.3), transparent);
+}
+
+.motif-section-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.50);
+  margin-bottom: 0.5rem;
+}
+
+.motif-stats-line {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.motif-stats-line strong {
+  color: #e8dfca;
+}
+
+.motif-fact-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.motif-fact-list li::before {
+  content: '· ';
+  color: rgba(201, 168, 76, 0.6);
+}
+
+.motif-plan-block {
+  margin-bottom: 0.6rem;
+}
+
+.motif-plan-block:last-of-type {
+  margin-bottom: 0;
+}
+
+.motif-plan-side {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 0.25rem;
+}
+
+.motif-citation {
+  font-size: 0.68rem;
+  margin: 0.6rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.motif-citation a {
+  color: rgba(201, 168, 76, 0.75);
+  text-decoration: none;
+}
+
+.motif-citation a:hover {
+  text-decoration: underline;
+}
