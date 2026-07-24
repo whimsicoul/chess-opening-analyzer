@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import uvicorn
-from routers import openings, black_openings, games
+from routers import openings, black_openings, games, motifs
 from routers import auth
 from db import get_connection
 
@@ -336,6 +336,35 @@ def _migrate():
                 WHERE guest_id IS NOT NULL
             """)
 
+            # ----------------------------------------------------------------
+            # Repertoire Ideas panel: structural/plans content, cached by
+            # position (FEN) since it's shared across all owners' trees.
+            # ----------------------------------------------------------------
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS motif_cache (
+                    fen              TEXT PRIMARY KEY,
+                    structure        JSONB,
+                    plans            JSONB,
+                    source_citations JSONB,
+                    generated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+
+            # Theory excerpts retrieved from Wikibooks Chess Opening Theory
+            # (CC BY-SA 4.0), keyed by the SAN move-sequence prefix — mirrors
+            # the app's existing move-prefix tree keying, no FEN needed here.
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS theory_excerpts (
+                    san_path      TEXT PRIMARY KEY,
+                    opening_name  TEXT,
+                    excerpt       TEXT,
+                    source_url    TEXT,
+                    source_title  TEXT,
+                    license       TEXT NOT NULL DEFAULT 'CC BY-SA 4.0',
+                    fetched_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+
         conn.commit()
 
 
@@ -361,6 +390,7 @@ app.include_router(auth.router)
 app.include_router(openings.router)
 app.include_router(black_openings.router)
 app.include_router(games.router)
+app.include_router(motifs.router)
 
 
 @app.get("/")

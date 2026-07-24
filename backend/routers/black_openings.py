@@ -1,7 +1,7 @@
 import chess
 import traceback
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from db import get_connection
 from owner_utils import Owner, get_owner
@@ -203,15 +203,17 @@ def get_opening_tree(owner: Owner = Depends(get_owner)):
 # ---------------------------------------------------------------------------
 
 @router.post("/rebuild")
-def rebuild_from_games(owner: Owner = Depends(get_owner)):
+def rebuild_from_games(background_tasks: BackgroundTasks, owner: Owner = Depends(get_owner)):
     """Force a games-based rebuild of the black opening tree. Additive — never
     deletes manually-added lines."""
     from routers.repertoire_builder import build_tree_from_games
+    from motif_cache import precompute_for_owner_tree
 
     with get_connection() as conn:
         with conn.cursor() as cur:
             result = build_tree_from_games(cur, owner, "black")
         conn.commit()
+    background_tasks.add_task(precompute_for_owner_tree, owner, "black")
     return result
 
 

@@ -31,6 +31,7 @@ A personal chess improvement tool that connects to users' game history, tracks a
 - Save lines with name and ECO code
 - Shows an auto-build status banner (last built, games count) with a manual "Rebuild from Games" action
 - Usable without an account (see Guest access below)
+- **Ideas panel** ("Ideas" tab, right column, alongside "Analyze"): for the position currently on the board, shows three visually distinct sections — your stats (computed, e.g. "you play 8...Bd7 (29%), main line is 8...Re8"), structural facts (computed pawn-structure/open-file/outpost classification, no prose), and plans (2-3 bullets per side, LLM-synthesized but grounded in the structural facts plus a retrieved Wikibooks excerpt, with a source citation) — never blended into one narrative, since the three sources carry different reliability. See `backend/motifs.py` (structural classifier), `backend/theory_corpus.py` + `backend/scripts/ingest_theory.py` (Wikibooks CC BY-SA retrieval corpus, run manually), `backend/motif_cache.py` (LLM synthesis + Postgres cache keyed by FEN, shared across all owners), `backend/routers/motifs.py` (`GET /motifs`), and `frontend/src/components/MotifPanel.jsx`. Precomputed in the background after "Rebuild from Games"; generated on-demand and cached for any other position (e.g. manually-added lines, Analytics deep-links). Requires `ANTHROPIC_API_KEY` in backend `.env` — the plans section silently omits itself (stats/structure still show) if unset.
 
 ### Guest access
 - Games, Repertoire, and Analytics all work for anonymous visitors — `backend/owner_utils.py` resolves each request to either a logged-in `user_id` or an anonymous `guest_id` cookie, so most routes don't require auth
@@ -81,6 +82,18 @@ chess-analyzer-web/
 │ # Game upload/import, deviation detection, triggers repertoire auto-build
 │ repertoire_builder.py
 │ # Shared helper (no APIRouter): builds/merges opening trees from a user's stored games
+│ motifs.py
+│ # GET /motifs — Ideas panel: your stats + structural facts + plans for a position
+│
+│ motifs.py (backend/motifs.py, distinct from routers/motifs.py above)
+│ # Deterministic structural classifier (pawn structure, open files, outposts) — pure functions over a FEN
+│ motif_cache.py
+│ # LLM plans synthesis + Postgres cache (motif_cache table, keyed by normalized FEN) + background precompute
+│ theory_corpus.py
+│ # Read-side lookup into theory_excerpts (retrieval by SAN path prefix)
+│ scripts/
+│ ingest_theory.py
+│ # Manually-run scraper: populates theory_excerpts from Wikibooks Chess Opening Theory (CC BY-SA 4.0)
 │
 ├── frontend/
 │ # React frontend code, displays games, repertoire, analytics
@@ -110,6 +123,8 @@ chess-analyzer-web/
 │ # Navigation bar
 │ OpeningSunburst.jsx
 │ # Sunburst chart component
+│ MotifPanel.jsx
+│ # Repertoire "Ideas" tab: stats / structural facts / plans for the current board position
 │ pages/
 │ Home.jsx
 │ # Homepage
@@ -161,3 +176,11 @@ chess-analyzer-web/
 - Lichess Cloud Eval integration may need **API interaction checks**
 - Avoid redundant instructions in code; focus on **efficiency and user experience**
 - `.env` setup must be respected for backend/frontend configuration
+
+## Planned / Not Yet Built
+### Repertoire quiz mode (deferred follow-up to the Ideas panel)
+Once the Ideas panel (stats/structure/plans, see Repertoire above) is live and validated, the next phase is a quiz feature to reinforce what it teaches. Deferred intentionally — build the content layer first, then test recall against it. Options discussed, not yet decided between:
+- **Move recall** — "what does your repertoire play here?" against the user's own saved lines; fully generated from existing tree data, no new content pipeline needed, buildable independently of the rest of this list.
+- **Structural-fact recognition** — "what pawn structure is this?" / "which square is the long-term outpost?", auto-generated from `motifs.classify_structure()` output.
+- **Plan recall** — multiple-choice against the synthesized plan bullets in `motif_cache`; gated on that content existing for a line.
+- **"Beat your own stats" drill** — spaced-repetition-style queue prioritized by `GET /openings/weaknesses` (lowest score first), wrapping any of the above question types.
