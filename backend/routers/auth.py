@@ -3,7 +3,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
 from auth_utils import create_access_token, get_current_user
@@ -82,6 +82,40 @@ _MAX_CODES_PER_HOUR = 5    # caps total guesses at ~25/hour per account
 
 def _generate_code() -> str:
     return str(secrets.randbelow(1_000_000)).zfill(6)
+
+
+_LOGIN_WINDOW = "15 minutes"
+_MAX_FAILED_LOGINS_PER_EMAIL = 10  # stops targeted password guessing on one account
+_MAX_FAILED_LOGINS_PER_IP = 30     # slows one client spraying many accounts
+
+
+def _client_ip(request: Request) -> str | None:
+    """Rightmost X-Forwarded-For entry is the one appended by Railway's edge
+    proxy, so a client can't forge it (the leftmost entries are
+    client-supplied). No header → direct connection (local dev)."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[-1].strip() or None
+    return request.client.host if request.client else None
+
+
+def _check_login_rate_limit(cur, email: str, ip: str | None) -> None:
+    cur.execute(
+        f"""
+        SELECT COUNT(*) FILTER (WHERE email = %s) AS by_email,
+               COUNT(*) FILTER (WHERE ip = %s)    AS by_ip
+        FROM login_attempts
+        WHERE created_at > NOW() - INTERVAL '{_LOGIN_WINDOW}'
+          AND (email = %s OR ip = %s)
+        """,
+        (email, ip, email, ip),
+    )
+    row = cur.fetchone()
+    if row["by_email"] >= _MAX_FAILED_LOGINS_PER_EMAIL or row["by_ip"] >= _MAX_FAILED_LOGINS_PER_IP:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Too many failed login attempts. Please wait 15 minutes and try again.",
+        )
 
 
 def _issue_verification_code(cur, user_id: int) -> str:
@@ -251,17 +285,25 @@ def resend_verification(body: ResendRequest):
 # ---------------------------------------------------------------------------
 
 @router.post("/login")
-def login(body: LoginRequest):
+def login(body: LoginRequest, request: Request):
+    email = body.email.lower()
+    ip = _client_ip(request)
     with get_connection() as conn:
         with conn.cursor() as cur:
+            # Checked before bcrypt so blocked attempts cost no hashing CPU.
+            _check_login_rate_limit(cur, email, ip)
             cur.execute(
                 "SELECT id, username, hashed_password, is_verified FROM users WHERE email = %s",
-                (body.email.lower(),),
+                (email,),
             )
             user = cur.fetchone()
 
-    if user is None or not _check_password(body.password, user["hashed_password"]):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid email or password")
+            if user is None or not _check_password(body.password, user["hashed_password"]):
+                # Recorded for unknown emails too, so the limit can't be
+                # used to probe which emails have accounts.
+                cur.execute("INSERT INTO login_attempts (email, ip) VALUES (%s, %s)", (email, ip))
+                conn.commit()
+                raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid email or password")
 
     if not user["is_verified"]:
         raise HTTPException(
