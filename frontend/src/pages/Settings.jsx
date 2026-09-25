@@ -92,6 +92,10 @@ function ChangeUsernameForm({ onUsernameChanged }) {
 
 function ChangeEmailForm({ onEmailChanged }) {
   const [form, setForm] = useState({ new_email: '', current_password: '' });
+  // Set once a code has been sent to the new address — switches the card to
+  // the confirm step. The email only changes after the code is confirmed.
+  const [pendingEmail, setPendingEmail] = useState(null);
+  const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -108,18 +112,80 @@ function ChangeEmailForm({ onEmailChanged }) {
     setError('');
     setSuccess('');
     try {
-      await api.patch('/auth/email', {
+      const res = await api.patch('/auth/email', {
         current_password: form.current_password,
         new_email: form.new_email,
       });
-      onEmailChanged(form.new_email.toLowerCase());
-      setSuccess('Email updated successfully.');
+      setPendingEmail(res.data.pending_email);
       setForm({ new_email: '', current_password: '' });
     } catch (err) {
       setError(err.response?.data?.detail || 'Something went wrong.');
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleConfirm(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.post('/auth/email/confirm', { code });
+      onEmailChanged(res.data.email);
+      setSuccess('Email updated successfully.');
+      setPendingEmail(null);
+      setCode('');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Something went wrong.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleStartOver() {
+    setPendingEmail(null);
+    setCode('');
+    setError('');
+  }
+
+  if (pendingEmail) {
+    return (
+      <div className="card">
+        <div className="card-label">Change Email</div>
+        {error && <div className="auth-error">{error}</div>}
+        <p className="auth-email-hint">
+          We sent a 6-digit code to <strong>{pendingEmail}</strong>.<br />
+          Your email stays the same until you enter it below.
+        </p>
+        <form onSubmit={handleConfirm}>
+          <div className="auth-field">
+            <label>Verification Code</label>
+            <input
+              className="code-input"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="\d{6}"
+              maxLength={6}
+              placeholder="000000"
+              value={code}
+              onChange={e => { setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setError(''); }}
+              required
+              autoFocus
+            />
+          </div>
+          <button className="auth-submit" type="submit" disabled={loading || code.length < 6}>
+            {loading ? 'Confirming…' : 'Confirm New Email'}
+          </button>
+        </form>
+        <div className="auth-footer">
+          Wrong address or no code?{' '}
+          <button className="auth-link" type="button" onClick={handleStartOver} disabled={loading}>
+            Start over
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -148,7 +214,7 @@ function ChangeEmailForm({ onEmailChanged }) {
           />
         </div>
         <button className="auth-submit" type="submit" disabled={loading}>
-          {loading ? 'Saving…' : 'Update Email'}
+          {loading ? 'Sending code…' : 'Send Verification Code'}
         </button>
       </form>
     </div>
