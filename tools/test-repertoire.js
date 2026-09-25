@@ -5,8 +5,9 @@
 import { chromium } from 'playwright';
 
 const BASE = 'http://localhost:5173';
-const EMAIL    = 'thomasashercoulon@gmail.com';
-const PASSWORD = '***REMOVED***';
+const EMAIL    = process.env.TEST_EMAIL;
+const PASSWORD = process.env.TEST_PASSWORD;
+if (!EMAIL || !PASSWORD) throw new Error('Set TEST_EMAIL and TEST_PASSWORD env vars');
 
 let browser, page;
 let passed = 0;

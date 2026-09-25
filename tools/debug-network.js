@@ -1,8 +1,9 @@
 import { chromium } from 'playwright';
 
 const BASE = 'http://localhost:5173';
-const EMAIL    = 'thomasashercoulon@gmail.com';
-const PASSWORD = '***REMOVED***';
+const EMAIL    = process.env.TEST_EMAIL;
+const PASSWORD = process.env.TEST_PASSWORD;
+if (!EMAIL || !PASSWORD) throw new Error('Set TEST_EMAIL and TEST_PASSWORD env vars');
 
 const browser = await chromium.launch({ headless: true });
 const page    = await browser.newPage();
