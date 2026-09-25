@@ -2,12 +2,24 @@ import os
 import chess
 import requests as http
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel
 from db import get_connection
 from owner_utils import Owner, get_owner
+from rate_limit import RateLimiter, client_ip
 
 router = APIRouter(prefix="/openings", tags=["openings"])
+
+# The Lichess proxies (/eco-lookup, /explorer, /cloud-eval) stay open to
+# guests but are rate-limited per client IP (guests can mint new cookies at
+# will, not new IPs), so nobody can use this server as a free authenticated
+# Lichess proxy and burn LICHESS_TOKEN's rate limit. One shared budget —
+# each board move fires ~2 of these, so 180/min is well above normal use.
+_lichess_limiter = RateLimiter(max_requests=180, window_seconds=60)
+
+
+def _lichess_rate_limit(request: Request) -> None:
+    _lichess_limiter.check(client_ip(request) or "unknown")
 
 
 class OpeningCreate(BaseModel):
@@ -385,7 +397,7 @@ def rebuild_from_games(background_tasks: BackgroundTasks, owner: Owner = Depends
 # GET /openings/eco-lookup
 # ---------------------------------------------------------------------------
 
-@router.get("/eco-lookup")
+@router.get("/eco-lookup", dependencies=[Depends(_lichess_rate_limit)])
 def get_eco_lookup(fen: str):
     """Look up ECO code and opening name for a position via Lichess Opening Explorer."""
     try:
@@ -421,7 +433,20 @@ _HEADERS = {
 }
 
 
-@router.get("/explorer")
+# Values the Lichess explorer accepts — anything else is rejected rather than
+# forwarded, so callers can't smuggle extra query parameters upstream.
+_EXPLORER_RATINGS = {"0", "1000", "1200", "1400", "1600", "1800", "2000", "2200", "2500"}
+_EXPLORER_SPEEDS = {"ultraBullet", "bullet", "blitz", "rapid", "classical", "correspondence"}
+
+
+def _validate_csv(value: str, allowed: set[str], name: str) -> str:
+    items = [v.strip() for v in value.split(",") if v.strip()]
+    if not items or any(v not in allowed for v in items):
+        raise HTTPException(400, f"Invalid {name}; allowed: {', '.join(sorted(allowed))}")
+    return ",".join(items)
+
+
+@router.get("/explorer", dependencies=[Depends(_lichess_rate_limit)])
 def get_explorer(
     fen: str,
     source: str = "masters",
@@ -432,15 +457,16 @@ def get_explorer(
     if source == "masters":
         url = "https://explorer.lichess.ovh/masters"
         params = {"fen": fen, "moves": 10, "topGames": 0, "recentGames": 0}
+    elif source == "lichess":
+        url = "https://explorer.lichess.ovh/lichess"
+        params = {
+            "fen": fen,
+            "ratings": _validate_csv(ratings, _EXPLORER_RATINGS, "ratings"),
+            "speeds": _validate_csv(speeds, _EXPLORER_SPEEDS, "speeds"),
+            "moves": 10, "topGames": 0, "recentGames": 0,
+        }
     else:
-        import urllib.parse
-        url = (
-            f"https://explorer.lichess.ovh/lichess"
-            f"?fen={urllib.parse.quote(fen, safe='')}"
-            f"&ratings={ratings}&speeds={speeds}"
-            f"&moves=10&topGames=0&recentGames=0"
-        )
-        params = None
+        raise HTTPException(400, "source must be 'masters' or 'lichess'")
     try:
         r = http.get(url, params=params, headers=_HEADERS, timeout=6)
         print(f"[explorer] {source} status={r.status_code} url={r.url}")
@@ -470,13 +496,13 @@ def get_explorer(
         return None
 
 
-@router.get("/cloud-eval")
+@router.get("/cloud-eval", dependencies=[Depends(_lichess_rate_limit)])
 def get_cloud_eval(fen: str, multiPv: int = 1):
     """Proxy Lichess Cloud Eval. multiPv up to 8 returns multiple top moves."""
     try:
         r = http.get(
             "https://lichess.org/api/cloud-eval",
-            params={"fen": fen, "multiPv": min(multiPv, 8)},
+            params={"fen": fen, "multiPv": max(1, min(multiPv, 8))},
             headers=_HEADERS,
             timeout=6,
         )
@@ -486,7 +512,7 @@ def get_cloud_eval(fen: str, multiPv: int = 1):
         return r.json()
     except Exception as e:
         print(f"[cloud-eval] failed: {e}")
-        raise HTTPException(status_code=502, detail=f"Cloud eval unreachable: {e}")
+        raise HTTPException(status_code=502, detail="Cloud eval unreachable")
 
 
 # ---------------------------------------------------------------------------
