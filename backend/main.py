@@ -106,6 +106,20 @@ def _migrate():
             # Wrong-guess counter — a code is dead after auth._MAX_VERIFY_ATTEMPTS
             cur.execute("ALTER TABLE email_verifications ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0;")
 
+            # Failed logins, for auth._check_login_rate_limit (15-minute
+            # windows) — anything older than a day is irrelevant, prune it.
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS login_attempts (
+                    id         BIGSERIAL PRIMARY KEY,
+                    email      TEXT NOT NULL,
+                    ip         TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_login_attempts_email_created ON login_attempts (email, created_at)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_login_attempts_ip_created ON login_attempts (ip, created_at)")
+            cur.execute("DELETE FROM login_attempts WHERE created_at < NOW() - INTERVAL '1 day'")
+
             # Games table
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS games (
