@@ -65,6 +65,9 @@ chess-analyzer-web/
 │ email_utils.py
 │ # Email verification sending
 │
+│ body_limit.py
+│ # ASGI middleware capping request body size (5 MB), registered in main.py
+│
 │ rate_limit.py
 │ # Client IP (behind Railway's proxy) + in-process sliding-window RateLimiter; used by /motifs and the Lichess proxies
 │

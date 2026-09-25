@@ -8,6 +8,7 @@ import uvicorn
 from routers import openings, black_openings, games, motifs
 from routers import auth
 from db import get_connection
+from body_limit import BodySizeLimitMiddleware
 
 load_dotenv()
 
@@ -410,6 +411,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Chess Opening Analyzer API", lifespan=lifespan)
+
+# Added before CORS so CORS stays outermost — a 413 still carries CORS
+# headers and the browser shows its message instead of a network error.
+# Real traffic is far smaller: one game per upload, ≤50 games per import.
+app.add_middleware(BodySizeLimitMiddleware, max_bytes=5 * 1024 * 1024)
 
 frontend_url = os.getenv("FRONTEND_URL", "https://chess-opening-analyzer.up.railway.app")
 allowed_origins = [frontend_url, "http://localhost:5173", "http://localhost:4173"]
