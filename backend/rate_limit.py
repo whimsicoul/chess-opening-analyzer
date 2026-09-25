@@ -15,12 +15,14 @@ from fastapi import HTTPException, Request
 
 
 def client_ip(request: Request) -> str | None:
-    """Rightmost X-Forwarded-For entry is the one appended by Railway's edge
-    proxy, so a client can't forge it (the leftmost entries are
-    client-supplied). No header → direct connection (local dev)."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[-1].strip() or None
+    """Railway's edge sets X-Real-IP to the connecting client's address,
+    overwriting any client-supplied value. X-Forwarded-For can't be used: in
+    production its rightmost entry is a proxy hop shared by every request
+    (which made per-IP limits global), and the leftmost entries are
+    client-supplied. No header → direct connection (local dev)."""
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip and real_ip.strip():
+        return real_ip.strip()
     return request.client.host if request.client else None
 
 
