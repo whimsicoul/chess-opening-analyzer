@@ -92,6 +92,9 @@ def _migrate():
             """)
             cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS lichess_username TEXT;")
             cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS chesscom_username TEXT;")
+            # Bumped on password change; JWTs carry it ("tv") so older tokens
+            # stop working — see auth_utils._user_from_token
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;")
 
             # Email verification codes
             cur.execute("""

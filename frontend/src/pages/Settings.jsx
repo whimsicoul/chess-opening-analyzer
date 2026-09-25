@@ -222,6 +222,7 @@ function ChangeEmailForm({ onEmailChanged }) {
 }
 
 function ChangePasswordForm() {
+  const { replaceToken } = useContext(AuthContext);
   const [form, setForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -243,11 +244,13 @@ function ChangePasswordForm() {
     setError('');
     setSuccess('');
     try {
-      await api.patch('/auth/password', {
+      const res = await api.patch('/auth/password', {
         current_password: form.current_password,
         new_password: form.new_password,
       });
-      setSuccess('Password updated successfully.');
+      // The old token is now revoked server-side — keep this tab signed in.
+      replaceToken(res.data.access_token);
+      setSuccess('Password updated. Other devices have been signed out.');
       setForm({ current_password: '', new_password: '', confirm_password: '' });
     } catch (err) {
       setError(err.response?.data?.detail || 'Something went wrong.');

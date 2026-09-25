@@ -299,7 +299,7 @@ def login(body: LoginRequest, request: Request):
             # Checked before bcrypt so blocked attempts cost no hashing CPU.
             _check_login_rate_limit(cur, email, ip)
             cur.execute(
-                "SELECT id, username, hashed_password, is_verified FROM users WHERE email = %s",
+                "SELECT id, username, hashed_password, is_verified, token_version FROM users WHERE email = %s",
                 (email,),
             )
             user = cur.fetchone()
@@ -317,7 +317,7 @@ def login(body: LoginRequest, request: Request):
             "Email not verified. Check your inbox for a verification code.",
         )
 
-    token = create_access_token(user["id"], user["username"])
+    token = create_access_token(user["id"], user["username"], user["token_version"])
     return {"access_token": token, "token_type": "bearer", "username": user["username"]}
 
 
@@ -488,14 +488,22 @@ def change_password(
             if body.current_password == body.new_password:
                 raise HTTPException(400, "New password must differ from current password")
 
+            # Bumping token_version signs out every other session; this one
+            # gets a fresh token below so the user stays logged in here.
             new_hashed = _hash_password(body.new_password)
             cur.execute(
-                "UPDATE users SET hashed_password = %s WHERE id = %s",
+                """
+                UPDATE users SET hashed_password = %s, token_version = token_version + 1
+                WHERE id = %s
+                RETURNING username, token_version
+                """,
                 (new_hashed, current_user["user_id"]),
             )
+            updated = cur.fetchone()
         conn.commit()
 
-    return {"message": "Password updated successfully"}
+    token = create_access_token(current_user["user_id"], updated["username"], updated["token_version"])
+    return {"message": "Password updated. Other sessions have been signed out.", "access_token": token}
 
 
 # ---------------------------------------------------------------------------

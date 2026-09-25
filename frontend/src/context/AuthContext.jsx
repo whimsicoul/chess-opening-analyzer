@@ -34,6 +34,13 @@ export function AuthProvider({ children }) {
     setUser({ user_id: payload ? parseInt(payload.sub) : null, username });
   }, []);
 
+  // Swap in a reissued token (e.g. after a password change revokes the old
+  // one), keeping whichever storage the session already uses.
+  const replaceToken = useCallback((token) => {
+    const storage = localStorage.getItem('chess_token') ? localStorage : sessionStorage;
+    storage.setItem('chess_token', token);
+  }, []);
+
   const updateUser = useCallback((fields) => {
     setUser(prev => prev ? { ...prev, ...fields } : prev);
   }, []);
@@ -65,7 +72,7 @@ export function AuthProvider({ children }) {
   }, [logout]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, replaceToken, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );
