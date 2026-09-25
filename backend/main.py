@@ -349,6 +349,23 @@ def _migrate():
                     generated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
             """)
+            # Empty-plans rows were cached before a missing API key / failed
+            # LLM call stopped being persisted — clear them so those
+            # positions get retried on the next rebuild.
+            cur.execute("DELETE FROM motif_cache WHERE plans = '[]'::jsonb")
+
+            # One row per actual LLM call, for the rolling 24h spend ceiling
+            # in motif_cache._check_generation_budget. No FK on user_id so a
+            # deleted account's calls still count toward the global cap.
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS motif_generation_log (
+                    id         BIGSERIAL PRIMARY KEY,
+                    user_id    INTEGER NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_motif_gen_log_created ON motif_generation_log (created_at)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_motif_gen_log_user_created ON motif_generation_log (user_id, created_at)")
 
             # Theory excerpts retrieved from Wikibooks Chess Opening Theory
             # (CC BY-SA 4.0), keyed by the SAN move-sequence prefix — mirrors

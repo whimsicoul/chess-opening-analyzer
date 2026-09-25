@@ -13,6 +13,32 @@ from theory_corpus import lookup_theory
 
 _ANTHROPIC_MODEL = "claude-sonnet-5"
 
+# Hard ceiling on LLM calls over a rolling 24h window, counted from
+# motif_generation_log. The global cap is the real bill protection (it holds
+# even if someone registers many accounts); the per-user cap stops one
+# account from using up the global budget for everyone else.
+_DAILY_CAP_PER_USER = int(os.getenv("MOTIF_DAILY_CAP_PER_USER", 200))
+_DAILY_CAP_GLOBAL = int(os.getenv("MOTIF_DAILY_CAP_GLOBAL", 1000))
+
+
+class GenerationBudgetExceeded(Exception):
+    """Raised when the rolling 24h LLM-call ceiling is reached."""
+
+
+def _check_generation_budget(cur, user_id: int) -> None:
+    cur.execute(
+        """
+        SELECT COUNT(*) AS total,
+               COUNT(*) FILTER (WHERE user_id = %s) AS mine
+        FROM motif_generation_log
+        WHERE created_at > NOW() - INTERVAL '24 hours'
+        """,
+        (user_id,),
+    )
+    row = cur.fetchone()
+    if row["total"] >= _DAILY_CAP_GLOBAL or row["mine"] >= _DAILY_CAP_PER_USER:
+        raise GenerationBudgetExceeded()
+
 
 def san_path_to_fen(san_path: list[str]) -> str:
     """Replay a SAN move sequence from the starting position to its
@@ -88,7 +114,15 @@ def precompute_for_owner_tree(owner, color: str):
     Ideas panel is instant when the user opens it. Runs after the triggering
     request has already returned (see routers/openings.py & black_openings.py
     /rebuild endpoints), so it opens its own DB connection rather than
-    reusing the request's cursor."""
+    reusing the request's cursor.
+
+    Accounts only: this is the sole path that calls the LLM, and guests are
+    free to mint cookies and upload arbitrary PGNs, so a guest tree never
+    triggers generation. Guests still see any plans already cached for a
+    position (the cache is shared across owners), plus stats + structure."""
+    if owner.user_id is None:
+        return
+
     from db import get_connection
 
     tree_table = "white_opening_tree" if color == "white" else "black_opening_tree"
@@ -126,8 +160,13 @@ def precompute_for_owner_tree(owner, color: str):
                         continue
                     seen_fens.add(key)
 
-                    get_or_generate_motifs(fen, path, cur)
+                    get_or_generate_motifs(fen, path, cur, owner.user_id)
                     conn.commit()
+                except GenerationBudgetExceeded:
+                    # Remaining positions stay uncached and get picked up
+                    # by a later rebuild once the 24h window frees up.
+                    conn.rollback()
+                    return
                 except Exception:
                     # A single bad/illegal-move node shouldn't abort the
                     # whole precompute pass — every other node still benefits.
@@ -160,7 +199,7 @@ def get_cached_motifs(fen: str, cur) -> dict:
     return {"structure": classify_structure(fen), "plans": [], "source_citations": []}
 
 
-def get_or_generate_motifs(fen: str, san_path: list[str], cur) -> dict:
+def get_or_generate_motifs(fen: str, san_path: list[str], cur, user_id: int) -> dict:
     """Look up cached structure/plans for a position, generating and
     persisting them on a cache miss. Calls the LLM on a miss — reserved for
     the background precompute pass (precompute_for_owner_tree); the live
@@ -174,7 +213,14 @@ def get_or_generate_motifs(fen: str, san_path: list[str], cur) -> dict:
     transposition of a position it already processed) can't both see a
     cache miss and both call the LLM. The lock auto-releases at commit/
     rollback, matching this function's existing per-call transaction
-    boundary — it never spans the caller's loop."""
+    boundary — it never spans the caller's loop.
+
+    Before calling the LLM, enforces the rolling 24h ceiling (raises
+    GenerationBudgetExceeded) and logs the call against `user_id`. Only
+    non-empty plans are cached: a missing API key or failed call returns
+    structure-only without persisting, so the position is retried later
+    instead of being stuck empty. Concurrent runs can overshoot the caps by
+    at most one call each — the budget check isn't serialized."""
     key = normalize_fen(fen)
     cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (key,))
 
@@ -183,8 +229,17 @@ def get_or_generate_motifs(fen: str, san_path: list[str], cur) -> dict:
         return cached
 
     structure = classify_structure(fen)
+    uncached = {"structure": structure, "plans": [], "source_citations": []}
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        return uncached
+
+    _check_generation_budget(cur, user_id)
+    cur.execute("INSERT INTO motif_generation_log (user_id) VALUES (%s)", (user_id,))
+
     theory = lookup_theory(san_path, cur)
     plans, citations = _synthesize_plans(structure, theory)
+    if not plans:
+        return uncached
 
     cur.execute(
         """
