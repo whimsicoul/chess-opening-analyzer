@@ -1,11 +1,26 @@
 import hashlib
 import io
 import re
-from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, UploadFile, File, Form
 from pydantic import BaseModel
 import chess.pgn
 from db import get_connection
 from owner_utils import Owner, get_owner
+from rate_limit import RateLimiter, client_ip
+
+# Upload/import limits (main.py also caps every request body at 5 MB). Only
+# the first game in a PGN is read, and a real game is a few KB even with
+# clock/eval comments, so 1 MB is generous. The frontend imports ≤50 games.
+MAX_PGN_BYTES = 1024 * 1024
+MAX_IMPORT_GAMES = 100
+
+# Each upload/import rebuilds the owner's repertoire tree, so bound how often
+# one client can trigger that. Per IP, since guests can mint new cookies.
+_upload_limiter = RateLimiter(max_requests=30, window_seconds=60)
+
+
+def _upload_rate_limit(request: Request) -> None:
+    _upload_limiter.check(client_ip(request) or "unknown")
 
 
 def _pgn_tag(pgn_text: str, tag: str) -> str | None:
@@ -247,7 +262,7 @@ def _process_pgn(cur, pgn_text: str, username: str | None, owner: Owner) -> dict
 # POST /games/upload
 # ---------------------------------------------------------------------------
 
-@router.post("/upload")
+@router.post("/upload", dependencies=[Depends(_upload_rate_limit)])
 async def upload_game(
     file: UploadFile = File(...),
     username: str = Form(None),
@@ -256,7 +271,10 @@ async def upload_game(
 ):
     from routers.repertoire_builder import build_tree_from_games
 
-    pgn_text = (await file.read()).decode("utf-8", errors="replace")
+    raw = await file.read(MAX_PGN_BYTES + 1)
+    if len(raw) > MAX_PGN_BYTES:
+        raise HTTPException(413, "PGN file too large (max 1 MB)")
+    pgn_text = raw.decode("utf-8", errors="replace")
     with get_connection() as conn:
         with conn.cursor() as cur:
             result = _process_pgn(cur, pgn_text, username, owner)
@@ -280,9 +298,12 @@ class ImportRequest(BaseModel):
     username: str | None = None
 
 
-@router.post("/import", status_code=201)
+@router.post("/import", status_code=201, dependencies=[Depends(_upload_rate_limit)])
 def import_games(payload: ImportRequest, owner: Owner = Depends(get_owner)):
     from routers.repertoire_builder import build_tree_from_games
+
+    if len(payload.pgns) > MAX_IMPORT_GAMES:
+        raise HTTPException(413, f"Too many games in one import (max {MAX_IMPORT_GAMES})")
 
     imported = 0
     duplicates = 0
@@ -291,6 +312,9 @@ def import_games(payload: ImportRequest, owner: Owner = Depends(get_owner)):
     with get_connection() as conn:
         with conn.cursor() as cur:
             for i, pgn_text in enumerate(payload.pgns):
+                if len(pgn_text.encode("utf-8")) > MAX_PGN_BYTES:
+                    errors.append({"index": i, "message": "PGN too large (max 1 MB)"})
+                    continue
                 try:
                     result = _process_pgn(cur, pgn_text, payload.username, owner)
                     if result.get("skipped"):
@@ -365,7 +389,7 @@ def get_games(owner: Owner = Depends(get_owner)):
 # POST /games/reprocess
 # ---------------------------------------------------------------------------
 
-@router.post("/reprocess")
+@router.post("/reprocess", dependencies=[Depends(_upload_rate_limit)])
 def reprocess_deviations(owner: Owner = Depends(get_owner)):
     """Re-detect deviations for all user games using the current opening repertoire."""
     reprocessed = 0

@@ -219,6 +219,14 @@ function UploadSection({ onGameAnalyzed }) {
 
   function pickFile(f) {
     if (f && (f.name.endsWith('.pgn') || f.type === 'text/plain')) {
+      // Mirrors the backend's MAX_PGN_BYTES in routers/games.py
+      if (f.size > 1024 * 1024) {
+        setFile(null);
+        setResult(null);
+        setPgnText(null);
+        setError('PGN file too large (max 1 MB).');
+        return;
+      }
       setFile(f);
       setResult(null);
       setError(null);
