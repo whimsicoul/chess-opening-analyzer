@@ -103,6 +103,8 @@ def _migrate():
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
             """)
+            # Wrong-guess counter — a code is dead after auth._MAX_VERIFY_ATTEMPTS
+            cur.execute("ALTER TABLE email_verifications ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0;")
 
             # Games table
             cur.execute("""
