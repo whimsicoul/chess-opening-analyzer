@@ -105,6 +105,8 @@ def _migrate():
             """)
             # Wrong-guess counter — a code is dead after auth._MAX_VERIFY_ATTEMPTS
             cur.execute("ALTER TABLE email_verifications ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0;")
+            # Set = an email-change code for this pending address; NULL = signup code
+            cur.execute("ALTER TABLE email_verifications ADD COLUMN IF NOT EXISTS new_email TEXT;")
 
             # Failed logins, for auth._check_login_rate_limit (15-minute
             # windows) — anything older than a day is irrelevant, prune it.
