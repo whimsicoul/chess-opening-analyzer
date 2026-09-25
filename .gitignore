@@ -50,3 +50,6 @@ desktop.ini
 # Claude Code (local, may contain secrets)
 # ========================
 .claude/settings.local.json
+
+# Personal notes
+StatusReport.md
