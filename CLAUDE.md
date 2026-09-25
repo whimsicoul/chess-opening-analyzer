@@ -65,6 +65,9 @@ chess-analyzer-web/
 │ email_utils.py
 │ # Email verification sending
 │
+│ rate_limit.py
+│ # Client IP (behind Railway's proxy) + in-process sliding-window RateLimiter; used by /motifs and the Lichess proxies
+│
 │ migrate.py
 │ # Manual schema migration runner (main.py also runs migrations automatically on startup)
 │

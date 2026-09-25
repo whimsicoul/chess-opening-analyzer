@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from auth_utils import create_access_token, get_current_user
 from db import get_connection
 from email_utils import send_verification_email
+from rate_limit import client_ip
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -91,16 +92,6 @@ def _generate_code() -> str:
 _LOGIN_WINDOW = "15 minutes"
 _MAX_FAILED_LOGINS_PER_EMAIL = 10  # stops targeted password guessing on one account
 _MAX_FAILED_LOGINS_PER_IP = 30     # slows one client spraying many accounts
-
-
-def _client_ip(request: Request) -> str | None:
-    """Rightmost X-Forwarded-For entry is the one appended by Railway's edge
-    proxy, so a client can't forge it (the leftmost entries are
-    client-supplied). No header → direct connection (local dev)."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[-1].strip() or None
-    return request.client.host if request.client else None
 
 
 def _check_login_rate_limit(cur, email: str, ip: str | None) -> None:
@@ -302,7 +293,7 @@ def resend_verification(body: ResendRequest):
 @router.post("/login")
 def login(body: LoginRequest, request: Request):
     email = body.email.lower()
-    ip = _client_ip(request)
+    ip = client_ip(request)
     with get_connection() as conn:
         with conn.cursor() as cur:
             # Checked before bcrypt so blocked attempts cost no hashing CPU.
