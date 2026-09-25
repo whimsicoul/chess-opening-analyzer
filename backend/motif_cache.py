@@ -102,6 +102,15 @@ def precompute_for_owner_tree(owner, color: str):
             rows = cur.fetchall()
             by_id = {r["id"]: r for r in rows}
 
+            # Different tree nodes can transpose to the same position (e.g.
+            # a sub-line reached via more than one move order). Dedupe by
+            # FEN within this walk so a transposition only ever looks up/
+            # generates once per run, instead of once per node that reaches
+            # it — get_or_generate_motifs' advisory lock still protects
+            # against a *second, concurrent* precompute run, but there's no
+            # reason to pay even a cache-hit round-trip twice in one pass.
+            seen_fens: set[str] = set()
+
             for row in rows:
                 path = []
                 current = row
@@ -112,6 +121,11 @@ def precompute_for_owner_tree(owner, color: str):
 
                 try:
                     fen = san_path_to_fen(path)
+                    key = normalize_fen(fen)
+                    if key in seen_fens:
+                        continue
+                    seen_fens.add(key)
+
                     get_or_generate_motifs(fen, path, cur)
                     conn.commit()
                 except Exception:
@@ -120,21 +134,53 @@ def precompute_for_owner_tree(owner, color: str):
                     conn.rollback()
 
 
-def get_or_generate_motifs(fen: str, san_path: list[str], cur) -> dict:
-    """Look up cached structure/plans for a position, generating and
-    persisting them on a cache miss. `cur` is an open DB cursor (caller
-    manages the transaction/commit, matching every other router in this
-    codebase)."""
+def _lookup_cached_motifs(fen: str, cur) -> dict | None:
     key = normalize_fen(fen)
-
     cur.execute("SELECT structure, plans, source_citations FROM motif_cache WHERE fen = %s", (key,))
     row = cur.fetchone()
-    if row:
-        return {
-            "structure": row["structure"],
-            "plans": row["plans"],
-            "source_citations": row["source_citations"],
-        }
+    if not row:
+        return None
+    return {
+        "structure": row["structure"],
+        "plans": row["plans"],
+        "source_citations": row["source_citations"],
+    }
+
+
+def get_cached_motifs(fen: str, cur) -> dict:
+    """Read-only lookup for the live /motifs endpoint: never calls the LLM.
+    Structure is deterministic and cheap, so it's always computed fresh on a
+    cache miss; plans/citations (the LLM-synthesized part) are cache-only —
+    they only get populated by the background precompute pass
+    (precompute_for_owner_tree), so a stream of novel on-demand FEN requests
+    can't run up LLM spend. See CLAUDE.md 'Repertoire -> Ideas panel'."""
+    cached = _lookup_cached_motifs(fen, cur)
+    if cached:
+        return cached
+    return {"structure": classify_structure(fen), "plans": [], "source_citations": []}
+
+
+def get_or_generate_motifs(fen: str, san_path: list[str], cur) -> dict:
+    """Look up cached structure/plans for a position, generating and
+    persisting them on a cache miss. Calls the LLM on a miss — reserved for
+    the background precompute pass (precompute_for_owner_tree); the live
+    endpoint uses get_cached_motifs instead so on-demand requests can't
+    trigger LLM spend. `cur` is an open DB cursor (caller manages the
+    transaction/commit, matching every other router in this codebase).
+
+    Takes a transaction-scoped Postgres advisory lock on the FEN before
+    checking the cache, so two concurrent callers for the same position
+    (e.g. two precompute runs racing, or a precompute run overlapping a
+    transposition of a position it already processed) can't both see a
+    cache miss and both call the LLM. The lock auto-releases at commit/
+    rollback, matching this function's existing per-call transaction
+    boundary — it never spans the caller's loop."""
+    key = normalize_fen(fen)
+    cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (key,))
+
+    cached = _lookup_cached_motifs(fen, cur)
+    if cached:
+        return cached
 
     structure = classify_structure(fen)
     theory = lookup_theory(san_path, cur)

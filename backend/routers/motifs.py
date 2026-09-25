@@ -1,16 +1,48 @@
 """Repertoire 'Ideas' panel: your stats + structural facts + retrieved/
 synthesized plans for a given position. See CLAUDE.md 'Repertoire -> Ideas
 panel' and motif_cache.py for the caching/generation pipeline.
+
+Plans are LLM-synthesized (see motif_cache._synthesize_plans) and cost real
+money per call. To keep that spend bounded and predictable, this endpoint
+never triggers generation itself — it only reads whatever the background
+"Rebuild from Games" precompute pass has already cached
+(motif_cache.precompute_for_owner_tree). An uncached position still returns
+structure (cheap, deterministic) with empty plans rather than erroring, so
+the panel degrades gracefully instead of silently costing money on every
+novel FEN a client can request.
 """
+
+import time
+from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from db import get_connection
 from owner_utils import Owner, get_owner
-from motif_cache import get_or_generate_motifs, san_path_to_fen
+from motif_cache import get_cached_motifs, san_path_to_fen
 from routers.openings import _compute_winrates, _reconstruct_path
 
 router = APIRouter(prefix="/motifs", tags=["motifs"])
+
+# Simple in-process rate limit, keyed by owner. Defense-in-depth alongside
+# the precompute-only restriction above: bounds how fast any single
+# user/guest can hammer this (or a future on-demand-generation) endpoint.
+# In-process is fine for this project's single-instance Railway deploy; a
+# multi-instance deploy would need a shared store (e.g. Redis) instead.
+_RATE_LIMIT_MAX_REQUESTS = 30
+_RATE_LIMIT_WINDOW_SECONDS = 60
+_request_log: dict[str, list[float]] = defaultdict(list)
+
+
+def _check_rate_limit(owner: Owner) -> None:
+    key = f"{owner.column}:{owner.value}"
+    now = time.monotonic()
+    window_start = now - _RATE_LIMIT_WINDOW_SECONDS
+    recent = [t for t in _request_log[key] if t > window_start]
+    if len(recent) >= _RATE_LIMIT_MAX_REQUESTS:
+        raise HTTPException(status_code=429, detail="Too many requests — please slow down")
+    recent.append(now)
+    _request_log[key] = recent
 
 
 def _stats_for_path(cur, owner: Owner, color: str, san_path: list[str]) -> dict | None:
@@ -64,11 +96,13 @@ def get_motifs(fen: str, color: str, path: str = "", owner: Owner = Depends(get_
     if color not in ("white", "black"):
         raise HTTPException(status_code=400, detail="color must be 'white' or 'black'")
 
+    _check_rate_limit(owner)
+
     san_path = path.split() if path else []
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            motifs = get_or_generate_motifs(fen, san_path, cur)
+            motifs = get_cached_motifs(fen, cur)
             your_stats = _stats_for_path(cur, owner, color, san_path)
         conn.commit()
 
