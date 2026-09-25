@@ -76,8 +76,29 @@ def _check_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
 
+_MAX_VERIFY_ATTEMPTS = 5   # wrong guesses allowed per code before it's dead
+_MAX_CODES_PER_HOUR = 5    # caps total guesses at ~25/hour per account
+
+
 def _generate_code() -> str:
     return str(secrets.randbelow(1_000_000)).zfill(6)
+
+
+def _issue_verification_code(cur, user_id: int) -> str:
+    """Invalidate any outstanding codes for this user, then create a fresh
+    one — only the newest code is ever valid, so resends don't multiply the
+    number of guessable codes."""
+    cur.execute(
+        "UPDATE email_verifications SET used = TRUE WHERE user_id = %s AND used = FALSE",
+        (user_id,),
+    )
+    code = _generate_code()
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+    cur.execute(
+        "INSERT INTO email_verifications (user_id, code, expires_at) VALUES (%s, %s, %s)",
+        (user_id, code, expires_at),
+    )
+    return code
 
 
 # ---------------------------------------------------------------------------
@@ -115,15 +136,7 @@ def register(body: RegisterRequest):
             )
             user_id = cur.fetchone()["id"]
 
-            code = _generate_code()
-            expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
-            cur.execute(
-                """
-                INSERT INTO email_verifications (user_id, code, expires_at)
-                VALUES (%s, %s, %s)
-                """,
-                (user_id, code, expires_at),
-            )
+            code = _issue_verification_code(cur, user_id)
         conn.commit()
 
     try:
@@ -146,25 +159,39 @@ def register(body: RegisterRequest):
 
 @router.post("/verify-email")
 def verify_email(body: VerifyRequest):
+    invalid = HTTPException(400, "Invalid or expired verification code")
     with get_connection() as conn:
         with conn.cursor() as cur:
+            # Only the newest outstanding code counts (older ones are
+            # invalidated on issue). FOR UPDATE serializes concurrent guesses
+            # so parallel requests can't slip past the attempt limit.
             cur.execute(
                 """
-                SELECT ev.id, ev.user_id, ev.expires_at
+                SELECT ev.id, ev.user_id, ev.code, ev.attempts
                 FROM email_verifications ev
                 JOIN users u ON u.id = ev.user_id
                 WHERE u.email = %s
-                  AND ev.code = %s
                   AND ev.used = FALSE
                   AND ev.expires_at > NOW()
                 ORDER BY ev.id DESC
                 LIMIT 1
+                FOR UPDATE OF ev
                 """,
-                (body.email.lower(), body.code),
+                (body.email.lower(),),
             )
             row = cur.fetchone()
             if row is None:
-                raise HTTPException(400, "Invalid or expired verification code")
+                raise invalid
+            if row["attempts"] >= _MAX_VERIFY_ATTEMPTS:
+                raise HTTPException(400, "Too many incorrect attempts. Please request a new code.")
+
+            if not secrets.compare_digest(row["code"].encode(), body.code.strip().encode()):
+                cur.execute(
+                    "UPDATE email_verifications SET attempts = attempts + 1 WHERE id = %s",
+                    (row["id"],),
+                )
+                conn.commit()
+                raise invalid
 
             cur.execute("UPDATE email_verifications SET used = TRUE WHERE id = %s", (row["id"],))
             cur.execute("UPDATE users SET is_verified = TRUE WHERE id = %s", (row["user_id"],))
@@ -192,30 +219,23 @@ def resend_verification(body: ResendRequest):
             if user["is_verified"]:
                 raise HTTPException(400, "Account is already verified")
 
-            # Rate-limit: reject if a code was sent within the last 60 seconds
+            # Rate-limit: one code per 60 seconds, and at most
+            # _MAX_CODES_PER_HOUR per hour — each code allows
+            # _MAX_VERIFY_ATTEMPTS guesses, so this bounds total guesses.
             cur.execute(
                 """
-                SELECT created_at FROM email_verifications
-                WHERE user_id = %s
-                ORDER BY id DESC LIMIT 1
+                SELECT COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '60 seconds') AS last_minute,
+                       COUNT(*) AS last_hour
+                FROM email_verifications
+                WHERE user_id = %s AND created_at > NOW() - INTERVAL '1 hour'
                 """,
                 (user["id"],),
             )
-            last = cur.fetchone()
-            if last:
-                age = datetime.now(timezone.utc) - last["created_at"].replace(tzinfo=timezone.utc)
-                if age.total_seconds() < 60:
-                    raise HTTPException(429, "Please wait before requesting another code")
+            recent = cur.fetchone()
+            if recent["last_minute"] > 0 or recent["last_hour"] >= _MAX_CODES_PER_HOUR:
+                raise HTTPException(429, "Please wait before requesting another code")
 
-            code = _generate_code()
-            expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
-            cur.execute(
-                """
-                INSERT INTO email_verifications (user_id, code, expires_at)
-                VALUES (%s, %s, %s)
-                """,
-                (user["id"], code, expires_at),
-            )
+            code = _issue_verification_code(cur, user["id"])
         conn.commit()
 
     try:
